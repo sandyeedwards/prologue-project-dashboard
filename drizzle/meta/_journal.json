@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1784660315874,
+      "tag": "0000_jittery_korath",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784663001922,
+      "tag": "0001_silent_skaar",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784732047213,
+      "tag": "0002_step7_calculation_engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784735432716,
+      "tag": "0003_expand_estimate_consumption",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784737232786,
+      "tag": "0004_step8_auth_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784755648745,
+      "tag": "0005_step9_unplanned_roles",
+      "breakpoints": true
+    }
+  ]
+}
