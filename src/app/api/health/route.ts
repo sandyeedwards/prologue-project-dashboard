@@ -7,13 +7,8 @@ export function GET() {
     {
       status: "ok",
       service: "prologue-project-dashboard",
-      version: process.env.npm_package_version ?? "0.1.0",
       timestamp: new Date().toISOString(),
     },
-    {
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    },
+    { status: 200 },
   );
 }
