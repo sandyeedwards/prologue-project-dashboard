@@ -1,91 +1,91 @@
-\# Step 11 Completion Checklist
+# Step 11 Completion Checklist
 
-\## Source Control
+## Source Control
 
-\- \[x] Private GitHub repository established.
+- [x] Private GitHub repository established.
 
-\- \[x] `develop` is the integration branch.
+- [x] `develop` is the integration branch.
 
-\- \[x] `main` is reserved for production releases.
+- [x] `main` is reserved for production releases.
 
-\- \[x] Feature work is performed in feature branches.
+- [x] Feature work is performed in feature branches.
 
-\- \[x] GitHub Actions runs validation for `develop` and `main`.
+- [x] GitHub Actions runs validation for `develop` and `main`.
 
-\## Environment Configuration
+## Environment Configuration
 
-\- \[x] Local `.env` is excluded from Git.
+- [x] Local `.env` is excluded from Git.
 
-\- \[x] Sanitized `.env.example` is tracked.
+- [x] Sanitized `.env.example` is tracked.
 
-\- \[x] Required environment variables are validated.
+- [x] Required environment variables are validated.
 
-\- \[x] Runtime database traffic uses `DATABASE\_URL`.
+- [x] Runtime database traffic uses `DATABASE_URL`.
 
-\- \[x] Database migrations prefer `DIRECT\_DATABASE\_URL`.
+- [x] Database migrations prefer `DIRECT_DATABASE_URL`.
 
-\- \[x] Hard-coded migration database fallback was removed.
+- [x] Hard-coded migration database fallback was removed.
 
-\- \[x] Staging and production secrets will remain separate.
+- [x] Staging and production secrets will remain separate.
 
-\## Application Hosting
+## Application Hosting
 
-\- \[x] Render selected for application hosting.
+- [x] Render selected for application hosting.
 
-\- \[x] Neon selected for hosted PostgreSQL.
+- [x] Neon selected for hosted PostgreSQL.
 
-\- \[x] Staging service uses the `develop` branch.
+- [x] Staging service uses the `develop` branch.
 
-\- \[x] Production service uses the `main` branch.
+- [x] Production service uses the `main` branch.
 
-\- \[x] Production automatic deployment remains disabled initially.
+- [x] Production automatic deployment remains disabled initially.
 
-\- \[x] Render Blueprint configuration is tracked in `render.yaml`.
+- [x] Render Blueprint configuration is tracked in `render.yaml`.
 
-\- \[x] Application health endpoint is available at `/api/health`.
+- [x] Application health endpoint is available at `/api/health`.
 
-\## Staging Preparation
+## Staging Preparation
 
-\- \[ ] Create the Neon project.
+- [ ] Create the Neon project.
 
-\- \[ ] Create separate staging and production database environments.
+- [ ] Create separate staging and production database environments.
 
-\- \[ ] Create the Render Blueprint.
+- [ ] Create the Render Blueprint.
 
-\- \[ ] Add staging environment variables in Render.
+- [ ] Add staging environment variables in Render.
 
-\- \[ ] Run database migrations against the staging database.
+- [ ] Run database migrations against the staging database.
 
-\- \[ ] Deploy the staging web service.
+- [ ] Deploy the staging web service.
 
-\- \[ ] Configure the staging Teamwork OAuth callback.
+- [ ] Configure the staging Teamwork OAuth callback.
 
-\- \[ ] Validate staging authentication and reporting.
+- [ ] Validate staging authentication and reporting.
 
-\## Production Preparation
+## Production Preparation
 
-\- \[ ] Add production environment variables in Render.
+- [ ] Add production environment variables in Render.
 
-\- \[ ] Run database migrations against the production database.
+- [ ] Run database migrations against the production database.
 
-\- \[ ] Configure `dashboard.prologuesystems.com`.
+- [ ] Configure `dashboard.prologuesystems.com`.
 
-\- \[ ] Configure the production Teamwork OAuth callback.
+- [ ] Configure the production Teamwork OAuth callback.
 
-\- \[ ] Validate backups and recovery procedures.
+- [ ] Validate backups and recovery procedures.
 
-\- \[ ] Enable production deployment only after staging approval.
+- [ ] Enable production deployment only after staging approval.
 
-\## Step 11 Exit Criteria
+## Step 11 Exit Criteria
 
 Step 11 is complete when:
 
-1\. All tracked architecture and environment changes pass CI.
+1. All tracked architecture and environment changes pass CI.
 
-2\. The feature branch is merged into `develop`.
+2. The feature branch is merged into `develop`.
 
-3\. The staging and production architecture is documented.
+3. The staging and production architecture is documented.
 
-4\. No real credentials are committed.
+4. No real credentials are committed.
 
-5\. Step 12 can begin with creation of the hosted staging environment.
+5. Step 12 can begin with creation of the hosted staging environment.
