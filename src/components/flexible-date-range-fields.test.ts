@@ -16,12 +16,9 @@ describe("parseFlexibleDateInput", () => {
     expect(parseFlexibleDateInput("")).toEqual({ iso: "", display: "" });
   });
 
-  it.each(["2/30/24", "13/1/24", "4.4.24", "4/4", "not a date"])(
-    "rejects %s",
-    (input) => {
-      expect(parseFlexibleDateInput(input)).toBeNull();
-    },
-  );
+  it.each(["2/30/24", "13/1/24", "4.4.24", "4/4", "not a date"])("rejects %s", (input) => {
+    expect(parseFlexibleDateInput(input)).toBeNull();
+  });
 
   it("supports leap-day validation", () => {
     expect(parseFlexibleDateInput("2/29/24")).toEqual({

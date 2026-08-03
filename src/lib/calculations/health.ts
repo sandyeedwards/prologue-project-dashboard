@@ -60,10 +60,8 @@ export function calculateHealth(input: HealthInput): HealthResult {
   const healthScore =
     financialScore === null || availableWeight < 0.75
       ? null
-      : components.reduce(
-          (sum, component) => sum + (component.value ?? 0) * component.weight,
-          0,
-        ) / availableWeight;
+      : components.reduce((sum, component) => sum + (component.value ?? 0) * component.weight, 0) /
+        availableWeight;
 
   const overrides: string[] = [];
   const pastDue = end !== null && now > end;
@@ -71,7 +69,8 @@ export function calculateHealth(input: HealthInput): HealthResult {
     overrides.push("NEGATIVE_FORECAST_MARGIN");
   }
   if (pastDue && input.progressPercent < 80) overrides.push("MATERIAL_INCOMPLETION_PAST_DUE");
-  if (input.completenessScore < 25 && financialScore !== null) overrides.push("SEVERE_MISSING_DATA");
+  if (input.completenessScore < 25 && financialScore !== null)
+    overrides.push("SEVERE_MISSING_DATA");
 
   let healthBand: HealthResult["healthBand"];
   if (healthScore === null) healthBand = "GRAY";

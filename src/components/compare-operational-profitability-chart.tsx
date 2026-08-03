@@ -107,7 +107,6 @@ function resolvePosition(position: ComparedProfitabilityPosition): ResolvedPosit
   };
 }
 
-
 function compareProjects(
   left: ComparedProjectOperationalGroups,
   right: ComparedProjectOperationalGroups,
@@ -126,7 +125,10 @@ function compareProjects(
   return a.forecastProfit - b.forecastProfit;
 }
 
-function performanceStatus(position: ResolvedPosition): { label: string; tone: "good" | "watch" | "loss" } {
+function performanceStatus(position: ResolvedPosition): {
+  label: string;
+  tone: "good" | "watch" | "loss";
+} {
   if (position.forecastProfit < 0) return { label: "Over budget", tone: "loss" };
   if (position.marginPercent < 10) return { label: "Low margin", tone: "watch" };
   if (position.allocatedRevenue > 0 && position.remainingCost / position.allocatedRevenue > 0.35) {
@@ -181,21 +183,39 @@ function rowAriaLabel(row: DisplayPosition): string {
   ].join(" ");
 }
 
-function ComparisonRow({ row, maximumOverrunRatio }: { row: DisplayPosition; maximumOverrunRatio: number }) {
+function ComparisonRow({
+  row,
+  maximumOverrunRatio,
+}: {
+  row: DisplayPosition;
+  maximumOverrunRatio: number;
+}) {
   const tooltipId = useId();
   const barCellRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
 
   if (row.isMissing) {
     return (
-      <div className="compare-profitability-rows__row compare-profitability-rows__row--missing" role="img" aria-label={rowAriaLabel(row)}>
+      <div
+        className="compare-profitability-rows__row compare-profitability-rows__row--missing"
+        role="img"
+        aria-label={rowAriaLabel(row)}
+      >
         <div className="compare-profitability-rows__project">
           <strong>{row.project.projectName}</strong>
           {row.project.projectNumber ? <small>{row.project.projectNumber}</small> : null}
         </div>
-        <div className="compare-profitability-rows__missing-track">No work allocated to this group</div>
-        <div className="compare-profitability-rows__outcome"><strong>—</strong><small>Forecast profit</small></div>
-        <div className="compare-profitability-rows__margin"><strong>—</strong><small>Margin</small></div>
+        <div className="compare-profitability-rows__missing-track">
+          No work allocated to this group
+        </div>
+        <div className="compare-profitability-rows__outcome">
+          <strong>—</strong>
+          <small>Forecast profit</small>
+        </div>
+        <div className="compare-profitability-rows__margin">
+          <strong>—</strong>
+          <small>Margin</small>
+        </div>
       </div>
     );
   }
@@ -241,9 +261,13 @@ function ComparisonRow({ row, maximumOverrunRatio }: { row: DisplayPosition; max
   const profit = Math.max(revenue - position.forecastCost, 0);
   const profitRatio = revenue > 0 ? profit / revenue : 0;
   const overrunRatio = revenue > 0 ? loss / revenue : loss > 0 ? maximumOverrunRatio : 0;
-  const overrunWidth = maximumOverrunRatio > 0
-    ? Math.min((overrunRatio / maximumOverrunRatio) * (100 - revenueBoundary), 100 - revenueBoundary)
-    : 0;
+  const overrunWidth =
+    maximumOverrunRatio > 0
+      ? Math.min(
+          (overrunRatio / maximumOverrunRatio) * (100 - revenueBoundary),
+          100 - revenueBoundary,
+        )
+      : 0;
   const style = {
     "--compare-actual-width": `${actualInsideRatio * revenueBoundary}%`,
     "--compare-remaining-left": `${actualInsideRatio * revenueBoundary}%`,
@@ -261,7 +285,11 @@ function ComparisonRow({ row, maximumOverrunRatio }: { row: DisplayPosition; max
       <div className="compare-profitability-rows__project">
         <div className="compare-profitability-rows__project-heading">
           <strong>{row.project.projectName}</strong>
-          <span className={`compare-profitability-rows__status compare-profitability-rows__status--${status.tone}`}>{status.label}</span>
+          <span
+            className={`compare-profitability-rows__status compare-profitability-rows__status--${status.tone}`}
+          >
+            {status.label}
+          </span>
         </div>
         <small>
           {row.project.projectNumber ? `${row.project.projectNumber} · ` : ""}
@@ -287,13 +315,21 @@ function ComparisonRow({ row, maximumOverrunRatio }: { row: DisplayPosition; max
           }}
         >
           <span className="compare-profitability-rows__actual" />
-          {remainingInsideRatio > 0 ? <span className="compare-profitability-rows__remaining" /> : null}
+          {remainingInsideRatio > 0 ? (
+            <span className="compare-profitability-rows__remaining" />
+          ) : null}
           {profit > 0 ? <span className="compare-profitability-rows__profit" /> : null}
           {loss > 0 ? <span className="compare-profitability-rows__loss" /> : null}
         </div>
         <div className="compare-profitability-rows__bar-meta">
-          <span><small>Actual cost</small><strong>{fullCurrency(position.actualCostToDate)}</strong></span>
-          <span><small>Remaining work</small><strong>{fullCurrency(position.remainingCost)}</strong></span>
+          <span>
+            <small>Actual cost</small>
+            <strong>{fullCurrency(position.actualCostToDate)}</strong>
+          </span>
+          <span>
+            <small>Remaining work</small>
+            <strong>{fullCurrency(position.remainingCost)}</strong>
+          </span>
           <span>
             <small>{loss > 0 ? "Cost above revenue" : "Unspent revenue"}</small>
             <strong>{fullCurrency(loss > 0 ? loss : profit)}</strong>
@@ -315,20 +351,42 @@ function ComparisonRow({ row, maximumOverrunRatio }: { row: DisplayPosition; max
             </div>
             <dl>
               <div>
-                <dt><i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--revenue" />Allocated revenue</dt>
+                <dt>
+                  <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--revenue" />
+                  Allocated revenue
+                </dt>
                 <dd>{fullCurrency(position.allocatedRevenue)}</dd>
               </div>
               <div>
-                <dt><i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--actual" />Actual cost to date</dt>
+                <dt>
+                  <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--actual" />
+                  Actual cost to date
+                </dt>
                 <dd>{fullCurrency(position.actualCostToDate)}</dd>
               </div>
               <div>
-                <dt><i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--remaining" />Costed remaining work</dt>
+                <dt>
+                  <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--remaining" />
+                  Costed remaining work
+                </dt>
                 <dd>{fullCurrency(position.remainingCost)}</dd>
               </div>
               <div className="compare-profitability-rows__tooltip-total">
-                <dt><i className={`compare-profitability-rows__tooltip-key ${position.forecastProfit < 0 ? "compare-profitability-rows__tooltip-key--loss" : "compare-profitability-rows__tooltip-key--profit"}`} />{position.forecastProfit < 0 ? "Cost above revenue" : "Unspent revenue / forecast profit"}</dt>
-                <dd>{fullCurrency(position.forecastProfit < 0 ? Math.abs(position.forecastProfit) : position.forecastProfit)}</dd>
+                <dt>
+                  <i
+                    className={`compare-profitability-rows__tooltip-key ${position.forecastProfit < 0 ? "compare-profitability-rows__tooltip-key--loss" : "compare-profitability-rows__tooltip-key--profit"}`}
+                  />
+                  {position.forecastProfit < 0
+                    ? "Cost above revenue"
+                    : "Unspent revenue / forecast profit"}
+                </dt>
+                <dd>
+                  {fullCurrency(
+                    position.forecastProfit < 0
+                      ? Math.abs(position.forecastProfit)
+                      : position.forecastProfit,
+                  )}
+                </dd>
               </div>
             </dl>
             <div className="compare-profitability-rows__tooltip-footer">
@@ -339,12 +397,16 @@ function ComparisonRow({ row, maximumOverrunRatio }: { row: DisplayPosition; max
         ) : null}
       </div>
 
-      <div className={`compare-profitability-rows__outcome compare-profitability-rows__outcome--${outcomeTone}`}>
+      <div
+        className={`compare-profitability-rows__outcome compare-profitability-rows__outcome--${outcomeTone}`}
+      >
         <strong>{fullCurrency(position.forecastProfit)}</strong>
         <small>{position.forecastProfit < 0 ? "Forecast loss" : "Forecast profit"}</small>
       </div>
 
-      <div className={`compare-profitability-rows__margin compare-profitability-rows__margin--${outcomeTone}`}>
+      <div
+        className={`compare-profitability-rows__margin compare-profitability-rows__margin--${outcomeTone}`}
+      >
         <strong>{formatMargin(position.marginPercent)}</strong>
         <small>Margin</small>
       </div>
@@ -377,7 +439,9 @@ export function CompareOperationalProfitabilityChart({
     if (nextIndex === activeIndex) return;
     event.preventDefault();
     setMode(tabs[nextIndex].id);
-    requestAnimationFrame(() => document.getElementById(`${id}-${tabs[nextIndex].id}-tab`)?.focus());
+    requestAnimationFrame(() =>
+      document.getElementById(`${id}-${tabs[nextIndex].id}-tab`)?.focus(),
+    );
   };
 
   if (!projects.length) return <div className="chart-empty">{emptyMessage}</div>;
@@ -386,31 +450,40 @@ export function CompareOperationalProfitabilityChart({
   const availableGroups = groupOrder.filter((groupName) =>
     projects.some((project) => project.groups.some((group) => group.groupName === groupName)),
   );
-  const sections: Array<{ key: string; title: string; rows: DisplayPosition[] }> = mode === "project"
-    ? [{
-        key: "entire-project",
-        title: "Entire Project",
-        rows: orderedProjects.map((project) => ({ project, ...project.total })),
-      }]
-    : availableGroups.map((groupName) => ({
-        key: groupName,
-        title: groupName,
-        rows: orderedProjects.map((project) => positionForGroup(project, groupName)),
-      }));
+  const sections: Array<{ key: string; title: string; rows: DisplayPosition[] }> =
+    mode === "project"
+      ? [
+          {
+            key: "entire-project",
+            title: "Entire Project",
+            rows: orderedProjects.map((project) => ({ project, ...project.total })),
+          },
+        ]
+      : availableGroups.map((groupName) => ({
+          key: groupName,
+          title: groupName,
+          rows: orderedProjects.map((project) => positionForGroup(project, groupName)),
+        }));
   const maximumOverrunRatio = Math.max(
     1,
-    ...sections.flatMap((section) => section.rows.map((row) => {
-      if (row.isMissing) return 0;
-      const position = resolvePosition(row);
-      if (position.allocatedRevenue <= 0) return position.forecastCost > 0 ? 1 : 0;
-      return Math.max(position.forecastCost / position.allocatedRevenue - 1, 0);
-    })),
+    ...sections.flatMap((section) =>
+      section.rows.map((row) => {
+        if (row.isMissing) return 0;
+        const position = resolvePosition(row);
+        if (position.allocatedRevenue <= 0) return position.forecastCost > 0 ? 1 : 0;
+        return Math.max(position.forecastCost / position.allocatedRevenue - 1, 0);
+      }),
+    ),
   );
 
   return (
     <div className="compare-profitability-rows">
       <div className="compare-profitability-rows__toolbar">
-        <div className="compare-profitability-rows__tabs" role="tablist" aria-label="Project profitability comparison views">
+        <div
+          className="compare-profitability-rows__tabs"
+          role="tablist"
+          aria-label="Project profitability comparison views"
+        >
           {tabs.map((tab) => {
             const selected = tab.id === mode;
             return (
@@ -422,7 +495,11 @@ export function CompareOperationalProfitabilityChart({
                 aria-selected={selected}
                 aria-controls={`${id}-${tab.id}-panel`}
                 tabIndex={selected ? 0 : -1}
-                className={selected ? "compare-profitability-rows__tab compare-profitability-rows__tab--active" : "compare-profitability-rows__tab"}
+                className={
+                  selected
+                    ? "compare-profitability-rows__tab compare-profitability-rows__tab--active"
+                    : "compare-profitability-rows__tab"
+                }
                 onClick={() => setMode(tab.id)}
                 onKeyDown={handleTabKeyDown}
               >
@@ -433,7 +510,12 @@ export function CompareOperationalProfitabilityChart({
         </div>
         <label className="compare-profitability-rows__sort">
           <span>Order</span>
-          <select value={sort} onChange={(event: ChangeEvent<HTMLSelectElement>) => setSort(event.target.value as ComparisonSort)}>
+          <select
+            value={sort}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+              setSort(event.target.value as ComparisonSort)
+            }
+          >
             <option value="attention">Attention first</option>
             <option value="margin">Highest margin</option>
             <option value="profit">Highest profit</option>
@@ -449,10 +531,22 @@ export function CompareOperationalProfitabilityChart({
       </p>
 
       <div className="chart-legend compare-profitability-rows__legend" aria-hidden="true">
-        <span><i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--actual" />Actual cost to date</span>
-        <span><i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--remaining" />Costed remaining work</span>
-        <span><i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--profit" />Unspent revenue / forecast profit</span>
-        <span><i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--loss" />Cost above revenue</span>
+        <span>
+          <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--actual" />
+          Actual cost to date
+        </span>
+        <span>
+          <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--remaining" />
+          Costed remaining work
+        </span>
+        <span>
+          <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--profit" />
+          Unspent revenue / forecast profit
+        </span>
+        <span>
+          <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--loss" />
+          Cost above revenue
+        </span>
       </div>
 
       <div
@@ -483,13 +577,19 @@ export function CompareOperationalProfitabilityChart({
           );
 
           return mode === "groups" ? (
-            <details className="compare-profitability-rows__section compare-profitability-rows__section--collapsible" key={section.key} open>
+            <details
+              className="compare-profitability-rows__section compare-profitability-rows__section--collapsible"
+              key={section.key}
+              open
+            >
               <summary className="compare-profitability-rows__section-heading compare-profitability-rows__section-summary">
                 <span className="compare-profitability-rows__section-title">
                   <i className="compare-profitability-rows__section-chevron" aria-hidden="true" />
                   <strong>{section.title}</strong>
                 </span>
-                <span>{section.rows.length} project{section.rows.length === 1 ? "" : "s"}</span>
+                <span>
+                  {section.rows.length} project{section.rows.length === 1 ? "" : "s"}
+                </span>
               </summary>
               {sectionBody}
             </details>
@@ -497,7 +597,9 @@ export function CompareOperationalProfitabilityChart({
             <section className="compare-profitability-rows__section" key={section.key}>
               <div className="compare-profitability-rows__section-heading">
                 <h4>{section.title}</h4>
-                <span>{section.rows.length} project{section.rows.length === 1 ? "" : "s"}</span>
+                <span>
+                  {section.rows.length} project{section.rows.length === 1 ? "" : "s"}
+                </span>
               </div>
               {sectionBody}
             </section>
@@ -506,7 +608,9 @@ export function CompareOperationalProfitabilityChart({
       </div>
 
       <p className="compare-profitability-rows__note">
-        Each row uses allocated revenue as its 100% comparison baseline. Orange is actual cost to date, yellow is costed remaining work, light blue is unspent revenue / forecast profit, and red extends beyond revenue when forecast cost is over budget.
+        Each row uses allocated revenue as its 100% comparison baseline. Orange is actual cost to
+        date, yellow is costed remaining work, light blue is unspent revenue / forecast profit, and
+        red extends beyond revenue when forecast cost is over budget.
       </p>
     </div>
   );

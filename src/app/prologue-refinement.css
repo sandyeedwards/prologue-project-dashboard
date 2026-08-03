@@ -150,7 +150,9 @@ textarea {
   background: transparent;
   text-align: center;
   text-decoration: none;
-  transition: color 140ms ease, background 140ms ease;
+  transition:
+    color 140ms ease,
+    background 140ms ease;
 }
 
 .app-nav a.app-nav__link span {
@@ -501,13 +503,27 @@ textarea {
   margin-top: 4px;
 }
 
-.metric-card--accent-blue .metric-card__indicator { background: var(--blue); }
-.metric-card--accent-amber .metric-card__indicator { background: var(--amber); }
-.metric-card--accent-green .metric-card__indicator { background: var(--green); }
-.metric-card--accent-red .metric-card__indicator { background: var(--red); }
-.metric-card--accent-purple .metric-card__indicator { background: var(--purple); }
-.metric-card--accent-navy .metric-card__indicator { background: var(--navy); }
-.metric-card--accent-gray .metric-card__indicator { background: #8a98aa; }
+.metric-card--accent-blue .metric-card__indicator {
+  background: var(--blue);
+}
+.metric-card--accent-amber .metric-card__indicator {
+  background: var(--amber);
+}
+.metric-card--accent-green .metric-card__indicator {
+  background: var(--green);
+}
+.metric-card--accent-red .metric-card__indicator {
+  background: var(--red);
+}
+.metric-card--accent-purple .metric-card__indicator {
+  background: var(--purple);
+}
+.metric-card--accent-navy .metric-card__indicator {
+  background: var(--navy);
+}
+.metric-card--accent-gray .metric-card__indicator {
+  background: #8a98aa;
+}
 
 .executive-kpis__primary .metric-card--accent-blue {
   background: linear-gradient(180deg, #f4f8fd, #fff);
@@ -712,13 +728,21 @@ textarea {
   background: #2d76c9;
 }
 .portfolio-composition__legend .is-actual,
-.portfolio-composition__tooltip .is-actual { background: #e78a10; }
+.portfolio-composition__tooltip .is-actual {
+  background: #e78a10;
+}
 .portfolio-composition__legend .is-remaining,
-.portfolio-composition__tooltip .is-remaining { background: #f2c766; }
+.portfolio-composition__tooltip .is-remaining {
+  background: #f2c766;
+}
 .portfolio-composition__legend .is-profit,
-.portfolio-composition__tooltip .is-profit i { background: #9fd6bd; }
+.portfolio-composition__tooltip .is-profit i {
+  background: #9fd6bd;
+}
 .portfolio-composition__legend .is-loss,
-.portfolio-composition__tooltip .is-loss i { background: var(--red); }
+.portfolio-composition__tooltip .is-loss i {
+  background: var(--red);
+}
 .portfolio-composition__legend .portfolio-composition__legend-note {
   margin-left: auto;
   color: #77869a;
@@ -916,8 +940,12 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
-.portfolio-composition__hero-metrics .is-profit strong { color: var(--green); }
-.portfolio-composition__hero-metrics .is-loss strong { color: var(--red); }
+.portfolio-composition__hero-metrics .is-profit strong {
+  color: var(--green);
+}
+.portfolio-composition__hero-metrics .is-loss strong {
+  color: var(--red);
+}
 
 .portfolio-composition__row--hero .portfolio-composition__plot {
   width: 100%;
@@ -1139,16 +1167,40 @@ textarea {
   font-size: 0.62rem;
 }
 
-.historical-profit-chart__line--gross { stroke: #1f6fd6; }
-.historical-profit-chart__line--cost { stroke: #cf3f3f; stroke-dasharray: none; }
-.historical-profit-chart__line--anticipated { stroke: #df7d00; stroke-dasharray: none; }
-.historical-profit-chart__line--net { stroke: #1f7a59; }
-.historical-profit-chart__line--forecast-net { stroke: #72d31a; stroke-width: 3.75px; }
-.historical-profit-chart__area--gross { fill: rgb(31 111 214 / 14%); }
-.historical-profit-chart__area--net { fill: rgb(31 122 89 / 10%); }
-.historical-profit-chart__grid { stroke: #dfe6ef; }
-.historical-profit-chart__vertical-grid { stroke: #edf1f5; }
-.historical-profit-chart__axis-label { fill: #66778e; font-size: 10px; }
+.historical-profit-chart__line--gross {
+  stroke: #1f6fd6;
+}
+.historical-profit-chart__line--cost {
+  stroke: #cf3f3f;
+  stroke-dasharray: none;
+}
+.historical-profit-chart__line--anticipated {
+  stroke: #df7d00;
+  stroke-dasharray: none;
+}
+.historical-profit-chart__line--net {
+  stroke: #1f7a59;
+}
+.historical-profit-chart__line--forecast-net {
+  stroke: #72d31a;
+  stroke-width: 3.75px;
+}
+.historical-profit-chart__area--gross {
+  fill: rgb(31 111 214 / 14%);
+}
+.historical-profit-chart__area--net {
+  fill: rgb(31 122 89 / 10%);
+}
+.historical-profit-chart__grid {
+  stroke: #dfe6ef;
+}
+.historical-profit-chart__vertical-grid {
+  stroke: #edf1f5;
+}
+.historical-profit-chart__axis-label {
+  fill: #66778e;
+  font-size: 10px;
+}
 
 /* Decision support without nested card clutter */
 .additional-data-views {
@@ -1627,10 +1679,18 @@ textarea {
   box-shadow: inset 3px 0 0 transparent;
 }
 
-.project-table__row--green td:first-child { box-shadow: inset 3px 0 0 #4ba17b; }
-.project-table__row--amber td:first-child { box-shadow: inset 3px 0 0 #d69a28; }
-.project-table__row--red td:first-child { box-shadow: inset 3px 0 0 #d45550; }
-.project-table__row--gray td:first-child { box-shadow: inset 3px 0 0 #9aa7b7; }
+.project-table__row--green td:first-child {
+  box-shadow: inset 3px 0 0 #4ba17b;
+}
+.project-table__row--amber td:first-child {
+  box-shadow: inset 3px 0 0 #d69a28;
+}
+.project-table__row--red td:first-child {
+  box-shadow: inset 3px 0 0 #d45550;
+}
+.project-table__row--gray td:first-child {
+  box-shadow: inset 3px 0 0 #9aa7b7;
+}
 
 .project-table--financial-first th:nth-child(4),
 .project-table--financial-first th:nth-child(5),
@@ -1649,8 +1709,12 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
-.project-table__money--profit strong { color: var(--green); }
-.project-table__money--loss strong { color: var(--red); }
+.project-table__money--profit strong {
+  color: var(--green);
+}
+.project-table__money--loss strong {
+  color: var(--red);
+}
 
 .project-link strong {
   color: var(--navy-strong);
@@ -1871,10 +1935,18 @@ textarea {
   background: #edf2f6;
 }
 
-.compare-profitability-rows__actual { background: #e78a10; }
-.compare-profitability-rows__remaining { background: #f2c766; }
-.compare-profitability-rows__profit { background: #b7dfcb; }
-.compare-profitability-rows__loss { background: var(--red); }
+.compare-profitability-rows__actual {
+  background: #e78a10;
+}
+.compare-profitability-rows__remaining {
+  background: #f2c766;
+}
+.compare-profitability-rows__profit {
+  background: #b7dfcb;
+}
+.compare-profitability-rows__loss {
+  background: var(--red);
+}
 
 .compare-profitability-rows__bar-meta {
   display: grid;
@@ -1950,7 +2022,10 @@ textarea {
 .compare-register__head,
 .compare-register__row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) 92px repeat(3, minmax(110px, 0.68fr)) 76px minmax(210px, 1fr);
+  grid-template-columns: minmax(220px, 1.35fr) 92px repeat(3, minmax(110px, 0.68fr)) 76px minmax(
+      210px,
+      1fr
+    );
   align-items: center;
   gap: 12px;
   min-width: 1160px;
@@ -2023,8 +2098,12 @@ textarea {
   font-weight: 850;
 }
 
-.compare-register__money.is-profit strong { color: var(--green); }
-.compare-register__money.is-loss strong { color: var(--red); }
+.compare-register__money.is-profit strong {
+  color: var(--green);
+}
+.compare-register__money.is-loss strong {
+  color: var(--red);
+}
 
 .compare-register__coverage {
   display: flex;
@@ -2158,20 +2237,36 @@ textarea {
   content: "";
 }
 
-.project-financial-position__summary > div:nth-child(1)::before { background: #e78a10; }
-.project-financial-position__summary > div:nth-child(2)::before { background: #f2c766; }
-.project-financial-position__summary > div:nth-child(3)::before { background: var(--green); }
-.project-financial-position__summary .project-financial-position__loss::before { background: var(--red); }
+.project-financial-position__summary > div:nth-child(1)::before {
+  background: #e78a10;
+}
+.project-financial-position__summary > div:nth-child(2)::before {
+  background: #f2c766;
+}
+.project-financial-position__summary > div:nth-child(3)::before {
+  background: var(--green);
+}
+.project-financial-position__summary .project-financial-position__loss::before {
+  background: var(--red);
+}
 
 .project-financial-position__scale {
   height: 40px;
   border-radius: 4px;
 }
 
-.project-financial-position__actual { background: #e78a10; }
-.project-financial-position__remaining { background: #f2c766; }
-.project-financial-position__revenue { background: #dfeaf8; }
-.project-financial-position__overrun { background: var(--red); }
+.project-financial-position__actual {
+  background: #e78a10;
+}
+.project-financial-position__remaining {
+  background: #f2c766;
+}
+.project-financial-position__revenue {
+  background: #dfeaf8;
+}
+.project-financial-position__overrun {
+  background: var(--red);
+}
 
 .report-section {
   margin-top: var(--section-gap);
@@ -2980,7 +3075,8 @@ textarea {
   grid-column: span 6;
 }
 
-.projects-filter-grid > .filter-field:not(.projects-filter-grid__search):not(.projects-filter-grid__type) {
+.projects-filter-grid
+  > .filter-field:not(.projects-filter-grid__search):not(.projects-filter-grid__type) {
   grid-column: span 3;
 }
 
@@ -3041,11 +3137,13 @@ textarea {
   transition: transform 140ms ease;
 }
 
-.compare-profitability-rows__section--collapsible:not([open]) .compare-profitability-rows__section-chevron {
+.compare-profitability-rows__section--collapsible:not([open])
+  .compare-profitability-rows__section-chevron {
   transform: rotate(-45deg) translate(-1px, 1px);
 }
 
-.compare-profitability-rows__section--collapsible:not([open]) .compare-profitability-rows__section-summary {
+.compare-profitability-rows__section--collapsible:not([open])
+  .compare-profitability-rows__section-summary {
   border-bottom: 0;
 }
 
@@ -3063,11 +3161,22 @@ textarea {
     justify-content: flex-start;
   }
 
-  .projects-filter-grid__search { grid-column: span 6; }
-  .projects-filter-grid__type { grid-column: span 3; }
-  .projects-filter-grid__dates { grid-column: 1 / -1; }
-  .projects-filter-grid > .filter-field:not(.projects-filter-grid__search):not(.projects-filter-grid__type) { grid-column: span 4; }
-  .projects-filter-grid__actions { grid-column: span 4; }
+  .projects-filter-grid__search {
+    grid-column: span 6;
+  }
+  .projects-filter-grid__type {
+    grid-column: span 3;
+  }
+  .projects-filter-grid__dates {
+    grid-column: 1 / -1;
+  }
+  .projects-filter-grid
+    > .filter-field:not(.projects-filter-grid__search):not(.projects-filter-grid__type) {
+    grid-column: span 4;
+  }
+  .projects-filter-grid__actions {
+    grid-column: span 4;
+  }
 }
 
 @media (max-width: 960px) {
@@ -3089,7 +3198,8 @@ textarea {
 
   .projects-filter-grid__search,
   .projects-filter-grid__type,
-  .projects-filter-grid > .filter-field:not(.projects-filter-grid__search):not(.projects-filter-grid__type),
+  .projects-filter-grid
+    > .filter-field:not(.projects-filter-grid__search):not(.projects-filter-grid__type),
   .projects-filter-grid__actions {
     grid-column: span 6;
   }
@@ -3120,7 +3230,8 @@ textarea {
   .projects-filter-grid__search,
   .projects-filter-grid__type,
   .projects-filter-grid__dates,
-  .projects-filter-grid > .filter-field:not(.projects-filter-grid__search):not(.projects-filter-grid__type),
+  .projects-filter-grid
+    > .filter-field:not(.projects-filter-grid__search):not(.projects-filter-grid__type),
   .projects-filter-grid__actions {
     grid-column: 1;
   }
@@ -3275,7 +3386,6 @@ textarea {
   }
 }
 
-
 /* Step 10 v1.1.3 — KPI backing and profitability-bar cleanup */
 @media (max-width: 1050px) {
   .executive-kpis .metric-card,
@@ -3301,7 +3411,6 @@ textarea {
     margin-bottom: 2px;
   }
 }
-
 
 /* Step 10 v1.1.4 — portfolio canvas, independent KPI tiles, and combined history */
 .app-frame__content--portfolio {
@@ -3383,7 +3492,6 @@ textarea {
     margin-bottom: 8px;
   }
 }
-
 
 /* Step 10 v1.1.5 — stable KPI surfaces, hover help, wider navigation, and unified blue canvas */
 
@@ -3486,7 +3594,10 @@ textarea {
   opacity: 0;
   pointer-events: none;
   transform: translateY(4px);
-  transition: opacity 110ms ease, transform 110ms ease, visibility 110ms ease;
+  transition:
+    opacity 110ms ease,
+    transform 110ms ease,
+    visibility 110ms ease;
 }
 
 .metric-card__help:hover .metric-card__help-panel,
@@ -3541,7 +3652,6 @@ textarea {
     padding-inline: 8px;
   }
 }
-
 
 /* Step 10 v1.1.6 — neutral primary financial KPI presentation */
 .executive-kpis__primary .metric-card,
@@ -3704,7 +3814,6 @@ textarea {
   cursor: ew-resize;
 }
 
-
 .dashboard-profitability-tabs__panel[hidden] {
   display: none !important;
 }
@@ -3730,7 +3839,11 @@ textarea {
   box-shadow: 0 1px 1px rgb(17 43 75 / 3%);
   font-size: 0.72rem;
   font-weight: 820;
-  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .dashboard-profitability-tabs__tab::after {

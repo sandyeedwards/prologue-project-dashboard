@@ -49,63 +49,69 @@ export default async function CalculationsAdminPage() {
 
   return (
     <AppShell user={session.user}>
-    <main className="shell">
-      <section className="hero">
-        <p className="eyebrow">Administration</p>
-        <h1>Calculation engine</h1>
-        <p className="lede">
-          Current project, task, operational-group, forecast, data-quality, and health metrics.
-        </p>
-      </section>
-
-      <section className="status-grid">
-        <div className="status-card">
-          <p className="status-card__label">Latest run</p>
-          <p className="status-card__value">{latestRun?.status ?? "Not run"}</p>
-          <p className="status-card__detail">
-            {latestRun?.completedAt?.toLocaleString() ?? "Run npm run step7:run"}
+      <main className="shell">
+        <section className="hero">
+          <p className="eyebrow">Administration</p>
+          <h1>Calculation engine</h1>
+          <p className="lede">
+            Current project, task, operational-group, forecast, data-quality, and health metrics.
           </p>
-        </div>
-        <div className="status-card">
-          <p className="status-card__label">Projects</p>
-          <p className="status-card__value">{projectCount.value}</p>
-          <p className="status-card__detail">Reporting-eligible projects calculated</p>
-        </div>
-        <div className="status-card">
-          <p className="status-card__label">Tasks</p>
-          <p className="status-card__value">{taskCount.value}</p>
-          <p className="status-card__detail">Canonical task metrics materialized</p>
-        </div>
-        <div className="status-card">
-          <p className="status-card__label">Data quality</p>
-          <p className="status-card__value">{issueCount.value}</p>
-          <p className="status-card__detail">Current transparent warnings</p>
-        </div>
-      </section>
+        </section>
 
-      <section className="panel">
-        <div>
-          <p className="eyebrow">Pilot validation</p>
-          <h2>{pilot?.name ?? `${REPORTING_RULES.calculationPilotProjectNumber} not calculated`}</h2>
-        </div>
-        {pilot ? (
-          <ul>
-            <li>Health band: {pilot.healthBand}</li>
-            <li>Forecast cost: {money(pilot.forecastCost)}</li>
-            <li>
-              Forecast margin: {pilot.forecastMarginPercent ?? "Missing"}
-              {pilot.forecastMarginPercent === null ? "" : "%"}
-            </li>
-            <li>Provisional: {pilot.isProvisional ? "Yes" : "No"}</li>
-            <li>
-              Projected outsourced cost: {money((pilot.details as Record<string, unknown> | null)?.projectedOutsourcedCost as string | number | null | undefined)}
-            </li>
-          </ul>
-        ) : (
-          <p>Run the Step 7 calculation command after applying the migration.</p>
-        )}
-      </section>
-    </main>
+        <section className="status-grid">
+          <div className="status-card">
+            <p className="status-card__label">Latest run</p>
+            <p className="status-card__value">{latestRun?.status ?? "Not run"}</p>
+            <p className="status-card__detail">
+              {latestRun?.completedAt?.toLocaleString() ?? "Run npm run step7:run"}
+            </p>
+          </div>
+          <div className="status-card">
+            <p className="status-card__label">Projects</p>
+            <p className="status-card__value">{projectCount.value}</p>
+            <p className="status-card__detail">Reporting-eligible projects calculated</p>
+          </div>
+          <div className="status-card">
+            <p className="status-card__label">Tasks</p>
+            <p className="status-card__value">{taskCount.value}</p>
+            <p className="status-card__detail">Canonical task metrics materialized</p>
+          </div>
+          <div className="status-card">
+            <p className="status-card__label">Data quality</p>
+            <p className="status-card__value">{issueCount.value}</p>
+            <p className="status-card__detail">Current transparent warnings</p>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div>
+            <p className="eyebrow">Pilot validation</p>
+            <h2>
+              {pilot?.name ?? `${REPORTING_RULES.calculationPilotProjectNumber} not calculated`}
+            </h2>
+          </div>
+          {pilot ? (
+            <ul>
+              <li>Health band: {pilot.healthBand}</li>
+              <li>Forecast cost: {money(pilot.forecastCost)}</li>
+              <li>
+                Forecast margin: {pilot.forecastMarginPercent ?? "Missing"}
+                {pilot.forecastMarginPercent === null ? "" : "%"}
+              </li>
+              <li>Provisional: {pilot.isProvisional ? "Yes" : "No"}</li>
+              <li>
+                Projected outsourced cost:{" "}
+                {money(
+                  (pilot.details as Record<string, unknown> | null)?.projectedOutsourcedCost as
+                    string | number | null | undefined,
+                )}
+              </li>
+            </ul>
+          ) : (
+            <p>Run the Step 7 calculation command after applying the migration.</p>
+          )}
+        </section>
+      </main>
     </AppShell>
   );
 }

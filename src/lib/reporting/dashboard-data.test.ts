@@ -85,11 +85,15 @@ describe("reporting filters", () => {
       endDate: "2026-10-15",
     };
     const undated = { ...base, id: "3", name: "Undated Project", startDate: null, endDate: null };
-    expect(filterAndSortProjects([base, later, undated], { dateFrom: "2026-05-01", dateTo: "2026-07-01" })).toEqual([base]);
+    expect(
+      filterAndSortProjects([base, later, undated], {
+        dateFrom: "2026-05-01",
+        dateTo: "2026-07-01",
+      }),
+    ).toEqual([base]);
     expect(filterAndSortProjects([base, later], { dateFrom: "2026-07-01" })).toEqual([later]);
     expect(filterAndSortProjects([base, later], { dateTo: "2026-04-15" })).toEqual([base]);
   });
-
 
   it("treats Ready Set and DataHall projects as Scanning while preserving their special type", () => {
     const readySet = { ...base, id: "ready", projectType: "Ready Set", tags: ["Ready Set"] };
@@ -99,7 +103,11 @@ describe("reporting filters", () => {
     expect(filterAndSortProjects([readySet], { type: "Scanning" })).toHaveLength(1);
     expect(filterAndSortProjects([readySet], { type: "Ready Set" })).toHaveLength(1);
     expect(filterAndSortProjects([dataHall], { type: "DataHall" })).toHaveLength(1);
-    expect(getAvailableProjectTypes([readySet, dataHall])).toEqual(["Scanning", "Ready Set", "DataHall"]);
+    expect(getAvailableProjectTypes([readySet, dataHall])).toEqual([
+      "Scanning",
+      "Ready Set",
+      "DataHall",
+    ]);
   });
 
   it("summarizes known values without treating partial source coverage as complete", () => {
@@ -133,7 +141,6 @@ describe("database timestamp normalization", () => {
     );
   });
 });
-
 
 describe("historical portfolio financial series", () => {
   it("recognizes labor and expenses on their source dates before project completion", () => {
@@ -218,8 +225,6 @@ describe("historical portfolio financial series", () => {
       completedProjectCount: 1,
     });
   });
-
-
 
   it("rejects legacy epoch dates and assigns those costs to the project start date", () => {
     const project: ProjectReportRow = {

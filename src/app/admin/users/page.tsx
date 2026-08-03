@@ -43,7 +43,11 @@ export default async function UsersAdminPage() {
                     <td>
                       <form className="inline-form" action={updateUserAccess}>
                         <input name="userId" type="hidden" value={user.id} />
-                        <select name="role" defaultValue={user.role} aria-label={`${user.displayName} role`}>
+                        <select
+                          name="role"
+                          defaultValue={user.role}
+                          aria-label={`${user.displayName} role`}
+                        >
                           <option value="VIEWER">Viewer</option>
                           <option value="MANAGER">Manager</option>
                           <option value="ADMIN">Admin</option>

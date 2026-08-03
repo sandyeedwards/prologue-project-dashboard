@@ -33,7 +33,10 @@ export function calculateCanonicalTaskMetrics(
     visiting.add(task.id);
 
     const childMetrics = (children.get(task.id) ?? []).map(visit);
-    const childEstimate = childMetrics.reduce((sum, child) => sum + child.branchEstimatedMinutes, 0);
+    const childEstimate = childMetrics.reduce(
+      (sum, child) => sum + child.branchEstimatedMinutes,
+      0,
+    );
     const ownEstimate = Math.max(0, task.estimatedMinutes ?? 0);
     const estimateSource = childEstimate > 0 ? "CHILDREN" : ownEstimate > 0 ? "OWN" : "NONE";
     const countedEstimate = estimateSource === "OWN" ? ownEstimate : 0;
@@ -43,9 +46,13 @@ export function calculateCanonicalTaskMetrics(
       ownLogged + childMetrics.reduce((sum, child) => sum + child.branchLoggedMinutes, 0);
     const branchComplete =
       isCompleted(task) ||
-      ((children.get(task.id) ?? []).length > 0 && childMetrics.every((child) => child.isBranchComplete));
+      ((children.get(task.id) ?? []).length > 0 &&
+        childMetrics.every((child) => child.isBranchComplete));
     const remaining = branchComplete ? 0 : Math.max(branchEstimate - branchLogged, 0);
-    const descendantTaskIds = childMetrics.flatMap((child) => [child.taskId, ...child.descendantTaskIds]);
+    const descendantTaskIds = childMetrics.flatMap((child) => [
+      child.taskId,
+      ...child.descendantTaskIds,
+    ]);
 
     const metric: CanonicalTaskMetric = {
       taskId: task.id,

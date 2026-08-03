@@ -30,12 +30,14 @@ export async function createSession(userId: string): Promise<{ token: string; ex
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
   const headerStore = await headers();
-  await getDb().insert(appSessions).values({
-    userId,
-    tokenHash: hashSessionToken(token),
-    expiresAt,
-    userAgent: headerStore.get("user-agent")?.slice(0, 500) ?? null,
-  });
+  await getDb()
+    .insert(appSessions)
+    .values({
+      userId,
+      tokenHash: hashSessionToken(token),
+      expiresAt,
+      userAgent: headerStore.get("user-agent")?.slice(0, 500) ?? null,
+    });
   return { token, expiresAt };
 }
 
@@ -97,7 +99,10 @@ export async function getSession(): Promise<VerifiedSession | null> {
 
   if (!row) return null;
   if (Date.now() - row.lastSeenAt.getTime() > TOUCH_INTERVAL_MS) {
-    await db.update(appSessions).set({ lastSeenAt: new Date() }).where(eq(appSessions.id, row.sessionId));
+    await db
+      .update(appSessions)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(appSessions.id, row.sessionId));
   }
 
   return {
@@ -139,12 +144,12 @@ export async function requireRole(
   return session;
 }
 
-export async function authorizeApi(required: DashboardRole): Promise<
-  | { ok: true; session: VerifiedSession }
-  | { ok: false; response: Response }
-> {
+export async function authorizeApi(
+  required: DashboardRole,
+): Promise<{ ok: true; session: VerifiedSession } | { ok: false; response: Response }> {
   const session = await getSession();
-  if (!session) return { ok: false, response: Response.json({ error: "Unauthorized" }, { status: 401 }) };
+  if (!session)
+    return { ok: false, response: Response.json({ error: "Unauthorized" }, { status: 401 }) };
   if (!roleAllows(session.user.role, required)) {
     return { ok: false, response: Response.json({ error: "Forbidden" }, { status: 403 }) };
   }

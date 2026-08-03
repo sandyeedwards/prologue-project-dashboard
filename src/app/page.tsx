@@ -17,7 +17,10 @@ export default async function HomePage() {
             Explore Teamwork project data, actual costs, forecast exposure, profitability, health,
             and source-data quality in a secure internal workspace.
           </p>
-          <Link className="button button--primary button--large" href={session ? "/dashboard" : "/login"}>
+          <Link
+            className="button button--primary button--large"
+            href={session ? "/dashboard" : "/login"}
+          >
             {session ? "Open dashboard" : "Employee sign in"}
           </Link>
         </div>

@@ -8,8 +8,12 @@ import { verifyTeamworkImport } from "@/lib/teamwork/verify";
 
 async function main() {
   const reader = createInterface({ input, output });
-  console.log("This clean restart preserves your Teamwork OAuth connection and Step 5 configuration.");
-  const answer = await reader.question('Type "RESTART STEP 6" to clear the partial import and begin again: ');
+  console.log(
+    "This clean restart preserves your Teamwork OAuth connection and Step 5 configuration.",
+  );
+  const answer = await reader.question(
+    'Type "RESTART STEP 6" to clear the partial import and begin again: ',
+  );
   reader.close();
   if (answer.trim() !== "RESTART STEP 6") {
     console.log("Restart cancelled. No data was changed.");

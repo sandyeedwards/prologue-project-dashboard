@@ -186,12 +186,8 @@
           "name": "audit_log_actor_user_id_app_users_id_fk",
           "tableFrom": "audit_log",
           "tableTo": "app_users",
-          "columnsFrom": [
-            "actor_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -408,12 +404,8 @@
           "name": "data_quality_issues_project_id_projects_id_fk",
           "tableFrom": "data_quality_issues",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -421,12 +413,8 @@
           "name": "data_quality_issues_task_list_id_task_lists_id_fk",
           "tableFrom": "data_quality_issues",
           "tableTo": "task_lists",
-          "columnsFrom": [
-            "task_list_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_list_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -434,12 +422,8 @@
           "name": "data_quality_issues_task_id_tasks_id_fk",
           "tableFrom": "data_quality_issues",
           "tableTo": "tasks",
-          "columnsFrom": [
-            "task_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -626,12 +610,8 @@
           "name": "expenses_project_id_projects_id_fk",
           "tableFrom": "expenses",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -639,12 +619,8 @@
           "name": "expenses_project_budget_id_project_budgets_id_fk",
           "tableFrom": "expenses",
           "tableTo": "project_budgets",
-          "columnsFrom": [
-            "project_budget_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_budget_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -652,12 +628,8 @@
           "name": "expenses_task_list_id_task_lists_id_fk",
           "tableFrom": "expenses",
           "tableTo": "task_lists",
-          "columnsFrom": [
-            "task_list_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_list_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -883,12 +855,8 @@
           "name": "outsourced_rates_created_by_user_id_app_users_id_fk",
           "tableFrom": "outsourced_rates",
           "tableTo": "app_users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1132,12 +1100,8 @@
           "name": "people_company_id_companies_id_fk",
           "tableFrom": "people",
           "tableTo": "companies",
-          "columnsFrom": [
-            "company_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["company_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1220,12 +1184,8 @@
           "name": "project_archive_overrides_project_id_projects_id_fk",
           "tableFrom": "project_archive_overrides",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1233,12 +1193,8 @@
           "name": "project_archive_overrides_created_by_user_id_app_users_id_fk",
           "tableFrom": "project_archive_overrides",
           "tableTo": "app_users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1405,12 +1361,8 @@
           "name": "project_budgets_project_id_projects_id_fk",
           "tableFrom": "project_budgets",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1640,12 +1592,8 @@
           "name": "project_snapshots_project_id_projects_id_fk",
           "tableFrom": "project_snapshots",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1679,12 +1627,8 @@
           "name": "project_tags_project_id_projects_id_fk",
           "tableFrom": "project_tags",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1692,12 +1636,8 @@
           "name": "project_tags_tag_id_tags_id_fk",
           "tableFrom": "project_tags",
           "tableTo": "tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tag_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1705,10 +1645,7 @@
       "compositePrimaryKeys": {
         "project_tags_project_id_tag_id_pk": {
           "name": "project_tags_project_id_tag_id_pk",
-          "columns": [
-            "project_id",
-            "tag_id"
-          ]
+          "columns": ["project_id", "tag_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1921,12 +1858,8 @@
           "name": "projects_company_id_companies_id_fk",
           "tableFrom": "projects",
           "tableTo": "companies",
-          "columnsFrom": [
-            "company_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["company_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1934,12 +1867,8 @@
           "name": "projects_owner_person_id_people_id_fk",
           "tableFrom": "projects",
           "tableTo": "people",
-          "columnsFrom": [
-            "owner_person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2034,12 +1963,8 @@
           "name": "sync_issues_sync_run_id_sync_runs_id_fk",
           "tableFrom": "sync_issues",
           "tableTo": "sync_runs",
-          "columnsFrom": [
-            "sync_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sync_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2165,12 +2090,8 @@
           "name": "sync_runs_triggered_by_user_id_app_users_id_fk",
           "tableFrom": "sync_runs",
           "tableTo": "app_users",
-          "columnsFrom": [
-            "triggered_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["triggered_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2342,12 +2263,8 @@
           "name": "task_assignments_task_id_tasks_id_fk",
           "tableFrom": "task_assignments",
           "tableTo": "tasks",
-          "columnsFrom": [
-            "task_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2355,12 +2272,8 @@
           "name": "task_assignments_person_id_people_id_fk",
           "tableFrom": "task_assignments",
           "tableTo": "people",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2368,11 +2281,7 @@
       "compositePrimaryKeys": {
         "task_assignments_task_id_kind_teamwork_assignee_id_pk": {
           "name": "task_assignments_task_id_kind_teamwork_assignee_id_pk",
-          "columns": [
-            "task_id",
-            "kind",
-            "teamwork_assignee_id"
-          ]
+          "columns": ["task_id", "kind", "teamwork_assignee_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2520,12 +2429,8 @@
           "name": "task_list_budgets_project_budget_id_project_budgets_id_fk",
           "tableFrom": "task_list_budgets",
           "tableTo": "project_budgets",
-          "columnsFrom": [
-            "project_budget_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_budget_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2533,12 +2438,8 @@
           "name": "task_list_budgets_task_list_id_task_lists_id_fk",
           "tableFrom": "task_list_budgets",
           "tableTo": "task_lists",
-          "columnsFrom": [
-            "task_list_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_list_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2546,12 +2447,8 @@
           "name": "task_list_budgets_overridden_by_user_id_app_users_id_fk",
           "tableFrom": "task_list_budgets",
           "tableTo": "app_users",
-          "columnsFrom": [
-            "overridden_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["overridden_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2703,12 +2600,8 @@
           "name": "task_lists_project_id_projects_id_fk",
           "tableFrom": "task_lists",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2916,12 +2809,8 @@
           "name": "tasks_project_id_projects_id_fk",
           "tableFrom": "tasks",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2929,12 +2818,8 @@
           "name": "tasks_task_list_id_task_lists_id_fk",
           "tableFrom": "tasks",
           "tableTo": "task_lists",
-          "columnsFrom": [
-            "task_list_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_list_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3291,12 +3176,8 @@
           "name": "time_entries_project_id_projects_id_fk",
           "tableFrom": "time_entries",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3304,12 +3185,8 @@
           "name": "time_entries_task_id_tasks_id_fk",
           "tableFrom": "time_entries",
           "tableTo": "tasks",
-          "columnsFrom": [
-            "task_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3317,12 +3194,8 @@
           "name": "time_entries_person_id_people_id_fk",
           "tableFrom": "time_entries",
           "tableTo": "people",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3741,12 +3614,8 @@
           "name": "project_metrics_project_id_projects_id_fk",
           "tableFrom": "project_metrics",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3754,12 +3623,8 @@
           "name": "project_metrics_calculation_run_id_calculation_runs_id_fk",
           "tableFrom": "project_metrics",
           "tableTo": "calculation_runs",
-          "columnsFrom": [
-            "calculation_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["calculation_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3945,12 +3810,8 @@
           "name": "task_metrics_task_id_tasks_id_fk",
           "tableFrom": "task_metrics",
           "tableTo": "tasks",
-          "columnsFrom": [
-            "task_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3958,12 +3819,8 @@
           "name": "task_metrics_project_id_projects_id_fk",
           "tableFrom": "task_metrics",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3971,12 +3828,8 @@
           "name": "task_metrics_calculation_run_id_calculation_runs_id_fk",
           "tableFrom": "task_metrics",
           "tableTo": "calculation_runs",
-          "columnsFrom": [
-            "calculation_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["calculation_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4115,12 +3968,8 @@
           "name": "operational_group_metrics_project_id_projects_id_fk",
           "tableFrom": "operational_group_metrics",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4128,12 +3977,8 @@
           "name": "operational_group_metrics_calculation_run_id_calculation_runs_id_fk",
           "tableFrom": "operational_group_metrics",
           "tableTo": "calculation_runs",
-          "columnsFrom": [
-            "calculation_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["calculation_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4141,10 +3986,7 @@
       "compositePrimaryKeys": {
         "operational_group_metrics_project_id_group_name_pk": {
           "name": "operational_group_metrics_project_id_group_name_pk",
-          "columns": [
-            "project_id",
-            "group_name"
-          ]
+          "columns": ["project_id", "group_name"]
         }
       },
       "uniqueConstraints": {},
@@ -4157,98 +3999,52 @@
     "public.assignment_kind": {
       "name": "assignment_kind",
       "schema": "public",
-      "values": [
-        "USER",
-        "TEAM",
-        "COMPANY",
-        "JOB_ROLE"
-      ]
+      "values": ["USER", "TEAM", "COMPANY", "JOB_ROLE"]
     },
     "public.dashboard_role": {
       "name": "dashboard_role",
       "schema": "public",
-      "values": [
-        "VIEWER",
-        "MANAGER",
-        "ADMIN"
-      ]
+      "values": ["VIEWER", "MANAGER", "ADMIN"]
     },
     "public.financial_coverage": {
       "name": "financial_coverage",
       "schema": "public",
-      "values": [
-        "COMPLETE",
-        "PARTIAL",
-        "MISSING",
-        "NOT_EXPECTED"
-      ]
+      "values": ["COMPLETE", "PARTIAL", "MISSING", "NOT_EXPECTED"]
     },
     "public.health_band": {
       "name": "health_band",
       "schema": "public",
-      "values": [
-        "GREEN",
-        "AMBER",
-        "RED",
-        "GRAY"
-      ]
+      "values": ["GREEN", "AMBER", "RED", "GRAY"]
     },
     "public.issue_severity": {
       "name": "issue_severity",
       "schema": "public",
-      "values": [
-        "INFO",
-        "WARNING",
-        "ERROR"
-      ]
+      "values": ["INFO", "WARNING", "ERROR"]
     },
     "public.snapshot_kind": {
       "name": "snapshot_kind",
       "schema": "public",
-      "values": [
-        "NIGHTLY",
-        "MONTH_END",
-        "RECONSTRUCTED"
-      ]
+      "values": ["NIGHTLY", "MONTH_END", "RECONSTRUCTED"]
     },
     "public.source_kind": {
       "name": "source_kind",
       "schema": "public",
-      "values": [
-        "TEAMWORK",
-        "DASHBOARD_OVERRIDE",
-        "DERIVED",
-        "NOTEBOOK_FALLBACK"
-      ]
+      "values": ["TEAMWORK", "DASHBOARD_OVERRIDE", "DERIVED", "NOTEBOOK_FALLBACK"]
     },
     "public.sync_kind": {
       "name": "sync_kind",
       "schema": "public",
-      "values": [
-        "INITIAL_IMPORT",
-        "NIGHTLY",
-        "MANUAL",
-        "SNAPSHOT"
-      ]
+      "values": ["INITIAL_IMPORT", "NIGHTLY", "MANUAL", "SNAPSHOT"]
     },
     "public.sync_status": {
       "name": "sync_status",
       "schema": "public",
-      "values": [
-        "RUNNING",
-        "SUCCEEDED",
-        "SUCCEEDED_WITH_WARNINGS",
-        "FAILED"
-      ]
+      "values": ["RUNNING", "SUCCEEDED", "SUCCEEDED_WITH_WARNINGS", "FAILED"]
     },
     "public.estimate_source": {
       "name": "estimate_source",
       "schema": "public",
-      "values": [
-        "OWN",
-        "CHILDREN",
-        "NONE"
-      ]
+      "values": ["OWN", "CHILDREN", "NONE"]
     }
   },
   "schemas": {},

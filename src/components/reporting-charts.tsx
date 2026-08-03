@@ -93,7 +93,9 @@ export function GroupedBarChart({
       <div className="chart-legend" aria-hidden="true">
         {series.map((item, index) => (
           <span key={item.key}>
-            <i className={`chart-swatch chart-tone--${item.tone ?? ["blue", "navy", "green", "amber"][index % 4]}`} />
+            <i
+              className={`chart-swatch chart-tone--${item.tone ?? ["blue", "navy", "green", "amber"][index % 4]}`}
+            />
             {item.label}
           </span>
         ))}
@@ -108,7 +110,10 @@ export function GroupedBarChart({
             <div className="bar-chart__tracks">
               {series.map((item, index) => {
                 const value = row.values[item.key];
-                const width = finite(value) && max > 0 ? Math.max((Math.abs(value) / max) * 100, value === 0 ? 0 : 1.5) : 0;
+                const width =
+                  finite(value) && max > 0
+                    ? Math.max((Math.abs(value) / max) * 100, value === 0 ? 0 : 1.5)
+                    : 0;
                 const tone = item.tone ?? ["blue", "navy", "green", "amber"][index % 4];
                 const style = { "--chart-width": `${width}%` } as CSSProperties;
                 return (
@@ -116,7 +121,9 @@ export function GroupedBarChart({
                     <div className="bar-chart__track">
                       <span className={`bar-chart__fill chart-tone--${tone}`} style={style} />
                     </div>
-                    <span className="bar-chart__value">{finite(value) ? formatter(value) : "Missing"}</span>
+                    <span className="bar-chart__value">
+                      {finite(value) ? formatter(value) : "Missing"}
+                    </span>
                   </div>
                 );
               })}
@@ -152,7 +159,11 @@ export function HealthDonut({
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   return (
-    <div className="donut-chart" role="img" aria-label={`Project health distribution across ${total} projects`}>
+    <div
+      className="donut-chart"
+      role="img"
+      aria-label={`Project health distribution across ${total} projects`}
+    >
       <div className="donut-chart__graphic">
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle className="donut-chart__base" cx="60" cy="60" r={radius} />
@@ -173,12 +184,18 @@ export function HealthDonut({
             );
           })}
         </svg>
-        <div className="donut-chart__center"><strong>{total}</strong><span>projects</span></div>
+        <div className="donut-chart__center">
+          <strong>{total}</strong>
+          <span>projects</span>
+        </div>
       </div>
       <div className="donut-chart__legend">
         {segments.map((segment) => (
           <div key={segment.label}>
-            <span><i className={`chart-swatch chart-tone--${segment.tone}`} />{segment.label}</span>
+            <span>
+              <i className={`chart-swatch chart-tone--${segment.tone}`} />
+              {segment.label}
+            </span>
             <strong>{segment.value}</strong>
             <small>{((segment.value / total) * 100).toFixed(0)}%</small>
           </div>
@@ -188,18 +205,25 @@ export function HealthDonut({
   );
 }
 
-
-
 export type { ProfitabilityRow } from "@/components/profitability-chart-types";
 
 export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
   const availableRows = rows.filter((row) => finite(row.profit));
   const maximum = Math.max(...availableRows.map((row) => Math.abs(row.profit ?? 0)), 1);
-  if (!availableRows.length) return <div className="chart-empty">No profit or loss positions are available.</div>;
+  if (!availableRows.length)
+    return <div className="chart-empty">No profit or loss positions are available.</div>;
 
   return (
-    <div className="diverging-profit" role="img" aria-label="Forecast profit and loss by operational group">
-      <div className="diverging-profit__axis" aria-hidden="true"><span>Loss</span><i /><span>Profit</span></div>
+    <div
+      className="diverging-profit"
+      role="img"
+      aria-label="Forecast profit and loss by operational group"
+    >
+      <div className="diverging-profit__axis" aria-hidden="true">
+        <span>Loss</span>
+        <i />
+        <span>Profit</span>
+      </div>
       <div className="diverging-profit__rows">
         {availableRows.map((row) => {
           const profit = row.profit ?? 0;
@@ -217,7 +241,9 @@ export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
                   style={{ "--diverging-width": `${width}%` } as CSSProperties}
                 />
               </div>
-              <div className={`diverging-profit__value ${profit < 0 ? "diverging-profit__value--loss" : ""}`}>
+              <div
+                className={`diverging-profit__value ${profit < 0 ? "diverging-profit__value--loss" : ""}`}
+              >
                 <strong>{compactCurrency(profit)}</strong>
                 {finite(row.margin) ? <small>{row.margin.toFixed(1)}% margin</small> : null}
               </div>
@@ -244,22 +270,53 @@ export function OperationalBreakdown({ rows }: { rows: ProfitabilityRow[] }) {
   return (
     <div className="operational-breakdown">
       <div className="operational-breakdown__metrics">
-        <div><span>Allocated revenue</span><strong>{compactCurrency(totals.revenue)}</strong></div>
-        <div><span>Forecast cost</span><strong>{compactCurrency(totals.cost)}</strong></div>
-        <div><span>Forecast profit</span><strong>{compactCurrency(totals.profit)}</strong></div>
-        <div><span>Combined margin</span><strong>{margin === null ? "Missing" : `${margin.toFixed(1)}%`}</strong></div>
+        <div>
+          <span>Allocated revenue</span>
+          <strong>{compactCurrency(totals.revenue)}</strong>
+        </div>
+        <div>
+          <span>Forecast cost</span>
+          <strong>{compactCurrency(totals.cost)}</strong>
+        </div>
+        <div>
+          <span>Forecast profit</span>
+          <strong>{compactCurrency(totals.profit)}</strong>
+        </div>
+        <div>
+          <span>Combined margin</span>
+          <strong>{margin === null ? "Missing" : `${margin.toFixed(1)}%`}</strong>
+        </div>
       </div>
       <div className="table-wrap operational-breakdown__table-wrap">
         <table className="data-table operational-breakdown__table">
-          <thead><tr><th>Group</th><th>Projects</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Margin</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Group</th>
+              <th>Projects</th>
+              <th>Revenue</th>
+              <th>Cost</th>
+              <th>Profit</th>
+              <th>Margin</th>
+            </tr>
+          </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.label}>
-                <td><strong>{row.label}</strong></td>
+                <td>
+                  <strong>{row.label}</strong>
+                </td>
                 <td>{row.projectCount ?? "—"}</td>
                 <td>{finite(row.revenue) ? compactCurrency(row.revenue) : "Missing"}</td>
                 <td>{finite(row.cost) ? compactCurrency(row.cost) : "Missing"}</td>
-                <td className={(row.profit ?? 0) < 0 ? "operational-breakdown__loss" : "operational-breakdown__profit"}>{finite(row.profit) ? compactCurrency(row.profit) : "Missing"}</td>
+                <td
+                  className={
+                    (row.profit ?? 0) < 0
+                      ? "operational-breakdown__loss"
+                      : "operational-breakdown__profit"
+                  }
+                >
+                  {finite(row.profit) ? compactCurrency(row.profit) : "Missing"}
+                </td>
                 <td>{finite(row.margin) ? `${row.margin.toFixed(1)}%` : "Missing"}</td>
               </tr>
             ))}
@@ -288,15 +345,26 @@ function AnalysisTakeaway({ rows }: { rows: ProfitabilityRow[] }) {
 
   return (
     <aside className="analysis-takeaway">
-      <span className="analysis-takeaway__icon" aria-hidden="true">↗</span>
+      <span className="analysis-takeaway__icon" aria-hidden="true">
+        ↗
+      </span>
       <div>
         <strong>Key takeaway</strong>
         {leaders.length ? (
           <p>
-            {leaders.map((row) => row.label).join(" and ")} {leaders.length === 1 ? "is" : "are"} the strongest profit contributor{leaders.length === 1 ? "" : "s"}, generating {compactCurrency(leaders.reduce((sum, row) => sum + (row.profit ?? 0), 0))} combined.
+            {leaders.map((row) => row.label).join(" and ")} {leaders.length === 1 ? "is" : "are"}{" "}
+            the strongest profit contributor{leaders.length === 1 ? "" : "s"}, generating{" "}
+            {compactCurrency(leaders.reduce((sum, row) => sum + (row.profit ?? 0), 0))} combined.
           </p>
-        ) : <p>No operational group currently reports positive forecast profit.</p>}
-        {largestLoss ? <p>{largestLoss.label} is the largest loss position at {compactCurrency(largestLoss.profit ?? 0)}.</p> : null}
+        ) : (
+          <p>No operational group currently reports positive forecast profit.</p>
+        )}
+        {largestLoss ? (
+          <p>
+            {largestLoss.label} is the largest loss position at{" "}
+            {compactCurrency(largestLoss.profit ?? 0)}.
+          </p>
+        ) : null}
       </div>
     </aside>
   );
@@ -304,7 +372,9 @@ function AnalysisTakeaway({ rows }: { rows: ProfitabilityRow[] }) {
 
 function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] }) {
   const sorted = [...projects].sort(
-    (a, b) => (numericProjectValue(b.forecastProfit) ?? -Infinity) - (numericProjectValue(a.forecastProfit) ?? -Infinity),
+    (a, b) =>
+      (numericProjectValue(b.forecastProfit) ?? -Infinity) -
+      (numericProjectValue(a.forecastProfit) ?? -Infinity),
   );
 
   return (
@@ -328,32 +398,71 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
             const estimateHours = project.canonicalEstimatedMinutes / 60;
             const loggedHours = project.loggedMinutes / 60;
             const effortPercent = estimateHours > 0 ? (loggedHours / estimateHours) * 100 : null;
-            const healthLabel = project.healthBand === "GREEN"
-              ? "Healthy"
-              : project.healthBand === "AMBER"
-                ? "At risk"
-                : project.healthBand === "RED"
-                  ? "Unhealthy"
-                  : "N/A";
+            const healthLabel =
+              project.healthBand === "GREEN"
+                ? "Healthy"
+                : project.healthBand === "AMBER"
+                  ? "At risk"
+                  : project.healthBand === "RED"
+                    ? "Unhealthy"
+                    : "N/A";
             return (
               <tr key={project.id}>
                 <td>
                   <Link className="project-link" href={`/projects/${project.id}`}>
-                    <strong>{project.projectNumber ? `${project.projectNumber} · ` : ""}{project.name.replace(`${project.projectNumber} - `, "")}</strong>
+                    <strong>
+                      {project.projectNumber ? `${project.projectNumber} · ` : ""}
+                      {project.name.replace(`${project.projectNumber} - `, "")}
+                    </strong>
                   </Link>
                 </td>
                 <td>{project.companyName ?? "—"}</td>
-                <td><span className={`project-health-label project-health-label--${project.healthBand.toLowerCase()}`}>{healthLabel}</span></td>
-                <td className={(numericProjectValue(project.forecastProfit) ?? 0) < 0 ? "operational-breakdown__loss" : "operational-breakdown__profit"}>{money(project.forecastProfit)}</td>
-                <td>{percent(project.forecastMarginPercent, 2)}{project.isProvisional ? <small className="table-subvalue table-subvalue--warning">Ceiling</small> : null}</td>
+                <td>
+                  <span
+                    className={`project-health-label project-health-label--${project.healthBand.toLowerCase()}`}
+                  >
+                    {healthLabel}
+                  </span>
+                </td>
+                <td
+                  className={
+                    (numericProjectValue(project.forecastProfit) ?? 0) < 0
+                      ? "operational-breakdown__loss"
+                      : "operational-breakdown__profit"
+                  }
+                >
+                  {money(project.forecastProfit)}
+                </td>
+                <td>
+                  {percent(project.forecastMarginPercent, 2)}
+                  {project.isProvisional ? (
+                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
+                  ) : null}
+                </td>
                 <td>{hours(project.loggedMinutes)}</td>
                 <td>{effortPercent === null ? "N/A" : `${effortPercent.toFixed(0)}%`}</td>
                 <td>{percent(project.progressPercent)}</td>
-                <td><span className={project.dataQualityIssueCount ? "issue-count issue-count--warning" : "issue-count"}>{project.dataQualityIssueCount}</span></td>
+                <td>
+                  <span
+                    className={
+                      project.dataQualityIssueCount
+                        ? "issue-count issue-count--warning"
+                        : "issue-count"
+                    }
+                  >
+                    {project.dataQualityIssueCount}
+                  </span>
+                </td>
               </tr>
             );
           })}
-          {!sorted.length ? <tr><td className="empty-state" colSpan={9}>No projects are available in this report.</td></tr> : null}
+          {!sorted.length ? (
+            <tr>
+              <td className="empty-state" colSpan={9}>
+                No projects are available in this report.
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>
@@ -374,12 +483,19 @@ export function PortfolioAnalysisDisclosure({
           <p className="eyebrow">Decision support</p>
           <h3 id="additional-data-title">Portfolio Insights & Attention</h3>
         </div>
-        <span>Open a focused view to investigate profit drivers, risk, and project-level performance.</span>
+        <span>
+          Open a focused view to investigate profit drivers, risk, and project-level performance.
+        </span>
       </div>
 
       <details className="analysis-disclosure analysis-disclosure--single" open>
         <summary>
-          <span><strong>Profit Drivers & Loss Exposure</strong><small>See which operational groups are creating value and which require attention.</small></span>
+          <span>
+            <strong>Profit Drivers & Loss Exposure</strong>
+            <small>
+              See which operational groups are creating value and which require attention.
+            </small>
+          </span>
           <i aria-hidden="true" />
         </summary>
         <div className="analysis-disclosure__content analysis-disclosure__content--takeaway">
@@ -392,7 +508,10 @@ export function PortfolioAnalysisDisclosure({
 
       <details className="analysis-disclosure analysis-disclosure--single">
         <summary>
-          <span><strong>Operational Group Summary</strong><small>Review revenue, cost, remaining work, profit, margin, and project count.</small></span>
+          <span>
+            <strong>Operational Group Summary</strong>
+            <small>Review revenue, cost, remaining work, profit, margin, and project count.</small>
+          </span>
           <i aria-hidden="true" />
         </summary>
         <div className="analysis-disclosure__content analysis-disclosure__content--single">
@@ -404,7 +523,12 @@ export function PortfolioAnalysisDisclosure({
 
       <details className="analysis-disclosure analysis-disclosure--single">
         <summary>
-          <span><strong>Project Attention Register</strong><small>Review project-level profitability, effort consumption, health, and data quality.</small></span>
+          <span>
+            <strong>Project Attention Register</strong>
+            <small>
+              Review project-level profitability, effort consumption, health, and data quality.
+            </small>
+          </span>
           <i aria-hidden="true" />
         </summary>
         <div className="analysis-disclosure__content analysis-disclosure__content--single">
@@ -439,9 +563,18 @@ export function CostPerformanceChart({
       aria-label="Operational group cost performance against target"
     >
       <div className="chart-legend" aria-hidden="true">
-        <span><i className="chart-swatch chart-tone--navy" />Actual cost</span>
-        <span><i className="chart-swatch chart-tone--amber" />Costed remaining work</span>
-        <span><i className="cost-performance__target-key" />Target cost</span>
+        <span>
+          <i className="chart-swatch chart-tone--navy" />
+          Actual cost
+        </span>
+        <span>
+          <i className="chart-swatch chart-tone--amber" />
+          Costed remaining work
+        </span>
+        <span>
+          <i className="cost-performance__target-key" />
+          Target cost
+        </span>
       </div>
       <div className="cost-performance__rows">
         {rows.map((row) => {
@@ -452,7 +585,9 @@ export function CostPerformanceChart({
                   <strong>{row.label}</strong>
                   <span>Target cost missing</span>
                 </div>
-                <div className="cost-performance__missing">Add a task-list target cost to compare performance.</div>
+                <div className="cost-performance__missing">
+                  Add a task-list target cost to compare performance.
+                </div>
               </div>
             );
           }
@@ -481,7 +616,11 @@ export function CostPerformanceChart({
             <div className="cost-performance__row" key={row.label}>
               <div className="cost-performance__heading">
                 <strong>{row.label}</strong>
-                <span className={`cost-performance__status cost-performance__status--${statusTone}`}>{status}</span>
+                <span
+                  className={`cost-performance__status cost-performance__status--${statusTone}`}
+                >
+                  {status}
+                </span>
               </div>
               <div className="cost-performance__track" aria-hidden="true">
                 <span
@@ -490,10 +629,12 @@ export function CostPerformanceChart({
                 />
                 <span
                   className="cost-performance__remaining"
-                  style={{
-                    "--cost-left": `${actualWidth}%`,
-                    "--cost-width": `${remainingWidth}%`,
-                  } as CSSProperties}
+                  style={
+                    {
+                      "--cost-left": `${actualWidth}%`,
+                      "--cost-width": `${remainingWidth}%`,
+                    } as CSSProperties
+                  }
                 />
                 <span
                   className="cost-performance__target"
@@ -501,9 +642,16 @@ export function CostPerformanceChart({
                 />
               </div>
               <div className="cost-performance__values">
-                <span>Actual <strong>{actualKnown ? compactCurrency(actual) : "Missing"}</strong></span>
-                <span>Forecast <strong>{forecastKnown ? compactCurrency(forecastValue) : "Missing"}</strong></span>
-                <span>Target <strong>{compactCurrency(row.target)}</strong></span>
+                <span>
+                  Actual <strong>{actualKnown ? compactCurrency(actual) : "Missing"}</strong>
+                </span>
+                <span>
+                  Forecast{" "}
+                  <strong>{forecastKnown ? compactCurrency(forecastValue) : "Missing"}</strong>
+                </span>
+                <span>
+                  Target <strong>{compactCurrency(row.target)}</strong>
+                </span>
               </div>
             </div>
           );
@@ -528,13 +676,16 @@ export function SingleValueBars({
     return compactNumber(value);
   };
 
-  if (!rows.length || max === 0) return <div className="chart-empty">No chart data is available.</div>;
+  if (!rows.length || max === 0)
+    return <div className="chart-empty">No chart data is available.</div>;
 
   return (
     <div className="single-value-chart" role="img" aria-label="Financial position bar chart">
       <div className="chart-legend chart-legend--financial" aria-hidden="true">
         {rows.map((row, index) => {
-          const tone = row.tone ?? (["navy", "gray", "blue", "amber", "green"][index % 5] as ChartSeries["tone"]);
+          const tone =
+            row.tone ??
+            (["navy", "gray", "blue", "amber", "green"][index % 5] as ChartSeries["tone"]);
           return (
             <span key={row.label}>
               <i className={`chart-swatch chart-swatch--outlined chart-tone--${tone}`} />
@@ -545,12 +696,20 @@ export function SingleValueBars({
       </div>
       <div className="single-value-chart__rows">
         {rows.map((row, index) => {
-          const tone = row.tone ?? (["navy", "gray", "blue", "amber", "green"][index % 5] as ChartSeries["tone"]);
-          const width = finite(row.value) && max > 0 ? Math.max((Math.abs(row.value) / max) * 100, row.value === 0 ? 0 : 1.5) : 0;
+          const tone =
+            row.tone ??
+            (["navy", "gray", "blue", "amber", "green"][index % 5] as ChartSeries["tone"]);
+          const width =
+            finite(row.value) && max > 0
+              ? Math.max((Math.abs(row.value) / max) * 100, row.value === 0 ? 0 : 1.5)
+              : 0;
           return (
             <div className="single-value-chart__row" key={row.label}>
               <div className="single-value-chart__label">
-                <i className={`chart-swatch chart-swatch--outlined chart-tone--${tone}`} aria-hidden="true" />
+                <i
+                  className={`chart-swatch chart-swatch--outlined chart-tone--${tone}`}
+                  aria-hidden="true"
+                />
                 <strong>{row.label}</strong>
               </div>
               <div className="single-value-chart__track">
@@ -559,7 +718,9 @@ export function SingleValueBars({
                   style={{ "--chart-width": `${width}%` } as CSSProperties}
                 />
               </div>
-              <span className="single-value-chart__value">{finite(row.value) ? formatter(row.value) : "Missing"}</span>
+              <span className="single-value-chart__value">
+                {finite(row.value) ? formatter(row.value) : "Missing"}
+              </span>
             </div>
           );
         })}

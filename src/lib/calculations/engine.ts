@@ -45,11 +45,15 @@ function numeric(value: string | number | null | undefined): number | null {
 }
 
 function money(value: number | null): string | null {
-  return value === null || !Number.isFinite(value) ? null : (Math.round(value * 100) / 100).toFixed(2);
+  return value === null || !Number.isFinite(value)
+    ? null
+    : (Math.round(value * 100) / 100).toFixed(2);
 }
 
 function decimal(value: number | null): string | null {
-  return value === null || !Number.isFinite(value) ? null : (Math.round(value * 10000) / 10000).toFixed(4);
+  return value === null || !Number.isFinite(value)
+    ? null
+    : (Math.round(value * 10000) / 10000).toFixed(4);
 }
 
 function completed(status: string, completedAt: Date | null): boolean {
@@ -122,19 +126,19 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       projectTagRows,
       outsourcedAliasRows,
     ] = await Promise.all([
-        db.select().from(projects),
-        db.select().from(taskLists),
-        db.select().from(tasks),
-        db.select().from(timeEntries),
-        db.select().from(people),
-        db.select().from(jobRoles),
-        db.select().from(projectBudgets),
-        db.select().from(expenses),
-        db.select().from(taskListBudgets),
-        db.select().from(tags),
-        db.select().from(projectTags),
-        db.select().from(outsourcedTaskAliases),
-      ]);
+      db.select().from(projects),
+      db.select().from(taskLists),
+      db.select().from(tasks),
+      db.select().from(timeEntries),
+      db.select().from(people),
+      db.select().from(jobRoles),
+      db.select().from(projectBudgets),
+      db.select().from(expenses),
+      db.select().from(taskListBudgets),
+      db.select().from(tags),
+      db.select().from(projectTags),
+      db.select().from(outsourcedTaskAliases),
+    ]);
 
     const normalizedOutsourcedAliases = new Set<string>(
       outsourcedAliasRows
@@ -163,7 +167,8 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       )
       .orderBy(desc(outsourcedRates.effectiveFrom))
       .limit(1);
-    const outsourcedRate = numeric(rateRow?.hourlyRate) ?? REPORTING_RULES.outsourcedModelingHourlyRateUsd;
+    const outsourcedRate =
+      numeric(rateRow?.hourlyRate) ?? REPORTING_RULES.outsourcedModelingHourlyRateUsd;
 
     const personByTeamworkId = new Map<number, typeof people.$inferSelect>(
       peopleRows.map((person) => [person.teamworkId, person]),
@@ -177,9 +182,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
     const jobRoleCostRateByTeamworkId = new Map<number, number | null>(
       jobRoleRows.map((role) => [role.teamworkId, numeric(role.costRate)]),
     );
-    const tagById = new Map<string, typeof tags.$inferSelect>(
-      tagRows.map((tag) => [tag.id, tag]),
-    );
+    const tagById = new Map<string, typeof tags.$inferSelect>(tagRows.map((tag) => [tag.id, tag]));
     const tagNamesByProject = new Map<string, string[]>();
     for (const relation of projectTagRows) {
       const tag = tagById.get(relation.tagId);
@@ -191,7 +194,9 @@ export async function calculateAllProjects(asOfDate = new Date()) {
 
     await db.delete(taskAssignments);
     const assignmentRows: (typeof taskAssignments.$inferInsert)[] = [];
-    for (const task of taskRows.filter((row) => !row.isDeleted && reportingProjectIds.has(row.projectId))) {
+    for (const task of taskRows.filter(
+      (row) => !row.isDeleted && reportingProjectIds.has(row.projectId),
+    )) {
       const assignments = extractAssignments(task.raw);
       for (const teamworkAssigneeId of assignments.userIds) {
         assignmentRows.push({
@@ -265,9 +270,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         ownLoggedByTask.set(entry.taskId, (ownLoggedByTask.get(entry.taskId) ?? 0) + entry.minutes);
       }
       const canonical = calculateCanonicalTaskMetrics(taskInputs, ownLoggedByTask);
-      const rawByTaskId = new Map<string, unknown>(
-        projectTasks.map((task) => [task.id, task.raw]),
-      );
+      const rawByTaskId = new Map<string, unknown>(projectTasks.map((task) => [task.id, task.raw]));
       const isOutsourcedBranch = createOutsourcedBranchResolver(projectTasks, isOutsourcedName);
       const roots = rootTaskIds(taskInputs);
       const canonicalEstimatedMinutes = roots.reduce(
@@ -286,7 +289,8 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       for (const metric of canonical.values()) {
         if (!metric.isCanonicalHolder) continue;
         for (const coveredId of [metric.taskId, ...metric.descendantTaskIds]) {
-          if (!holderByCoveredTaskId.has(coveredId)) holderByCoveredTaskId.set(coveredId, metric.taskId);
+          if (!holderByCoveredTaskId.has(coveredId))
+            holderByCoveredTaskId.set(coveredId, metric.taskId);
         }
       }
       const uncoveredLoggedByTask = new Map(
@@ -305,10 +309,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         (sum, task) => sum + (uncoveredLoggedByTask.get(task.id) ?? 0),
         0,
       );
-      const plannedTaskLinkedMinutes = Math.max(
-        taskLinkedMinutes - nonCanonicalLoggedMinutes,
-        0,
-      );
+      const plannedTaskLinkedMinutes = Math.max(taskLinkedMinutes - nonCanonicalLoggedMinutes, 0);
 
       let actualLaborKnown = 0;
       let actualLaborCompleteEntries = 0;
@@ -321,7 +322,10 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           actualLaborKnown += entryCost;
           actualLaborCompleteEntries += 1;
           if (entry.taskId) {
-            actualCostByTask.set(entry.taskId, (actualCostByTask.get(entry.taskId) ?? 0) + entryCost);
+            actualCostByTask.set(
+              entry.taskId,
+              (actualCostByTask.get(entry.taskId) ?? 0) + entryCost,
+            );
           }
         }
       }
@@ -403,12 +407,11 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           resolvedAssignment.averageRate === null
             ? null
             : (metric.branchEstimatedMinutes / 60) * resolvedAssignment.averageRate;
-        const remaining =
-          !hasRemainingWork
-            ? 0
-            : resolvedAssignment.averageRate === null
-              ? null
-              : (metric.remainingMinutes / 60) * resolvedAssignment.averageRate;
+        const remaining = !hasRemainingWork
+          ? 0
+          : resolvedAssignment.averageRate === null
+            ? null
+            : (metric.remainingMinutes / 60) * resolvedAssignment.averageRate;
         projectedLaborByTask.set(task.id, projected);
         remainingLaborByTask.set(task.id, remaining);
         if (projected !== null) {
@@ -523,7 +526,8 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           projectId: project.id,
           severity: "WARNING",
           code: "UNALLOCATED_PROJECT_TIME",
-          message: "Time logged directly to the project is included in project totals but excluded from group and task totals.",
+          message:
+            "Time logged directly to the project is included in project totals but excluded from group and task totals.",
           details: { minutes: unallocatedMinutes },
         });
       }
@@ -533,7 +537,8 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           projectId: project.id,
           severity: "WARNING",
           code: "ACTUAL_LABOR_COST_INCOMPLETE",
-          message: "Some historical time entries do not contain a usable Teamwork cost total or cost rate.",
+          message:
+            "Some historical time entries do not contain a usable Teamwork cost total or cost rate.",
           details: { entries: projectTime.length, entriesWithCost: actualLaborCompleteEntries },
         });
       }
@@ -543,7 +548,8 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           projectId: project.id,
           severity: "WARNING",
           code: "OUTSOURCED_EXPENSE_MISSING",
-          message: "An outsourced-cost task exists, but no matching Teamwork Finance expense was returned.",
+          message:
+            "An outsourced-cost task exists, but no matching Teamwork Finance expense was returned.",
           details: { projectedOutsourcedCost: projectedOutsourced },
         });
       }
@@ -589,19 +595,28 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           ? null
           : (forecastProfit / clientFee) * 100;
       const totalTaskCount = projectTasks.length;
-      const completedTaskCount = projectTasks.filter((task) => completed(task.status, task.completedAt)).length;
-      const progressPercent = totalTaskCount === 0 ? 0 : (completedTaskCount / totalTaskCount) * 100;
+      const completedTaskCount = projectTasks.filter((task) =>
+        completed(task.status, task.completedAt),
+      ).length;
+      const progressPercent =
+        totalTaskCount === 0 ? 0 : (completedTaskCount / totalTaskCount) * 100;
       const estimateConsumptionPercent =
         canonicalEstimatedMinutes === 0
           ? null
           : (plannedTaskLinkedMinutes / canonicalEstimatedMinutes) * 100;
-      const incompleteTasks = projectTasks.filter((task) => !completed(task.status, task.completedAt));
+      const incompleteTasks = projectTasks.filter(
+        (task) => !completed(task.status, task.completedAt),
+      );
       const overdueIncompleteTaskCount = incompleteTasks.filter((task) =>
         isPastDue(task.dueDate, asOfDate),
       ).length;
 
       const completenessScore =
-        ((clientFee !== null && targetCost !== null ? 100 : clientFee !== null || targetCost !== null ? 50 : 0) +
+        ((clientFee !== null && targetCost !== null
+          ? 100
+          : clientFee !== null || targetCost !== null
+            ? 50
+            : 0) +
           (canonicalEstimatedMinutes > 0 ? 100 : 0) +
           coveragePoints(assignmentCoverage) +
           coveragePoints(laborCoverage) +
@@ -687,7 +702,9 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         );
         const groupTasks = projectTasks.filter((task) => groupTaskListIds.has(task.taskListId));
         const groupTaskIds = new Set(groupTasks.map((task) => task.id));
-        const groupTime = projectTime.filter((entry) => entry.taskId && groupTaskIds.has(entry.taskId));
+        const groupTime = projectTime.filter(
+          (entry) => entry.taskId && groupTaskIds.has(entry.taskId),
+        );
         const groupEstimated = groupTasks.reduce(
           (sum, task) => sum + (canonical.get(task.id)?.countedEstimatedMinutes ?? 0),
           0,
@@ -773,8 +790,11 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           knownGroupBudgets.length === 0
             ? null
             : knownGroupBudgets.reduce((sum, value) => sum + value, 0);
-        const groupCompleted = groupTasks.filter((task) => completed(task.status, task.completedAt)).length;
-        const groupProgress = groupTasks.length === 0 ? 0 : (groupCompleted / groupTasks.length) * 100;
+        const groupCompleted = groupTasks.filter((task) =>
+          completed(task.status, task.completedAt),
+        ).length;
+        const groupProgress =
+          groupTasks.length === 0 ? 0 : (groupCompleted / groupTasks.length) * 100;
         allGroupMetrics.push({
           projectId: project.id,
           groupName,

@@ -48,11 +48,7 @@ export async function GET(request: NextRequest) {
   });
   const token = (await response.json()) as TokenResponse;
   if (!response.ok || !token.access_token || !token.installation?.id) {
-    return errorRedirect(
-      request,
-      oauthState.purpose,
-      token.message ?? "token_exchange_failed",
-    );
+    return errorRedirect(request, oauthState.purpose, token.message ?? "token_exchange_failed");
   }
 
   const userResponse = await fetch("https://www.teamwork.com/launchpad/v1/userinfo.json", {

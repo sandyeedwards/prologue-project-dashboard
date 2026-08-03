@@ -111,7 +111,11 @@ function buildCalendarDays(month: Date): CalendarDay[] {
   const firstCell = new Date(year, monthIndex, 1 - firstDayOffset);
 
   return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(firstCell.getFullYear(), firstCell.getMonth(), firstCell.getDate() + index);
+    const date = new Date(
+      firstCell.getFullYear(),
+      firstCell.getMonth(),
+      firstCell.getDate() + index,
+    );
     return {
       iso: dateToIso(date),
       day: date.getDate(),
@@ -146,7 +150,12 @@ function CalendarPopover({
   }).format(month);
 
   return (
-    <div id={id} className="flexible-date__popover" role="dialog" aria-label={`Choose a date in ${monthLabel}`}>
+    <div
+      id={id}
+      className="flexible-date__popover"
+      role="dialog"
+      aria-label={`Choose a date in ${monthLabel}`}
+    >
       <div className="flexible-date__popover-header">
         <button
           type="button"
@@ -165,7 +174,9 @@ function CalendarPopover({
         </button>
       </div>
       <div className="flexible-date__weekdays" aria-hidden="true">
-        {WEEKDAYS.map((weekday) => <span key={weekday}>{weekday}</span>)}
+        {WEEKDAYS.map((weekday) => (
+          <span key={weekday}>{weekday}</span>
+        ))}
       </div>
       <div className="flexible-date__days">
         {days.map((day) => {
@@ -181,7 +192,9 @@ function CalendarPopover({
                 day.inCurrentMonth ? "" : "flexible-date__day--outside",
                 selected ? "flexible-date__day--selected" : "",
                 today ? "flexible-date__day--today" : "",
-              ].filter(Boolean).join(" ")}
+              ]
+                .filter(Boolean)
+                .join(" ")}
               disabled={disabled}
               aria-pressed={selected}
               aria-label={new Intl.DateTimeFormat("en-US", {
@@ -198,8 +211,16 @@ function CalendarPopover({
         })}
       </div>
       <div className="flexible-date__popover-footer">
-        <button type="button" onClick={() => onSelect(todayIso)} disabled={Boolean(minimumIso && todayIso < minimumIso)}>Today</button>
-        <button type="button" onClick={onClose}>Close</button>
+        <button
+          type="button"
+          onClick={() => onSelect(todayIso)}
+          disabled={Boolean(minimumIso && todayIso < minimumIso)}
+        >
+          Today
+        </button>
+        <button type="button" onClick={onClose}>
+          Close
+        </button>
       </div>
     </div>
   );
@@ -237,9 +258,12 @@ function DateField({
     if (!state.error) lastValid.current = { iso: state.iso, display: state.display };
   }, [state.display, state.error, state.iso]);
 
-  useEffect(() => () => {
-    if (clickTimer.current) clearTimeout(clickTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (clickTimer.current) clearTimeout(clickTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!calendarOpen) return;
@@ -310,7 +334,10 @@ function DateField({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (!state.manual && (event.key === "Enter" || event.key === " " || event.key === "ArrowDown")) {
+    if (
+      !state.manual &&
+      (event.key === "Enter" || event.key === " " || event.key === "ArrowDown")
+    ) {
       event.preventDefault();
       openCalendar();
       return;
@@ -341,7 +368,9 @@ function DateField({
   };
 
   return (
-    <div className={`filter-field filter-field--date flexible-date${state.error ? " flexible-date--error" : ""}`}>
+    <div
+      className={`filter-field filter-field--date flexible-date${state.error ? " flexible-date--error" : ""}`}
+    >
       <label htmlFor={inputId}>{label}</label>
       <div className="flexible-date__control" ref={controlRef}>
         <input
@@ -403,9 +432,13 @@ function DateField({
         ) : null}
       </div>
       {state.error ? (
-        <small className="flexible-date__error" id={`${inputId}-error`} role="alert">{state.error}</small>
+        <small className="flexible-date__error" id={`${inputId}-error`} role="alert">
+          {state.error}
+        </small>
       ) : (
-        <small className="flexible-date__help" id={`${inputId}-help`}>Click for calendar · double-click to type</small>
+        <small className="flexible-date__help" id={`${inputId}-help`}>
+          Click for calendar · double-click to type
+        </small>
       )}
     </div>
   );
@@ -473,9 +506,14 @@ export function FlexibleDateRangeFields({
       const parsedFrom = parseFlexibleDateInput(from.display);
       if (!parsedFrom) {
         fromValid = false;
-        setFrom((current) => ({ ...current, error: "Enter a valid date such as 4/4/24 or 04/04/2024.", manual: true }));
+        setFrom((current) => ({
+          ...current,
+          error: "Enter a valid date such as 4/4/24 or 04/04/2024.",
+          manual: true,
+        }));
       } else {
-        const hiddenFrom = rootRef.current?.querySelector<HTMLInputElement>('input[name="dateFrom"]');
+        const hiddenFrom =
+          rootRef.current?.querySelector<HTMLInputElement>('input[name="dateFrom"]');
         if (hiddenFrom) hiddenFrom.value = parsedFrom.iso;
         setFrom({ iso: parsedFrom.iso, display: parsedFrom.display, error: "", manual: false });
       }
@@ -483,10 +521,18 @@ export function FlexibleDateRangeFields({
       const parsedTo = parseFlexibleDateInput(to.display);
       if (!parsedTo) {
         toValid = false;
-        setTo((current) => ({ ...current, error: "Enter a valid date such as 4/4/24 or 04/04/2024.", manual: true }));
+        setTo((current) => ({
+          ...current,
+          error: "Enter a valid date such as 4/4/24 or 04/04/2024.",
+          manual: true,
+        }));
       } else if (parsedFrom?.iso && parsedTo.iso && parsedTo.iso < parsedFrom.iso) {
         toValid = false;
-        setTo((current) => ({ ...current, error: "The through date cannot be earlier than the from date.", manual: true }));
+        setTo((current) => ({
+          ...current,
+          error: "The through date cannot be earlier than the from date.",
+          manual: true,
+        }));
       } else {
         const hiddenTo = rootRef.current?.querySelector<HTMLInputElement>('input[name="dateTo"]');
         if (hiddenTo) hiddenTo.value = parsedTo.iso;

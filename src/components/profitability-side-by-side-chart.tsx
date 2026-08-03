@@ -73,8 +73,12 @@ function tooltipLabel(row: ProfitabilityRow, revenueLabel: string): string {
       : null;
   const items = [
     `${row.label}.`,
-    finite(row.revenue) ? `${revenueLabel}: ${fullCurrency(row.revenue)}.` : `${revenueLabel}: missing.`,
-    actual !== null ? `Actual cost to date: ${fullCurrency(actual)}.` : "Actual cost to date: missing.",
+    finite(row.revenue)
+      ? `${revenueLabel}: ${fullCurrency(row.revenue)}.`
+      : `${revenueLabel}: missing.`,
+    actual !== null
+      ? `Actual cost to date: ${fullCurrency(actual)}.`
+      : "Actual cost to date: missing.",
     remaining !== null
       ? `Costed remaining work: ${fullCurrency(remaining)}.`
       : "Costed remaining work: missing.",
@@ -126,10 +130,7 @@ export function ProfitabilitySideBySideChart({
   );
   const maximumLoss = Math.max(...values.map(({ profit }) => Math.max(-profit, 0)), 0);
   const tickStep = niceAxisStep(Math.max(maximumPositive / 4, maximumLoss / 2, 1));
-  const positiveMaximum = Math.max(
-    tickStep * 4,
-    Math.ceil(maximumPositive / tickStep) * tickStep,
-  );
+  const positiveMaximum = Math.max(tickStep * 4, Math.ceil(maximumPositive / tickStep) * tickStep);
   const negativeMaximum =
     maximumLoss > 0 ? Math.max(tickStep, Math.ceil(maximumLoss / tickStep) * tickStep) : 0;
   const positiveTickCount = Math.round(positiveMaximum / tickStep);
@@ -154,7 +155,8 @@ export function ProfitabilitySideBySideChart({
   const left = 72;
   const right = 22;
   const minimumChartWidth = singleRowExpanded ? 700 : 760;
-  const naturalSlotWidth = availableRows.length === 1 ? (singleRowExpanded ? 360 : 260) : expandedLayout ? 134 : 124;
+  const naturalSlotWidth =
+    availableRows.length === 1 ? (singleRowExpanded ? 360 : 260) : expandedLayout ? 134 : 124;
   const chartWidth = Math.max(
     minimumChartWidth,
     left + right + availableRows.length * naturalSlotWidth,
@@ -198,7 +200,11 @@ export function ProfitabilitySideBySideChart({
 
   const handleFocus = (row: ProfitabilityRow, event: FocusEvent<SVGRectElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    positionTooltip(row, bounds.left + bounds.width / 2, bounds.top + Math.min(bounds.height / 2, 90));
+    positionTooltip(
+      row,
+      bounds.left + bounds.width / 2,
+      bounds.top + Math.min(bounds.height / 2, 90),
+    );
   };
 
   const tooltipRow = tooltip?.row ?? null;
@@ -514,14 +520,18 @@ export function ProfitabilitySideBySideChart({
                   <i
                     className={`profitability-side-by-side__tooltip-key ${tooltipProfit !== null && tooltipProfit < 0 ? "profitability-side-by-side__tooltip-key--loss" : "profitability-side-by-side__tooltip-key--profit"}`}
                   />
-                  {tooltipProfit !== null && tooltipProfit < 0 ? "Forecast loss" : "Forecast profit"}
+                  {tooltipProfit !== null && tooltipProfit < 0
+                    ? "Forecast loss"
+                    : "Forecast profit"}
                 </dt>
                 <dd>{fullCurrency(tooltipProfit)}</dd>
               </div>
             </dl>
             <div className="profitability-side-by-side__tooltip-footer">
               <span>
-                {tooltipMargin === null ? "Margin unavailable" : `${tooltipMargin.toFixed(1)}% margin`}
+                {tooltipMargin === null
+                  ? "Margin unavailable"
+                  : `${tooltipMargin.toFixed(1)}% margin`}
               </span>
               {tooltipRow.projectCount !== undefined ? (
                 <span>
@@ -534,7 +544,9 @@ export function ProfitabilitySideBySideChart({
       </div>
 
       <p className="profitability-side-by-side__note">
-        Blue shows allocated revenue. The adjacent cost bar stacks actual cost to date and costed remaining work. The green or red marker and value pill show the resulting forecast profit or loss. Hover or focus a group to see exact values.
+        Blue shows allocated revenue. The adjacent cost bar stacks actual cost to date and costed
+        remaining work. The green or red marker and value pill show the resulting forecast profit or
+        loss. Hover or focus a group to see exact values.
       </p>
     </div>
   );

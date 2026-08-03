@@ -27,7 +27,6 @@ type TagPolicyAudit = {
   archivedReported: number;
 };
 
-
 type CheckRequirement = {
   label: string;
   passed: boolean;
@@ -69,11 +68,7 @@ function normalizeSourceText(value: string): string {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-function sourceContainsNormalized(
-  file: string,
-  source: string,
-  marker: string,
-): CheckRequirement {
+function sourceContainsNormalized(file: string, source: string, marker: string): CheckRequirement {
   return {
     label: `${file} semantically contains ${JSON.stringify(marker)}`,
     passed: normalizeSourceText(source).includes(normalizeSourceText(marker)),
@@ -105,21 +100,41 @@ async function main() {
     existsSync(resolve(process.cwd(), "src/components/portfolio-financial-composition.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/hours-completion-summary.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/project-outcome-summary.tsx")) &&
-    existsSync(resolve(process.cwd(), "src/components/compare-operational-profitability-chart.tsx")) &&
+    existsSync(
+      resolve(process.cwd(), "src/components/compare-operational-profitability-chart.tsx"),
+    ) &&
     existsSync(resolve(process.cwd(), "src/components/historical-revenue-profit-chart.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/project-financial-position.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/dashboard-portfolio-filters.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/flexible-date-range-fields.tsx"));
-  const appShellSource = readFileSync(resolve(process.cwd(), "src/components/app-shell.tsx"), "utf8");
-  const primaryNavigationSource = readFileSync(resolve(process.cwd(), "src/components/primary-navigation.tsx"), "utf8");
+  const appShellSource = readFileSync(
+    resolve(process.cwd(), "src/components/app-shell.tsx"),
+    "utf8",
+  );
+  const primaryNavigationSource = readFileSync(
+    resolve(process.cwd(), "src/components/primary-navigation.tsx"),
+    "utf8",
+  );
   const projectsSource = readFileSync(resolve(process.cwd(), "src/app/projects/page.tsx"), "utf8");
-  const reportingUiSource = readFileSync(resolve(process.cwd(), "src/components/reporting-ui.tsx"), "utf8");
-  const dashboardSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+  const reportingUiSource = readFileSync(
+    resolve(process.cwd(), "src/components/reporting-ui.tsx"),
+    "utf8",
+  );
+  const dashboardSource = readFileSync(
+    resolve(process.cwd(), "src/app/dashboard/page.tsx"),
+    "utf8",
+  );
   const globalsSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const refinementSource = readFileSync(resolve(process.cwd(), "src/app/prologue-refinement.css"), "utf8");
+  const refinementSource = readFileSync(
+    resolve(process.cwd(), "src/app/prologue-refinement.css"),
+    "utf8",
+  );
   const layoutSource = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8");
   const helpSource = readFileSync(resolve(process.cwd(), "src/app/help/page.tsx"), "utf8");
-  const chartSource = readFileSync(resolve(process.cwd(), "src/components/reporting-charts.tsx"), "utf8");
+  const chartSource = readFileSync(
+    resolve(process.cwd(), "src/components/reporting-charts.tsx"),
+    "utf8",
+  );
   const profitabilitySource = readFileSync(
     resolve(process.cwd(), "src/components/profitability-bridge-chart.tsx"),
     "utf8",
@@ -164,16 +179,37 @@ async function main() {
     resolve(process.cwd(), "src/lib/reporting/dashboard-data.ts"),
     "utf8",
   );
-  const filterSource = readFileSync(resolve(process.cwd(), "src/components/project-filters.tsx"), "utf8");
-  const dashboardFilterSource = readFileSync(resolve(process.cwd(), "src/components/dashboard-portfolio-filters.tsx"), "utf8");
-  const flexibleDateSource = readFileSync(resolve(process.cwd(), "src/components/flexible-date-range-fields.tsx"), "utf8");
-  const projectDetailSource = readFileSync(resolve(process.cwd(), "src/app/projects/[projectId]/page.tsx"), "utf8");
+  const filterSource = readFileSync(
+    resolve(process.cwd(), "src/components/project-filters.tsx"),
+    "utf8",
+  );
+  const dashboardFilterSource = readFileSync(
+    resolve(process.cwd(), "src/components/dashboard-portfolio-filters.tsx"),
+    "utf8",
+  );
+  const flexibleDateSource = readFileSync(
+    resolve(process.cwd(), "src/components/flexible-date-range-fields.tsx"),
+    "utf8",
+  );
+  const projectDetailSource = readFileSync(
+    resolve(process.cwd(), "src/app/projects/[projectId]/page.tsx"),
+    "utf8",
+  );
   const loadingSource = readFileSync(resolve(process.cwd(), "src/app/loading.tsx"), "utf8");
   const errorSource = readFileSync(resolve(process.cwd(), "src/app/error.tsx"), "utf8");
   const notFoundSource = readFileSync(resolve(process.cwd(), "src/app/not-found.tsx"), "utf8");
-  const brandSource = readFileSync(resolve(process.cwd(), "src/components/prologue-brand.tsx"), "utf8");
-  const teamworkSyncSource = readFileSync(resolve(process.cwd(), "src/lib/teamwork/sync.ts"), "utf8");
-  const teamworkDateSource = readFileSync(resolve(process.cwd(), "src/lib/teamwork/date.ts"), "utf8");
+  const brandSource = readFileSync(
+    resolve(process.cwd(), "src/components/prologue-brand.tsx"),
+    "utf8",
+  );
+  const teamworkSyncSource = readFileSync(
+    resolve(process.cwd(), "src/lib/teamwork/sync.ts"),
+    "utf8",
+  );
+  const teamworkDateSource = readFileSync(
+    resolve(process.cwd(), "src/lib/teamwork/date.ts"),
+    "utf8",
+  );
   const projects = await getProjectRows();
   const summary = summarizeProjects(projects);
   const sql = getSqlClient();
@@ -219,7 +255,12 @@ async function main() {
       )::int as "archivedReported"
     from project_flags
   `;
-  const pilot = projects.find((project) => project.projectNumber === REPORTING_RULES.calculationPilotProjectNumber) ?? projects[0] ?? null;
+  const pilot =
+    projects.find(
+      (project) => project.projectNumber === REPORTING_RULES.calculationPilotProjectNumber,
+    ) ??
+    projects[0] ??
+    null;
   const [groups, tasks, expenses, issues, unplannedWork, employees] = pilot
     ? await Promise.all([
         getProjectGroups(pilot.id),
@@ -243,11 +284,13 @@ async function main() {
     pilotExpenses !== null &&
     pilotActual !== null &&
     Math.abs(pilotLabor + pilotExpenses - pilotActual) < 0.02;
-  const [featureAudit] = await sql<{
-    jobRoles: number;
-    jobRolesWithCost: number;
-    reviewTableReady: boolean;
-  }[]>`
+  const [featureAudit] = await sql<
+    {
+      jobRoles: number;
+      jobRolesWithCost: number;
+      reviewTableReady: boolean;
+    }[]
+  >`
     select
       (select count(*)::int from job_roles) as "jobRoles",
       (select count(*)::int from job_roles where cost_rate is not null) as "jobRolesWithCost",
@@ -258,7 +301,11 @@ async function main() {
     financialColorSystemPresent: auditRequirements([
       sourceContains("src/components/reporting-charts.tsx", chartSource, "chart-swatch--outlined"),
       sourceContains("src/app/globals.css", globalsSource, "background: currentColor;"),
-      sourceContains("src/app/projects/[projectId]/page.tsx", projectDetailSource, "<ProjectFinancialPosition"),
+      sourceContains(
+        "src/app/projects/[projectId]/page.tsx",
+        projectDetailSource,
+        "<ProjectFinancialPosition",
+      ),
       sourceContains("src/app/prologue-refinement.css", refinementSource, "--amber:"),
       sourceContains("src/app/prologue-refinement.css", refinementSource, "--green:"),
       sourceContains("src/app/prologue-refinement.css", refinementSource, "--red:"),
@@ -289,13 +336,41 @@ async function main() {
       ),
     ]),
     profitabilityHoverTooltipPresent: auditRequirements([
-      sourceContains("src/components/profitability-bridge-chart.tsx", profitabilitySource, '"use client"'),
-      sourceContains("src/components/profitability-bridge-chart.tsx", profitabilitySource, "onPointerEnter"),
-      sourceContains("src/components/profitability-bridge-chart.tsx", profitabilitySource, "onPointerMove"),
-      sourceContains("src/components/profitability-bridge-chart.tsx", profitabilitySource, "onPointerLeave"),
-      sourceContains("src/components/profitability-bridge-chart.tsx", profitabilitySource, "onFocus"),
-      sourceContains("src/components/profitability-bridge-chart.tsx", profitabilitySource, "onBlur"),
-      sourceContains("src/components/profitability-bridge-chart.tsx", profitabilitySource, 'role="tooltip"'),
+      sourceContains(
+        "src/components/profitability-bridge-chart.tsx",
+        profitabilitySource,
+        '"use client"',
+      ),
+      sourceContains(
+        "src/components/profitability-bridge-chart.tsx",
+        profitabilitySource,
+        "onPointerEnter",
+      ),
+      sourceContains(
+        "src/components/profitability-bridge-chart.tsx",
+        profitabilitySource,
+        "onPointerMove",
+      ),
+      sourceContains(
+        "src/components/profitability-bridge-chart.tsx",
+        profitabilitySource,
+        "onPointerLeave",
+      ),
+      sourceContains(
+        "src/components/profitability-bridge-chart.tsx",
+        profitabilitySource,
+        "onFocus",
+      ),
+      sourceContains(
+        "src/components/profitability-bridge-chart.tsx",
+        profitabilitySource,
+        "onBlur",
+      ),
+      sourceContains(
+        "src/components/profitability-bridge-chart.tsx",
+        profitabilitySource,
+        'role="tooltip"',
+      ),
       sourceContains(
         "src/components/profitability-bridge-chart.tsx",
         profitabilitySource,
@@ -351,16 +426,32 @@ async function main() {
     ]),
     step10ExecutiveHierarchyPresent: auditRequirements([
       sourceContains("src/app/dashboard/page.tsx", dashboardSource, "report-titlebar--executive"),
-      sourceContains("src/app/dashboard/page.tsx", dashboardSource, "Executive portfolio intelligence"),
+      sourceContains(
+        "src/app/dashboard/page.tsx",
+        dashboardSource,
+        "Executive portfolio intelligence",
+      ),
       sourceContains("src/app/dashboard/page.tsx", dashboardSource, "executive-kpis__primary"),
       sourceContains("src/app/dashboard/page.tsx", dashboardSource, "executive-kpis__secondary"),
       sourceContains("src/app/dashboard/page.tsx", dashboardSource, 'label="Actual Cost to Date"'),
-      sourceContains("src/app/dashboard/page.tsx", dashboardSource, 'label="Costed Remaining Work"'),
+      sourceContains(
+        "src/app/dashboard/page.tsx",
+        dashboardSource,
+        'label="Costed Remaining Work"',
+      ),
       sourceContains("src/app/dashboard/page.tsx", dashboardSource, 'label="Forecasted Profit"'),
       sourceContains("src/app/dashboard/page.tsx", dashboardSource, "executive-report-stack"),
       sourceContains("src/app/dashboard/page.tsx", dashboardSource, "executive-support-row"),
-      sourceContains("src/app/prologue-refinement.css", refinementSource, ".executive-kpis__primary"),
-      sourceContains("src/app/prologue-refinement.css", refinementSource, ".app-header__brand-copy"),
+      sourceContains(
+        "src/app/prologue-refinement.css",
+        refinementSource,
+        ".executive-kpis__primary",
+      ),
+      sourceContains(
+        "src/app/prologue-refinement.css",
+        refinementSource,
+        ".app-header__brand-copy",
+      ),
     ]),
     step10RefinementSystemPresent: auditRequirements([
       sourceContains("src/app/layout.tsx", layoutSource, 'import "./prologue-refinement.css"'),
@@ -416,7 +507,11 @@ async function main() {
         compareOperationalProfitabilitySource,
         "<summary",
       ),
-      sourceContains("src/app/projects/[projectId]/page.tsx", projectDetailSource, 'className="operation-group"'),
+      sourceContains(
+        "src/app/projects/[projectId]/page.tsx",
+        projectDetailSource,
+        'className="operation-group"',
+      ),
       sourceContains("src/app/projects/[projectId]/page.tsx", projectDetailSource, "<details"),
     ]),
     step10StateViewsPresent: auditRequirements([
@@ -431,20 +526,56 @@ async function main() {
       sourceContains("src/app/globals.css", globalsSource, ".app-state--error"),
     ]),
     provisionalValuesLabeled: auditRequirements([
-      sourceContains("src/components/reporting-ui.tsx", reportingUiSource, "export function ProvisionalNotice"),
-      sourceContains("src/components/reporting-ui.tsx", reportingUiSource, "if (!row.isProvisional) return null"),
-      sourceContains("src/components/reporting-ui.tsx", reportingUiSource, "Provisional financial result"),
+      sourceContains(
+        "src/components/reporting-ui.tsx",
+        reportingUiSource,
+        "export function ProvisionalNotice",
+      ),
+      sourceContains(
+        "src/components/reporting-ui.tsx",
+        reportingUiSource,
+        "if (!row.isProvisional) return null",
+      ),
+      sourceContains(
+        "src/components/reporting-ui.tsx",
+        reportingUiSource,
+        "Provisional financial result",
+      ),
       sourceContainsNormalized(
         "src/components/reporting-ui.tsx",
         reportingUiSource,
         "forecast cost is therefore a minimum",
       ),
-      sourceContains("src/components/reporting-ui.tsx", reportingUiSource, "displayed margin is a ceiling"),
-      sourceContains("src/app/projects/[projectId]/page.tsx", projectDetailSource, "<ProvisionalNotice row={project} />"),
-      sourceContains("src/app/projects/[projectId]/page.tsx", projectDetailSource, "Known Forecasted Profit"),
-      sourceContains("src/app/projects/[projectId]/page.tsx", projectDetailSource, "margin ceiling"),
-      sourceContains("src/components/project-selection-reports.tsx", projectSelectionReportsSource, " · Provisional"),
-      sourceContains("src/components/project-selection-reports.tsx", projectSelectionReportsSource, '"Ceiling" : "Forecast"'),
+      sourceContains(
+        "src/components/reporting-ui.tsx",
+        reportingUiSource,
+        "displayed margin is a ceiling",
+      ),
+      sourceContains(
+        "src/app/projects/[projectId]/page.tsx",
+        projectDetailSource,
+        "<ProvisionalNotice row={project} />",
+      ),
+      sourceContains(
+        "src/app/projects/[projectId]/page.tsx",
+        projectDetailSource,
+        "Known Forecasted Profit",
+      ),
+      sourceContains(
+        "src/app/projects/[projectId]/page.tsx",
+        projectDetailSource,
+        "margin ceiling",
+      ),
+      sourceContains(
+        "src/components/project-selection-reports.tsx",
+        projectSelectionReportsSource,
+        " · Provisional",
+      ),
+      sourceContains(
+        "src/components/project-selection-reports.tsx",
+        projectSelectionReportsSource,
+        '"Ceiling" : "Forecast"',
+      ),
     ]),
   };
 
@@ -602,7 +733,9 @@ async function main() {
       projectsSource.includes("getComparedProjectOperationalGroups(reportProjects)") &&
       dashboardDataSource.includes("getOperationalGroupMetricRows") &&
       projectSelectionReportsSource.includes("Project Profitability Comparison") &&
-      projectSelectionReportsSource.includes("Start with the profitability of each project as a whole") &&
+      projectSelectionReportsSource.includes(
+        "Start with the profitability of each project as a whole",
+      ) &&
       compareOperationalProfitabilitySource.includes('label: "Entire Project"') &&
       compareOperationalProfitabilitySource.includes('label: "By Operational Group"') &&
       compareOperationalProfitabilitySource.includes("project.projectName") &&
@@ -617,7 +750,9 @@ async function main() {
       compareOperationalProfitabilitySource.includes("maximumOverrunRatio") &&
       compareOperationalProfitabilitySource.includes("Cost composition against revenue") &&
       compareOperationalProfitabilitySource.includes("compare-profitability-rows__profit") &&
-      !compareOperationalProfitabilitySource.includes("compare-profitability-rows__profit-marker") &&
+      !compareOperationalProfitabilitySource.includes(
+        "compare-profitability-rows__profit-marker",
+      ) &&
       globalsSource.includes(".compare-profitability-rows__track {") &&
       globalsSource.includes("height: 30px;") &&
       globalsSource.includes(".compare-profitability-rows__bar-meta {") &&
@@ -670,10 +805,12 @@ async function main() {
     step10StateViewsPresent: checkDetails.step10StateViewsPresent.passed,
     metricHelpUsesHoverAndKeyboardFocus:
       reportingUiSource.includes('className="metric-card__help-trigger"') &&
-      reportingUiSource.includes('aria-label={`Information about ${label}`}') &&
+      reportingUiSource.includes("aria-label={`Information about ${label}`}") &&
       reportingUiSource.includes("metric-card__help-panel") &&
       refinementSource.includes(".metric-card__help:hover .metric-card__help-panel") &&
-      refinementSource.includes(".metric-card__help-trigger:focus-visible + .metric-card__help-panel"),
+      refinementSource.includes(
+        ".metric-card__help-trigger:focus-visible + .metric-card__help-panel",
+      ),
     projectWorkspacePaginationPresent:
       projectsSource.includes("PROJECT_PAGE_SIZES = [25, 50, 100]") &&
       projectsSource.includes("ProjectPageSizeSelect") &&
@@ -707,7 +844,8 @@ async function main() {
     roleCostStorageReady: featureAudit.jobRoles >= 0,
     readySetAndDataHallAlsoMatchScanning: projects.every((project) => {
       const facets = getProjectTypeFacets(project);
-      if (facets.includes("Ready Set") || facets.includes("DataHall")) return facets.includes("Scanning");
+      if (facets.includes("Ready Set") || facets.includes("DataHall"))
+        return facets.includes("Scanning");
       return true;
     }),
     noReportProjectsExcluded:

@@ -18,10 +18,12 @@ export function oauthConfig() {
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
-export async function createOauthState(options: {
-  purpose?: OauthPurpose;
-  returnTo?: string | null;
-} = {}): Promise<string> {
+export async function createOauthState(
+  options: {
+    purpose?: OauthPurpose;
+    returnTo?: string | null;
+  } = {},
+): Promise<string> {
   const db = getDb();
   const state = randomBytes(32).toString("base64url");
   await db.insert(oauthStates).values({

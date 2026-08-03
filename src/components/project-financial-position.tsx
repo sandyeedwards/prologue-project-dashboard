@@ -49,19 +49,40 @@ export function ProjectFinancialPosition({
   const margin = knownRevenue > 0 ? (profit / knownRevenue) * 100 : null;
 
   if (!knownRevenue && !knownActual && !knownRemaining) {
-    return <div className="chart-empty">No complete financial position is available for this project.</div>;
+    return (
+      <div className="chart-empty">
+        No complete financial position is available for this project.
+      </div>
+    );
   }
 
   return (
-    <div className="project-financial-position" role="img" aria-label={`Project financial position. Revenue ${currency(revenue)}. Actual cost ${currency(actualCost)}. Remaining work ${currency(remainingCost)}. Forecast ${profit < 0 ? "loss" : "profit"} ${currency(profit)}.`}>
+    <div
+      className="project-financial-position"
+      role="img"
+      aria-label={`Project financial position. Revenue ${currency(revenue)}. Actual cost ${currency(actualCost)}. Remaining work ${currency(remainingCost)}. Forecast ${profit < 0 ? "loss" : "profit"} ${currency(profit)}.`}
+    >
       <div className="project-financial-position__summary">
-        <div><span>Actual Cost to Date</span><strong>{currency(actualCost)}</strong></div>
-        <div><span>Costed Remaining Work</span><strong>{currency(remainingCost)}</strong></div>
-        <div className={profit < 0 ? "project-financial-position__loss" : "project-financial-position__profit"}>
+        <div>
+          <span>Actual Cost to Date</span>
+          <strong>{currency(actualCost)}</strong>
+        </div>
+        <div>
+          <span>Costed Remaining Work</span>
+          <strong>{currency(remainingCost)}</strong>
+        </div>
+        <div
+          className={
+            profit < 0 ? "project-financial-position__loss" : "project-financial-position__profit"
+          }
+        >
           <span>{profit < 0 ? "Forecast Loss" : "Unspent Revenue / Forecasted Profit"}</span>
           <strong>{currency(profit)}</strong>
         </div>
-        <div><span>{provisional ? "Margin Ceiling" : "Forecast Margin"}</span><strong>{margin === null ? "Missing" : `${margin.toFixed(1)}%`}</strong></div>
+        <div>
+          <span>{provisional ? "Margin Ceiling" : "Forecast Margin"}</span>
+          <strong>{margin === null ? "Missing" : `${margin.toFixed(1)}%`}</strong>
+        </div>
       </div>
       <div className="project-financial-position__scale" style={style} aria-hidden="true">
         <span className="project-financial-position__revenue" />
@@ -71,10 +92,18 @@ export function ProjectFinancialPosition({
         <i className="project-financial-position__revenue-threshold" />
       </div>
       <div className="project-financial-position__labels">
-        <span>Revenue baseline <strong>{currency(revenue)}</strong></span>
-        <span>Forecast cost <strong>{currency(forecastCost)}</strong></span>
+        <span>
+          Revenue baseline <strong>{currency(revenue)}</strong>
+        </span>
+        <span>
+          Forecast cost <strong>{currency(forecastCost)}</strong>
+        </span>
       </div>
-      <p>{provisional ? "Forecast values are based on currently costed inputs and may increase as missing assignments, rates, or expenses are resolved." : "The composition bar shows how much revenue has been consumed, how much cost remains, and the financial outcome at completion."}</p>
+      <p>
+        {provisional
+          ? "Forecast values are based on currently costed inputs and may increase as missing assignments, rates, or expenses are resolved."
+          : "The composition bar shows how much revenue has been consumed, how much cost remains, and the financial outcome at completion."}
+      </p>
     </div>
   );
 }

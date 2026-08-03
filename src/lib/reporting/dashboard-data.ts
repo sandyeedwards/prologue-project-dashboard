@@ -196,7 +196,9 @@ export type PortfolioOperationalGroupRow = {
 
 export const PROJECT_TYPE_ORDER = ["Scanning", "Modeling", "Ready Set", "DataHall"] as const;
 
-export function getProjectTypeFacets(row: Pick<ProjectReportRow, "projectType" | "tags">): string[] {
+export function getProjectTypeFacets(
+  row: Pick<ProjectReportRow, "projectType" | "tags">,
+): string[] {
   const keys = new Set(
     [...row.tags, row.projectType]
       .filter((value): value is string => Boolean(value))
@@ -260,10 +262,7 @@ type RawProjectReportRow = Omit<ProjectReportRow, "calculatedAt" | "archivedAt" 
 type RawProjectTaskRow = Omit<ProjectTaskRow, "completedAt"> & {
   completedAt: unknown;
 };
-type RawQualityIssueRow = Omit<
-  QualityIssueRow,
-  "lastDetectedAt" | "teamworkUrl" | "evidence"
-> & {
+type RawQualityIssueRow = Omit<QualityIssueRow, "lastDetectedAt" | "teamworkUrl" | "evidence"> & {
   lastDetectedAt: unknown;
   taskTeamworkId: number | null;
 };
@@ -378,14 +377,7 @@ export function filterAndSortProjects(
   const filtered = rows.filter((row) => {
     if (
       query &&
-      ![
-        row.projectNumber,
-        row.name,
-        row.companyName,
-        row.projectType,
-        row.status,
-        ...row.tags,
-      ]
+      ![row.projectNumber, row.name, row.companyName, row.projectType, row.status, ...row.tags]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     ) {
@@ -394,7 +386,8 @@ export function filterAndSortProjects(
     if (filter.client && filter.client !== "ALL" && row.companyName !== filter.client) return false;
     if (filter.health && filter.health !== "ALL" && row.healthBand !== filter.health) return false;
     if (filter.status && filter.status !== "ALL" && row.status !== filter.status) return false;
-    if (filter.type && filter.type !== "ALL" && !getProjectTypeFacets(row).includes(filter.type)) return false;
+    if (filter.type && filter.type !== "ALL" && !getProjectTypeFacets(row).includes(filter.type))
+      return false;
     if (filter.provisional === "YES" && !row.isProvisional) return false;
     if (filter.provisional === "NO" && row.isProvisional) return false;
     if (!projectOverlapsDateRange(row, filter.dateFrom, filter.dateTo)) return false;
@@ -409,10 +402,15 @@ export function filterAndSortProjects(
       return rank[a.healthBand] - rank[b.healthBand] || a.name.localeCompare(b.name);
     }
     if (sort === "margin") {
-      return (numberOrNull(b.forecastMarginPercent) ?? -Infinity) - (numberOrNull(a.forecastMarginPercent) ?? -Infinity);
+      return (
+        (numberOrNull(b.forecastMarginPercent) ?? -Infinity) -
+        (numberOrNull(a.forecastMarginPercent) ?? -Infinity)
+      );
     }
     if (sort === "cost") {
-      return (numberOrNull(b.forecastCost) ?? -Infinity) - (numberOrNull(a.forecastCost) ?? -Infinity);
+      return (
+        (numberOrNull(b.forecastCost) ?? -Infinity) - (numberOrNull(a.forecastCost) ?? -Infinity)
+      );
     }
     if (sort === "hours") return b.loggedMinutes - a.loggedMinutes;
     return a.name.localeCompare(b.name);
@@ -420,18 +418,32 @@ export function filterAndSortProjects(
 }
 
 export function summarizeProjects(rows: ProjectReportRow[]): DashboardSummary {
-  const knownFees = rows.map((row) => numberOrNull(row.clientFee)).filter((value): value is number => value !== null);
-  const knownTargets = rows.map((row) => numberOrNull(row.targetCost)).filter((value): value is number => value !== null);
-  const knownActualCosts = rows.map((row) => numberOrNull(row.actualTotalCost)).filter((value): value is number => value !== null);
-  const actualCostCompleteRows = rows.filter((row) =>
-    numberOrNull(row.actualTotalCost) !== null && actualCostCoverageStatus(row) === "COMPLETE",
+  const knownFees = rows
+    .map((row) => numberOrNull(row.clientFee))
+    .filter((value): value is number => value !== null);
+  const knownTargets = rows
+    .map((row) => numberOrNull(row.targetCost))
+    .filter((value): value is number => value !== null);
+  const knownActualCosts = rows
+    .map((row) => numberOrNull(row.actualTotalCost))
+    .filter((value): value is number => value !== null);
+  const actualCostCompleteRows = rows.filter(
+    (row) =>
+      numberOrNull(row.actualTotalCost) !== null && actualCostCoverageStatus(row) === "COMPLETE",
   );
-  const actualCostPartialRows = rows.filter((row) =>
-    numberOrNull(row.actualTotalCost) !== null && actualCostCoverageStatus(row) !== "COMPLETE",
+  const actualCostPartialRows = rows.filter(
+    (row) =>
+      numberOrNull(row.actualTotalCost) !== null && actualCostCoverageStatus(row) !== "COMPLETE",
   );
-  const knownCosts = rows.map((row) => numberOrNull(row.forecastCost)).filter((value): value is number => value !== null);
-  const knownProfits = rows.map((row) => numberOrNull(row.forecastProfit)).filter((value): value is number => value !== null);
-  const knownMargins = rows.map((row) => numberOrNull(row.forecastMarginPercent)).filter((value): value is number => value !== null);
+  const knownCosts = rows
+    .map((row) => numberOrNull(row.forecastCost))
+    .filter((value): value is number => value !== null);
+  const knownProfits = rows
+    .map((row) => numberOrNull(row.forecastProfit))
+    .filter((value): value is number => value !== null);
+  const knownMargins = rows
+    .map((row) => numberOrNull(row.forecastMarginPercent))
+    .filter((value): value is number => value !== null);
   const latest = rows.reduce<Date | null>((current, row) => {
     if (!current || row.calculatedAt.getTime() > current.getTime()) return row.calculatedAt;
     return current;
@@ -444,10 +456,16 @@ export function summarizeProjects(rows: ProjectReportRow[]): DashboardSummary {
     greenCount: rows.filter((row) => row.healthBand === "GREEN").length,
     grayCount: rows.filter((row) => row.healthBand === "GRAY").length,
     totalClientFee: knownFees.length ? knownFees.reduce((sum, value) => sum + value, 0) : null,
-    totalTargetCost: knownTargets.length ? knownTargets.reduce((sum, value) => sum + value, 0) : null,
-    totalActualCost: knownActualCosts.length ? knownActualCosts.reduce((sum, value) => sum + value, 0) : null,
+    totalTargetCost: knownTargets.length
+      ? knownTargets.reduce((sum, value) => sum + value, 0)
+      : null,
+    totalActualCost: knownActualCosts.length
+      ? knownActualCosts.reduce((sum, value) => sum + value, 0)
+      : null,
     totalForecastCost: knownCosts.length ? knownCosts.reduce((sum, value) => sum + value, 0) : null,
-    totalForecastProfit: knownProfits.length ? knownProfits.reduce((sum, value) => sum + value, 0) : null,
+    totalForecastProfit: knownProfits.length
+      ? knownProfits.reduce((sum, value) => sum + value, 0)
+      : null,
     clientFeeKnownCount: knownFees.length,
     targetCostKnownCount: knownTargets.length,
     actualCostKnownCount: actualCostCompleteRows.length,
@@ -461,8 +479,6 @@ export function summarizeProjects(rows: ProjectReportRow[]): DashboardSummary {
     calculationVersion: rows[0]?.calculationVersion ?? null,
   };
 }
-
-
 
 export type HistoricalCostRecord = {
   projectId: string;
@@ -514,7 +530,8 @@ function normalizeHistoricalDate(value: string | null | undefined): string | nul
   if (!match) return null;
   const normalized = match[1];
   const parsed = new Date(`${normalized}T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== normalized) return null;
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== normalized)
+    return null;
   return normalized >= MIN_HISTORICAL_DATE ? normalized : null;
 }
 
@@ -602,10 +619,7 @@ function actualCompletionDateForHistory(
   project: Pick<ProjectReportRow, "completedAt" | "archivedAt">,
   currentDate: string,
 ): string | null {
-  const actualDates = [
-    isoDateFromDate(project.completedAt),
-    isoDateFromDate(project.archivedAt),
-  ]
+  const actualDates = [isoDateFromDate(project.completedAt), isoDateFromDate(project.archivedAt)]
     .filter((value): value is string => value !== null && value <= currentDate)
     .sort();
   return actualDates[0] ?? null;
@@ -623,9 +637,11 @@ function projectStartDateForHistory(
     .sort()[0];
   const configuredEnd = normalizeHistoricalDate(project.endDate);
   const calculatedDate = project.calculatedAt.toISOString().slice(0, 10);
-  return [earliestSourceDate, configuredEnd, calculatedDate]
-    .filter((value): value is string => value !== null && value !== undefined)
-    .sort()[0] ?? calculatedDate;
+  return (
+    [earliestSourceDate, configuredEnd, calculatedDate]
+      .filter((value): value is string => value !== null && value !== undefined)
+      .sort()[0] ?? calculatedDate
+  );
 }
 
 export function buildHistoricalProfitSeriesFromSource(
@@ -653,9 +669,10 @@ export function buildHistoricalProfitSeriesFromSource(
     const clientFee = numberOrNull(project.clientFee);
     const anticipatedCost = numberOrNull(project.forecastCost);
     const storedForecastProfit = numberOrNull(project.forecastProfit);
-    const forecastNetProfit = clientFee !== null && anticipatedCost !== null
-      ? clientFee - anticipatedCost
-      : storedForecastProfit;
+    const forecastNetProfit =
+      clientFee !== null && anticipatedCost !== null
+        ? clientFee - anticipatedCost
+        : storedForecastProfit;
     const coverageStatus = actualCostCoverageStatus(project);
     addHistoricalEvent(events, startDate, {
       ...emptyHistoricalEvent(),
@@ -684,9 +701,8 @@ export function buildHistoricalProfitSeriesFromSource(
     const normalizedDate = normalizeHistoricalDate(record.date);
     const project = projectById.get(record.projectId);
     const projectCosts = costsByProject.get(record.projectId) ?? [];
-    const date = normalizedDate ?? (project
-      ? projectStartDateForHistory(project, projectCosts)
-      : currentDate);
+    const date =
+      normalizedDate ?? (project ? projectStartDateForHistory(project, projectCosts) : currentDate);
     if (date > currentDate) continue;
     const cost = record.cost;
     const usedFallbackDate = record.fallbackDate || normalizedDate === null;
@@ -731,7 +747,9 @@ export function buildHistoricalProfitSeriesFromSource(
   let fallbackDatedExpenseCount = 0;
 
   const points: HistoricalProfitSeries["points"] = [];
-  for (const event of [...events.values()].sort((left, right) => left.date.localeCompare(right.date))) {
+  for (const event of [...events.values()].sort((left, right) =>
+    left.date.localeCompare(right.date),
+  )) {
     grossRevenue += event.grossRevenueDelta;
     actualCostToDate += event.actualCostDelta;
     anticipatedCostToDate += event.anticipatedCostDelta;
@@ -773,10 +791,7 @@ export function buildHistoricalProfitSeriesFromSource(
     });
   }
 
-  const sourceActualCostTotal = relevantCosts.reduce(
-    (sum, record) => sum + (record.cost ?? 0),
-    0,
-  );
+  const sourceActualCostTotal = relevantCosts.reduce((sum, record) => sum + (record.cost ?? 0), 0);
   const metricActualCostTotal = projects.reduce(
     (sum, project) => sum + (numberOrNull(project.actualTotalCost) ?? 0),
     0,
@@ -838,7 +853,9 @@ export async function getPortfolioHistoricalProfitSeries(
   if (!projects.length) return [];
   const currentDate = new Date().toISOString().slice(0, 10);
   const sourceCosts = await getHistoricalCostRecords(projects.map((project) => project.id));
-  return [buildHistoricalProfitSeriesFromSource("All project types", projects, sourceCosts, currentDate)];
+  return [
+    buildHistoricalProfitSeriesFromSource("All project types", projects, sourceCosts, currentDate),
+  ];
 }
 
 type RawPortfolioGroupMetric = {
@@ -866,14 +883,22 @@ type GroupAccumulator = {
   allocationMethods: Set<string>;
 };
 
-function portfolioGroupName(project: ProjectReportRow, groupName: string): PortfolioOperationalGroupRow["groupName"] {
+function portfolioGroupName(
+  project: ProjectReportRow,
+  groupName: string,
+): PortfolioOperationalGroupRow["groupName"] {
   const facets = getProjectTypeFacets(project);
   if (facets.includes("DataHall")) return "DataHall";
   if (facets.includes("Ready Set")) return "Ready Set";
   const normalized = normalizeTeamworkLabel(groupName);
   if (normalized.includes("mobilization")) return "Mobilization";
   if (normalized.includes("modeling") || normalized.includes("modelling")) return "Modeling";
-  if (normalized.includes("fieldwork") || normalized.includes("fieldoperations") || normalized.includes("scanning")) return "Fieldwork";
+  if (
+    normalized.includes("fieldwork") ||
+    normalized.includes("fieldoperations") ||
+    normalized.includes("scanning")
+  )
+    return "Fieldwork";
   return "Other";
 }
 
@@ -938,29 +963,33 @@ export async function getPortfolioOperationalGroups(
       if (!current) {
         grouped.set(name, { ...row, groupName: name });
       } else {
-        const targetValues = [numberOrNull(current.targetCost), numberOrNull(row.targetCost)].filter(
-          (value): value is number => value !== null,
-        );
+        const targetValues = [
+          numberOrNull(current.targetCost),
+          numberOrNull(row.targetCost),
+        ].filter((value): value is number => value !== null);
         current.targetCost = targetValues.length
           ? targetValues.reduce((sum, value) => sum + value, 0).toString()
           : null;
         current.estimatedMinutes += row.estimatedMinutes;
         current.loggedMinutes += row.loggedMinutes;
-        const actualLaborValues = [numberOrNull(current.actualLaborCost), numberOrNull(row.actualLaborCost)].filter(
-          (value): value is number => value !== null,
-        );
+        const actualLaborValues = [
+          numberOrNull(current.actualLaborCost),
+          numberOrNull(row.actualLaborCost),
+        ].filter((value): value is number => value !== null);
         current.actualLaborCost = actualLaborValues.length
           ? actualLaborValues.reduce((sum, value) => sum + value, 0).toString()
           : null;
-        const actualNonLaborValues = [numberOrNull(current.actualNonLaborCost), numberOrNull(row.actualNonLaborCost)].filter(
-          (value): value is number => value !== null,
-        );
+        const actualNonLaborValues = [
+          numberOrNull(current.actualNonLaborCost),
+          numberOrNull(row.actualNonLaborCost),
+        ].filter((value): value is number => value !== null);
         current.actualNonLaborCost = actualNonLaborValues.length
           ? actualNonLaborValues.reduce((sum, value) => sum + value, 0).toString()
           : null;
-        const forecastValues = [numberOrNull(current.forecastCost), numberOrNull(row.forecastCost)].filter(
-          (value): value is number => value !== null,
-        );
+        const forecastValues = [
+          numberOrNull(current.forecastCost),
+          numberOrNull(row.forecastCost),
+        ].filter((value): value is number => value !== null);
         current.forecastCost = forecastValues.length
           ? forecastValues.reduce((sum, value) => sum + value, 0).toString()
           : null;
@@ -984,8 +1013,14 @@ export async function getPortfolioOperationalGroups(
         : facets.includes("Ready Set")
           ? "Ready Set"
           : "Other";
-      const mappedEstimated = [...grouped.values()].reduce((sum, group) => sum + group.estimatedMinutes, 0);
-      const mappedLogged = [...grouped.values()].reduce((sum, group) => sum + group.loggedMinutes, 0);
+      const mappedEstimated = [...grouped.values()].reduce(
+        (sum, group) => sum + group.estimatedMinutes,
+        0,
+      );
+      const mappedLogged = [...grouped.values()].reduce(
+        (sum, group) => sum + group.loggedMinutes,
+        0,
+      );
       const mappedActual = [...grouped.values()].reduce(
         (sum, group) =>
           sum +
@@ -1002,7 +1037,8 @@ export async function getPortfolioOperationalGroups(
       const projectActual = numberOrNull(project.actualTotalCost);
       const actualGap = projectActual === null ? 0 : Math.max(projectActual - mappedActual, 0);
       const projectForecast = numberOrNull(project.forecastCost);
-      const forecastGap = projectForecast === null ? 0 : Math.max(projectForecast - mappedForecast, 0);
+      const forecastGap =
+        projectForecast === null ? 0 : Math.max(projectForecast - mappedForecast, 0);
       if (estimateGap > 0 || loggedGap > 0 || actualGap > 0 || forecastGap > 0) {
         const current = grouped.get(fallbackName) ?? {
           projectId: project.id,
@@ -1016,7 +1052,9 @@ export async function getPortfolioOperationalGroups(
         };
         current.estimatedMinutes += estimateGap;
         current.loggedMinutes += loggedGap;
-        current.actualLaborCost = ((numberOrNull(current.actualLaborCost) ?? 0) + actualGap).toString();
+        current.actualLaborCost = (
+          (numberOrNull(current.actualLaborCost) ?? 0) + actualGap
+        ).toString();
         current.forecastCost = ((numberOrNull(current.forecastCost) ?? 0) + forecastGap).toString();
         grouped.set(fallbackName, current);
       }
@@ -1024,25 +1062,37 @@ export async function getPortfolioOperationalGroups(
 
     const groups = [...grouped.values()];
     const targets = groups.map((group) => numberOrNull(group.targetCost));
-    const sourceTargetsComplete = projectRows.length > 0 && projectRows.every((row) => numberOrNull(row.targetCost) !== null);
-    const completeTargets = sourceTargetsComplete && targets.every((value) => value !== null) && targets.some((value) => (value ?? 0) > 0);
+    const sourceTargetsComplete =
+      projectRows.length > 0 && projectRows.every((row) => numberOrNull(row.targetCost) !== null);
+    const completeTargets =
+      sourceTargetsComplete &&
+      targets.every((value) => value !== null) &&
+      targets.some((value) => (value ?? 0) > 0);
     const targetTotal = targets.reduce<number>((sum, value) => sum + (value ?? 0), 0);
-    const estimateTotal = groups.reduce((sum, group) => sum + Math.max(group.estimatedMinutes, 0), 0);
-    const costTotal = groups.reduce((sum, group) => sum + Math.max(numberOrNull(group.forecastCost) ?? 0, 0), 0);
-    const allocationMethod = completeTargets && targetTotal > 0
-      ? "Task-list target cost"
-      : estimateTotal > 0
-        ? "Estimated hours"
-        : costTotal > 0
-          ? "Forecast cost"
-          : "Equal share";
-    const allocationTotal = allocationMethod === "Task-list target cost"
-      ? targetTotal
-      : allocationMethod === "Estimated hours"
-        ? estimateTotal
-        : allocationMethod === "Forecast cost"
-          ? costTotal
-          : groups.length;
+    const estimateTotal = groups.reduce(
+      (sum, group) => sum + Math.max(group.estimatedMinutes, 0),
+      0,
+    );
+    const costTotal = groups.reduce(
+      (sum, group) => sum + Math.max(numberOrNull(group.forecastCost) ?? 0, 0),
+      0,
+    );
+    const allocationMethod =
+      completeTargets && targetTotal > 0
+        ? "Task-list target cost"
+        : estimateTotal > 0
+          ? "Estimated hours"
+          : costTotal > 0
+            ? "Forecast cost"
+            : "Equal share";
+    const allocationTotal =
+      allocationMethod === "Task-list target cost"
+        ? targetTotal
+        : allocationMethod === "Estimated hours"
+          ? estimateTotal
+          : allocationMethod === "Forecast cost"
+            ? costTotal
+            : groups.length;
     const clientFee = numberOrNull(project.clientFee);
 
     groups.forEach((group) => {
@@ -1054,16 +1104,16 @@ export async function getPortfolioOperationalGroups(
       const actualKnown = groupActualLabor !== null || groupActualNonLabor !== null;
       const actual = Math.max((groupActualLabor ?? 0) + (groupActualNonLabor ?? 0), 0);
       const forecast = Math.max(numberOrNull(group.forecastCost) ?? 0, 0);
-      const basis = allocationMethod === "Task-list target cost"
-        ? target
-        : allocationMethod === "Estimated hours"
-          ? Math.max(group.estimatedMinutes, 0)
-          : allocationMethod === "Forecast cost"
-            ? forecast
-            : 1;
-      const allocatedRevenue = clientFee === null || allocationTotal <= 0
-        ? 0
-        : clientFee * (basis / allocationTotal);
+      const basis =
+        allocationMethod === "Task-list target cost"
+          ? target
+          : allocationMethod === "Estimated hours"
+            ? Math.max(group.estimatedMinutes, 0)
+            : allocationMethod === "Forecast cost"
+              ? forecast
+              : 1;
+      const allocatedRevenue =
+        clientFee === null || allocationTotal <= 0 ? 0 : clientFee * (basis / allocationTotal);
       accumulator.projectIds.add(project.id);
       accumulator.allocatedRevenue += allocatedRevenue;
       accumulator.actualCostToDate += actual;
@@ -1099,9 +1149,7 @@ export async function getPortfolioOperationalGroups(
       forecastCost: value.forecastCost,
       forecastProfit: value.forecastProfit,
       marginPercent:
-        value.allocatedRevenue === 0
-          ? null
-          : (value.forecastProfit / value.allocatedRevenue) * 100,
+        value.allocatedRevenue === 0 ? null : (value.forecastProfit / value.allocatedRevenue) * 100,
       estimatedMinutes: value.estimatedMinutes,
       loggedMinutes: value.loggedMinutes,
       provisionalProjectCount: value.provisionalProjectIds.size,
@@ -1125,7 +1173,6 @@ export async function getComparedProjectOperationalGroups(
 export async function getProjectById(projectId: string): Promise<ProjectReportRow | null> {
   return (await getProjectRows()).find((row) => row.id === projectId) ?? null;
 }
-
 
 export async function getProjectExpenses(projectId: string): Promise<ProjectExpenseRow[]> {
   const sql = getSqlClient();
@@ -1283,9 +1330,7 @@ export async function getProjectQualityIssues(projectId: string): Promise<Qualit
       )
     order by te.logged_date desc, te.teamwork_id desc
   `;
-  const missingTaskLists = await sql<
-    Array<{ id: string; teamworkId: number; name: string }>
-  >`
+  const missingTaskLists = await sql<Array<{ id: string; teamworkId: number; name: string }>>`
     select tl.id, tl.teamwork_id as "teamworkId", tl.name
     from task_lists tl
     left join project_budgets pb
@@ -1325,7 +1370,10 @@ export async function getProjectQualityIssues(projectId: string): Promise<Qualit
   return rows.map((row) => {
     let evidence: QualityIssueEvidenceRow[] = [];
     if (row.code === "UNALLOCATED_PROJECT_TIME") {
-      evidence = timeEntries.filter((entry) => entry.taskId === null).slice(0, 50).map(timeEvidence);
+      evidence = timeEntries
+        .filter((entry) => entry.taskId === null)
+        .slice(0, 50)
+        .map(timeEvidence);
     } else if (row.code === "ACTUAL_LABOR_COST_INCOMPLETE") {
       evidence = timeEntries
         .filter(
@@ -1376,9 +1424,7 @@ export async function getProjectQualityIssues(projectId: string): Promise<Qualit
   });
 }
 
-export async function getProjectUnplannedWork(
-  projectId: string,
-): Promise<UnplannedWorkRow[]> {
+export async function getProjectUnplannedWork(projectId: string): Promise<UnplannedWorkRow[]> {
   const sql = getSqlClient();
   const rows = await sql<(Omit<UnplannedWorkRow, "dismissedAt"> & { dismissedAt: unknown })[]>`
     select
