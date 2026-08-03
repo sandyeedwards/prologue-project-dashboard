@@ -49,14 +49,7 @@ const MAX_SAVED_ISSUES_PER_CODE = 10;
 
 type SyncKind = "INITIAL_IMPORT" | "NIGHTLY" | "MANUAL";
 type DatasetName =
-  | "companies"
-  | "tags"
-  | "projects"
-  | "people"
-  | "jobRoles"
-  | "taskLists"
-  | "tasks"
-  | "timeEntries";
+  "companies" | "tags" | "projects" | "people" | "jobRoles" | "taskLists" | "tasks" | "timeEntries";
 
 interface DatasetStats {
   read: number;
@@ -293,7 +286,9 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
     stats.projects.read = projectRows.length;
 
     const existingCompanies = new Set(
-      (await db.select({ teamworkId: companies.teamworkId }).from(companies)).map((row) => row.teamworkId),
+      (await db.select({ teamworkId: companies.teamworkId }).from(companies)).map(
+        (row) => row.teamworkId,
+      ),
     );
     for (const row of companyRows) {
       const teamworkId = idAtPaths(row, ENTITY_ID_PATHS);
@@ -357,11 +352,11 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       .select({ id: tags.id, teamworkId: tags.teamworkId, normalizedName: tags.normalizedName })
       .from(tags);
     const tagByTeamworkId = new Map(savedTagRows.map((row) => [row.teamworkId, row.id]));
-    const tagByNormalizedName = new Map(
-      savedTagRows.map((row) => [row.normalizedName, row.id]),
-    );
+    const tagByNormalizedName = new Map(savedTagRows.map((row) => [row.normalizedName, row.id]));
     const existingProjects = new Set(
-      (await db.select({ teamworkId: projects.teamworkId }).from(projects)).map((row) => row.teamworkId),
+      (await db.select({ teamworkId: projects.teamworkId }).from(projects)).map(
+        (row) => row.teamworkId,
+      ),
     );
     const dataHallProjectIds = new Set<string>();
 
@@ -379,7 +374,9 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       const tagNames = projectTagRefs
         .map((tagRef) => {
           const tagId = teamworkNumericId(tagRef);
-          return (tagId === null ? null : tagNameByTeamworkId.get(tagId)) ?? teamworkLabelText(tagRef);
+          return (
+            (tagId === null ? null : tagNameByTeamworkId.get(tagId)) ?? teamworkLabelText(tagRef)
+          );
         })
         .filter(Boolean);
       const reportingPolicy = projectReportingPolicy(tagNames);
@@ -389,7 +386,10 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         .insert(projects)
         .values({
           teamworkId,
-          companyId: companyTeamworkId === null ? null : (companyByTeamworkId.get(companyTeamworkId) ?? null),
+          companyId:
+            companyTeamworkId === null
+              ? null
+              : (companyByTeamworkId.get(companyTeamworkId) ?? null),
           name,
           projectNumber: parseProjectNumber(name),
           status: textAtPaths(row, ["status"]) ?? "unknown",
@@ -407,7 +407,10 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         .onConflictDoUpdate({
           target: projects.teamworkId,
           set: {
-            companyId: companyTeamworkId === null ? null : (companyByTeamworkId.get(companyTeamworkId) ?? null),
+            companyId:
+              companyTeamworkId === null
+                ? null
+                : (companyByTeamworkId.get(companyTeamworkId) ?? null),
             name,
             projectNumber: parseProjectNumber(name),
             status: textAtPaths(row, ["status"]) ?? "unknown",
@@ -451,7 +454,9 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
     );
     stats.people.read = peopleRows.length;
     const existingPeople = new Set(
-      (await db.select({ teamworkId: people.teamworkId }).from(people)).map((row) => row.teamworkId),
+      (await db.select({ teamworkId: people.teamworkId }).from(people)).map(
+        (row) => row.teamworkId,
+      ),
     );
     for (const row of peopleRows) {
       const teamworkId = idAtPaths(row, ENTITY_ID_PATHS);
@@ -466,7 +471,10 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         .insert(people)
         .values({
           teamworkId,
-          companyId: companyTeamworkId === null ? null : (companyByTeamworkId.get(companyTeamworkId) ?? null),
+          companyId:
+            companyTeamworkId === null
+              ? null
+              : (companyByTeamworkId.get(companyTeamworkId) ?? null),
           firstName: textAtPaths(row, ["firstName", "first-name"]),
           lastName: textAtPaths(row, ["lastName", "last-name"]),
           email: textAtPaths(row, ["email", "email-address"]),
@@ -483,7 +491,10 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         .onConflictDoUpdate({
           target: people.teamworkId,
           set: {
-            companyId: companyTeamworkId === null ? null : (companyByTeamworkId.get(companyTeamworkId) ?? null),
+            companyId:
+              companyTeamworkId === null
+                ? null
+                : (companyByTeamworkId.get(companyTeamworkId) ?? null),
             firstName: textAtPaths(row, ["firstName", "first-name"]),
             lastName: textAtPaths(row, ["lastName", "last-name"]),
             email: textAtPaths(row, ["email", "email-address"]),
@@ -579,7 +590,9 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
     );
     stats.taskLists.read = taskListRows.length;
     const existingTaskLists = new Set(
-      (await db.select({ teamworkId: taskLists.teamworkId }).from(taskLists)).map((row) => row.teamworkId),
+      (await db.select({ teamworkId: taskLists.teamworkId }).from(taskLists)).map(
+        (row) => row.teamworkId,
+      ),
     );
     const excludedTaskListTeamworkIds = new Set<number>();
     const deferredTaskLists = new Map<number, TeamworkRecord>();
@@ -601,7 +614,9 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
             (textAtPaths(row, ["status"]) ?? "").toLowerCase() === "deleted" ||
             toDate(firstValue(row, ["deletedAt"])) !== null,
           isBillable: booleanAtPaths(row, ["isBillable", "billable"]),
-          operationalGroup: classifyTaskList(name, { isDataHall: dataHallProjectIds.has(project.id) }),
+          operationalGroup: classifyTaskList(name, {
+            isDataHall: dataHallProjectIds.has(project.id),
+          }),
           teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt"])),
           raw: rawRecord(row),
         })
@@ -615,7 +630,9 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
               (textAtPaths(row, ["status"]) ?? "").toLowerCase() === "deleted" ||
               toDate(firstValue(row, ["deletedAt"])) !== null,
             isBillable: booleanAtPaths(row, ["isBillable", "billable"]),
-            operationalGroup: classifyTaskList(name, { isDataHall: dataHallProjectIds.has(project.id) }),
+            operationalGroup: classifyTaskList(name, {
+              isDataHall: dataHallProjectIds.has(project.id),
+            }),
             teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt"])),
             raw: rawRecord(row),
             updatedAt: new Date(),
@@ -639,7 +656,8 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       }
 
       const projectTeamworkId = idAtPaths(row, PROJECT_ID_PATHS);
-      const project = projectTeamworkId === null ? null : (projectMap.get(projectTeamworkId) ?? null);
+      const project =
+        projectTeamworkId === null ? null : (projectMap.get(projectTeamworkId) ?? null);
       if (project?.excludedFromReporting) {
         stats.taskLists.skipped += 1;
         excludedNoReportRecords.taskLists += 1;
@@ -683,7 +701,8 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       }
 
       const projectTeamworkId = evidence.projectTeamworkId;
-      const project = projectTeamworkId === null ? null : (projectMap.get(projectTeamworkId) ?? null);
+      const project =
+        projectTeamworkId === null ? null : (projectMap.get(projectTeamworkId) ?? null);
       if (project?.excludedFromReporting) {
         stats.taskLists.skipped += 1;
         excludedNoReportRecords.taskLists += 1;
@@ -709,14 +728,20 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       const resolved = resolveTaskRelationships(row, projectMap, taskListMap);
       if (
         resolved.project?.excludedFromReporting ||
-        (resolved.taskListTeamworkId !== null && excludedTaskListTeamworkIds.has(resolved.taskListTeamworkId))
+        (resolved.taskListTeamworkId !== null &&
+          excludedTaskListTeamworkIds.has(resolved.taskListTeamworkId))
       ) {
         stats.tasks.skipped += 1;
         excludedNoReportRecords.tasks += 1;
         if (resolved.taskTeamworkId !== null) excludedTaskTeamworkIds.add(resolved.taskTeamworkId);
         continue;
       }
-      if (resolved.reason || !resolved.project || !resolved.taskList || resolved.taskTeamworkId === null) {
+      if (
+        resolved.reason ||
+        !resolved.project ||
+        !resolved.taskList ||
+        resolved.taskTeamworkId === null
+      ) {
         stats.tasks.skipped += 1;
         issues.warn(
           "TASK_RELATIONSHIP_MISSING",
@@ -737,7 +762,11 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         "estimatedTimeMinutes",
         "estimate.minutes",
       ]);
-      const estimatedHours = numberAtPaths(row, ["estimatedHours", "estimated-hours", "estimate.hours"]);
+      const estimatedHours = numberAtPaths(row, [
+        "estimatedHours",
+        "estimated-hours",
+        "estimate.hours",
+      ]);
       const estimatedMinutes = estimate ?? (estimatedHours === null ? null : estimatedHours * 60);
       const accumulatedEstimatedMinutes = numberAtPaths(row, ["accumulatedEstimatedMinutes"]);
       const progressPercent = numberAtPaths(row, ["progress", "progressPercent"]);
@@ -757,7 +786,8 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
           startDate: dateText(firstValue(row, ["startDate"])),
           dueDate: dateText(firstValue(row, ["dueDate"])),
           completedAt: toDate(firstValue(row, ["completedAt", "completedOn"])),
-          isDeleted: toDate(firstValue(row, ["deletedAt"])) !== null || status.toLowerCase() === "deleted",
+          isDeleted:
+            toDate(firstValue(row, ["deletedAt"])) !== null || status.toLowerCase() === "deleted",
           teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt", "dateUpdated"])),
           raw: rawRecord(row),
         })
@@ -775,7 +805,8 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
             startDate: dateText(firstValue(row, ["startDate"])),
             dueDate: dateText(firstValue(row, ["dueDate"])),
             completedAt: toDate(firstValue(row, ["completedAt", "completedOn"])),
-            isDeleted: toDate(firstValue(row, ["deletedAt"])) !== null || status.toLowerCase() === "deleted",
+            isDeleted:
+              toDate(firstValue(row, ["deletedAt"])) !== null || status.toLowerCase() === "deleted",
             teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt", "dateUpdated"])),
             raw: rawRecord(row),
             updatedAt: new Date(),
@@ -795,10 +826,9 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
     console.log("[5/6] Importing historical time entries...");
     const taskMap = await loadTaskMap(projectMap);
     const peopleByTeamworkId = new Map(
-      (await db.select({ id: people.id, teamworkId: people.teamworkId }).from(people)).map((row) => [
-        row.teamworkId,
-        row.id,
-      ]),
+      (await db.select({ id: people.id, teamworkId: people.teamworkId }).from(people)).map(
+        (row) => [row.teamworkId, row.id],
+      ),
     );
     const timeRows = await paged(
       connection,
@@ -843,18 +873,21 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         directMinutes ?? (hours === null ? 0 : hours * 60 + (minutesPart ?? 0));
       const costRate = numberAtPaths(row, ["costRate", "userCost", "costInfo.rate"]);
       const costTotal = numberAtPaths(row, ["cost", "costTotal", "costInfo.total"]);
-      const sourceLoggedDate = dateText(firstValue(row, [
-        "timeLogged",
-        "time-logged",
-        "timelog.timeLogged",
-        "date",
-        "loggedDate",
-        "dateUserPerspective",
-        "dateUTC",
-        "dateUtc",
-        "loggedAt",
-      ]));
-      const loggedDate = sourceLoggedDate ??
+      const sourceLoggedDate = dateText(
+        firstValue(row, [
+          "timeLogged",
+          "time-logged",
+          "timelog.timeLogged",
+          "date",
+          "loggedDate",
+          "dateUserPerspective",
+          "dateUTC",
+          "dateUtc",
+          "loggedAt",
+        ]),
+      );
+      const loggedDate =
+        sourceLoggedDate ??
         dateText(firstValue(row, ["createdAt", "dateCreated", "created-at", "updatedAt"])) ??
         dateText(resolved.project.startDate) ??
         new Date().toISOString().slice(0, 10);

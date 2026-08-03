@@ -39,10 +39,7 @@ export const REPORTING_RULES = {
 } as const;
 
 export type StandardOperationalGroup =
-  | keyof typeof REPORTING_RULES.operationalGroupPatterns
-  | "Other / Unmapped";
+  keyof typeof REPORTING_RULES.operationalGroupPatterns | "Other / Unmapped";
 
 export type OperationalGroup =
-  | StandardOperationalGroup
-  | "Other / Administrative"
-  | `Area: ${string}`;
+  StandardOperationalGroup | "Other / Administrative" | `Area: ${string}`;

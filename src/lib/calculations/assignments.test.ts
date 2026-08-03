@@ -24,7 +24,6 @@ describe("Teamwork assignment extraction", () => {
     expect(result.jobRoleIds).toEqual([6]);
   });
 
-
   it("reads job-role IDs from nested and ID-keyed Teamwork collections", () => {
     const result = extractAssignments({
       assigneeJobRoleIds: { "7": true },

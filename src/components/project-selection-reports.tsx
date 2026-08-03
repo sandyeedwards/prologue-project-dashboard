@@ -12,11 +12,7 @@ import {
   CompareOperationalProfitabilityChart,
   type ComparedProjectOperationalGroups,
 } from "@/components/compare-operational-profitability-chart";
-import {
-  CoverageBadge,
-  HealthBadge,
-  MetricCard,
-} from "@/components/reporting-ui";
+import { CoverageBadge, HealthBadge, MetricCard } from "@/components/reporting-ui";
 import {
   summarizeProjects,
   type PortfolioOperationalGroupRow,
@@ -39,7 +35,11 @@ function knownFor(knownCount: number, projectCount: number): string {
   return `Known for ${knownCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
 }
 
-function actualCostCoverageDetail(completeCount: number, partialCount: number, projectCount: number): string {
+function actualCostCoverageDetail(
+  completeCount: number,
+  partialCount: number,
+  projectCount: number,
+): string {
   if (!partialCount) {
     return `Complete cost coverage for ${completeCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
   }
@@ -117,7 +117,10 @@ export function ProjectComparisonReport({
   }));
 
   return (
-    <section className="selection-report selection-report--compare" aria-label="Compared Project Report">
+    <section
+      className="selection-report selection-report--compare"
+      aria-label="Compared Project Report"
+    >
       <section className="chart-grid chart-grid--compare" aria-label="Project comparison graphs">
         <ChartPanel
           className="compare-profitability-panel compare-operational-profitability-panel"
@@ -149,7 +152,9 @@ export function ProjectComparisonReport({
             <p className="eyebrow">Project register</p>
             <h3 id="compare-register-title">Financial detail behind the comparison</h3>
           </div>
-          <span>{projects.length} selected project{projects.length === 1 ? "" : "s"}</span>
+          <span>
+            {projects.length} selected project{projects.length === 1 ? "" : "s"}
+          </span>
         </header>
         <div className="compare-register__scroll">
           <div className="compare-register__head" aria-hidden="true">
@@ -164,18 +169,45 @@ export function ProjectComparisonReport({
           <div className="compare-register__rows">
             {projects.map((project) => {
               const profit = numeric(project.forecastProfit);
-              const remaining = remainingCost(numeric(project.actualTotalCost), numeric(project.forecastCost));
+              const remaining = remainingCost(
+                numeric(project.actualTotalCost),
+                numeric(project.forecastCost),
+              );
               return (
-                <article className={`compare-register__row${profit !== null && profit < 0 ? " compare-register__row--loss" : ""}`} key={project.id}>
+                <article
+                  className={`compare-register__row${profit !== null && profit < 0 ? " compare-register__row--loss" : ""}`}
+                  key={project.id}
+                >
                   <div className="compare-register__project">
                     <Link href={`/projects/${project.id}`}>{project.name}</Link>
-                    <span>{project.companyName ?? "No client company"}{project.isProvisional ? " · Provisional" : ""}</span>
+                    <span>
+                      {project.companyName ?? "No client company"}
+                      {project.isProvisional ? " · Provisional" : ""}
+                    </span>
                   </div>
-                  <div><HealthBadge band={project.healthBand} score={project.healthScore} /></div>
-                  <div className="compare-register__money"><strong>{money(project.actualTotalCost)}</strong><small>Cost to date</small></div>
-                  <div className="compare-register__money"><strong>{money(remaining)}</strong><small>Costed work</small></div>
-                  <div className={`compare-register__money ${profit !== null && profit < 0 ? "is-loss" : "is-profit"}`}><strong>{money(project.forecastProfit)}</strong><small>{profit !== null && profit < 0 ? "Forecast loss" : "Unspent revenue"}</small></div>
-                  <div className="compare-register__margin"><strong>{percent(project.forecastMarginPercent, 1)}</strong><small>{project.isProvisional ? "Ceiling" : "Forecast"}</small></div>
+                  <div>
+                    <HealthBadge band={project.healthBand} score={project.healthScore} />
+                  </div>
+                  <div className="compare-register__money">
+                    <strong>{money(project.actualTotalCost)}</strong>
+                    <small>Cost to date</small>
+                  </div>
+                  <div className="compare-register__money">
+                    <strong>{money(remaining)}</strong>
+                    <small>Costed work</small>
+                  </div>
+                  <div
+                    className={`compare-register__money ${profit !== null && profit < 0 ? "is-loss" : "is-profit"}`}
+                  >
+                    <strong>{money(project.forecastProfit)}</strong>
+                    <small>
+                      {profit !== null && profit < 0 ? "Forecast loss" : "Unspent revenue"}
+                    </small>
+                  </div>
+                  <div className="compare-register__margin">
+                    <strong>{percent(project.forecastMarginPercent, 1)}</strong>
+                    <small>{project.isProvisional ? "Ceiling" : "Forecast"}</small>
+                  </div>
                   <div className="compare-register__coverage" aria-label="Source coverage">
                     <CoverageBadge value={project.laborCoverage} />
                     <CoverageBadge value={project.assignmentCoverage} />
@@ -204,7 +236,9 @@ export function CombinedPortfolioReport({
 }) {
   const summary = summarizeProjects(projects);
   const combinedMargin =
-    summary.totalClientFee !== null && summary.totalClientFee !== 0 && summary.totalForecastProfit !== null
+    summary.totalClientFee !== null &&
+    summary.totalClientFee !== 0 &&
+    summary.totalForecastProfit !== null
       ? (summary.totalForecastProfit / summary.totalClientFee) * 100
       : null;
   const profitabilityRows = groups.map((group) => ({
@@ -221,7 +255,8 @@ export function CombinedPortfolioReport({
   const totalRevenue = profitabilityRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
   const totalForecastCost = profitabilityRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
   const totalRemainingCost = profitabilityRows.reduce((sum, row) => {
-    if (row.remainingCost !== null && row.remainingCost !== undefined) return sum + row.remainingCost;
+    if (row.remainingCost !== null && row.remainingCost !== undefined)
+      return sum + row.remainingCost;
     return sum + (remainingCost(row.actualCost ?? null, row.cost ?? null) ?? 0);
   }, 0);
   const totalForecastProfit = totalRevenue - totalForecastCost;
@@ -258,21 +293,63 @@ export function CombinedPortfolioReport({
   }));
 
   return (
-    <section className="selection-report selection-report--combine executive-combined-report" aria-label="Combined Project Report">
+    <section
+      className="selection-report selection-report--combine executive-combined-report"
+      aria-label="Combined Project Report"
+    >
       <section className="executive-kpis combined-metrics" aria-label="Combined financial summary">
         <div className="executive-kpis__primary">
-          <MetricCard priority="primary" label="Actual Cost to Date" value={money(summary.totalActualCost)} detail={actualCostCoverageDetail(summary.actualCostKnownCount, summary.actualCostPartialCount, summary.projectCount)} help="Historical labor plus active Teamwork expenses across the selected projects. Known subtotals remain included when source cost coverage is partial; missing records are not treated as zero." />
-          <MetricCard priority="primary" label="Costed Remaining Work" value={money(totalRemainingCost)} detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)} help={`Estimated remaining internal and outsourced cost from today to completion. This excludes actual cost already incurred and matches the costed remaining work shown in the profitability chart. ${summary.provisionalCount} selected project${summary.provisionalCount === 1 ? " is" : "s are"} provisional, so missing inputs can make this a known minimum.`} />
-          <MetricCard priority="primary" label="Unspent Revenue / Forecasted Profit" value={money(summary.totalForecastProfit)} detail={knownFor(summary.forecastProfitKnownCount, summary.projectCount)} help="Combined client fees less actual cost to date and remaining cost to complete. It is recalculated from the totals rather than averaging project profit values." />
+          <MetricCard
+            priority="primary"
+            label="Actual Cost to Date"
+            value={money(summary.totalActualCost)}
+            detail={actualCostCoverageDetail(
+              summary.actualCostKnownCount,
+              summary.actualCostPartialCount,
+              summary.projectCount,
+            )}
+            help="Historical labor plus active Teamwork expenses across the selected projects. Known subtotals remain included when source cost coverage is partial; missing records are not treated as zero."
+          />
+          <MetricCard
+            priority="primary"
+            label="Costed Remaining Work"
+            value={money(totalRemainingCost)}
+            detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)}
+            help={`Estimated remaining internal and outsourced cost from today to completion. This excludes actual cost already incurred and matches the costed remaining work shown in the profitability chart. ${summary.provisionalCount} selected project${summary.provisionalCount === 1 ? " is" : "s are"} provisional, so missing inputs can make this a known minimum.`}
+          />
+          <MetricCard
+            priority="primary"
+            label="Unspent Revenue / Forecasted Profit"
+            value={money(summary.totalForecastProfit)}
+            detail={knownFor(summary.forecastProfitKnownCount, summary.projectCount)}
+            help="Combined client fees less actual cost to date and remaining cost to complete. It is recalculated from the totals rather than averaging project profit values."
+          />
         </div>
         <div className="executive-kpis__secondary">
-          <MetricCard label="Allocated Revenue" value={money(summary.totalClientFee)} detail={knownFor(summary.clientFeeKnownCount, summary.projectCount)} help="Sum of known fixed-fee budgets for all selected projects. Missing fees are not treated as $0." />
-          <MetricCard label={summary.provisionalCount ? "Margin Ceiling" : "Forecast Margin"} value={combinedMargin === null ? "Missing" : `${combinedMargin.toFixed(1)}%`} detail={knownFor(summary.forecastMarginKnownCount, summary.projectCount)} help="Combined forecast profit divided by combined client fees. This is not an average of the selected project margins." />
-          <MetricCard label="Logged Hours" value={hours(summary.totalLoggedMinutes)} detail={`${hours(summary.totalLoggedMinutes)} of ${hours(summary.totalEstimatedMinutes)} estimated`} />
+          <MetricCard
+            label="Allocated Revenue"
+            value={money(summary.totalClientFee)}
+            detail={knownFor(summary.clientFeeKnownCount, summary.projectCount)}
+            help="Sum of known fixed-fee budgets for all selected projects. Missing fees are not treated as $0."
+          />
+          <MetricCard
+            label={summary.provisionalCount ? "Margin Ceiling" : "Forecast Margin"}
+            value={combinedMargin === null ? "Missing" : `${combinedMargin.toFixed(1)}%`}
+            detail={knownFor(summary.forecastMarginKnownCount, summary.projectCount)}
+            help="Combined forecast profit divided by combined client fees. This is not an average of the selected project margins."
+          />
+          <MetricCard
+            label="Logged Hours"
+            value={hours(summary.totalLoggedMinutes)}
+            detail={`${hours(summary.totalLoggedMinutes)} of ${hours(summary.totalEstimatedMinutes)} estimated`}
+          />
         </div>
       </section>
 
-      <section className="executive-report-stack" aria-label="Combined portfolio profitability, health, and effort">
+      <section
+        className="executive-report-stack"
+        aria-label="Combined portfolio profitability, health, and effort"
+      >
         <DashboardProfitabilityTabs
           groupRows={profitabilityRows}
           totalRow={totalProfitabilityRow}
@@ -283,7 +360,11 @@ export function CombinedPortfolioReport({
           historicalDescription="Track gross revenue, source-dated actual cost, anticipated cost, net profit to date, and forecasted net profit over time across the selected projects. The calendar controls adjust only the visible historical range."
         />
         <div className="executive-support-row">
-          <ChartPanel className="executive-report-grid__health executive-support-row__health" eyebrow="Portfolio condition" title="Health Summary">
+          <ChartPanel
+            className="executive-report-grid__health executive-support-row__health"
+            eyebrow="Portfolio condition"
+            title="Health Summary"
+          >
             <HealthDonut
               green={summary.greenCount}
               amber={summary.amberCount}

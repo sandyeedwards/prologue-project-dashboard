@@ -16,9 +16,7 @@ describe("project reporting policy", () => {
 
   it("excludes a project when any tag is NoReport", () => {
     expect(shouldIncludeProject(["Scanning", "NoReport", "Ready Set"])).toBe(false);
-    expect(projectReportingPolicy(["DataHall", "NoReport"]).exclusionReason).toBe(
-      "NoReport tag",
-    );
+    expect(projectReportingPolicy(["DataHall", "NoReport"]).exclusionReason).toBe("NoReport tag");
   });
 
   it("includes Ready Set projects", () => {

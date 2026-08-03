@@ -31,7 +31,11 @@ export function DashboardPortfolioFilters({
           <span>Project type</span>
           <select name="type" defaultValue={filter.type ?? "ALL"}>
             <option value="ALL">All project types</option>
-            {types.map((value) => <option key={value} value={value}>{value}</option>)}
+            {types.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
           </select>
           <small>Ready Set and DataHall also count as Scanning.</small>
         </label>
@@ -42,7 +46,11 @@ export function DashboardPortfolioFilters({
           <span>Client</span>
           <select name="client" defaultValue={filter.client ?? "ALL"}>
             <option value="ALL">All clients</option>
-            {clients.map((value) => <option key={value} value={value}>{value}</option>)}
+            {clients.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
           </select>
         </label>
         <label className="filter-field">
@@ -59,12 +67,20 @@ export function DashboardPortfolioFilters({
           <span>Status</span>
           <select name="status" defaultValue={filter.status ?? "ALL"}>
             <option value="ALL">All statuses</option>
-            {statuses.map((value) => <option key={value} value={value}>{value}</option>)}
+            {statuses.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
           </select>
         </label>
         <div className="dashboard-inline-filters__actions">
-          <button className="button button--primary" type="submit">Update dashboard</button>
-          <Link className="button button--secondary" href={resetHref}>Reset</Link>
+          <button className="button button--primary" type="submit">
+            Update dashboard
+          </button>
+          <Link className="button button--secondary" href={resetHref}>
+            Reset
+          </Link>
         </div>
       </div>
     </form>

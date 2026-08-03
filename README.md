@@ -26,7 +26,6 @@
 - Silently skips task lists, tasks, and time entries belonging to `NoReport` projects so excluded records do not create relationship-warning noise.
 - Step 7 verification now fails when time entries still use fallback dates or reportable task-list relationships remain unresolved.
 
-
 ## Step 10 v1.1.12 project workspace refinement
 
 - Made the three profitability tabs more visually distinct and easier to scan.
@@ -206,5 +205,3 @@ The application expects the existing PostgreSQL database and Teamwork connection
 ## Known validation limitation
 
 The final dependency-backed Next.js build must be run locally. The packaging environment could not install one transitive npm package from its internal registry mirror. Static TypeScript/TSX syntax, imports, CSS, configuration, archive integrity, and unchanged calculation-source checks are documented in the accompanying validation report.
-
-

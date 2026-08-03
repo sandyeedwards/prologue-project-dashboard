@@ -24,7 +24,9 @@ export async function updateUserAccess(formData: FormData): Promise<void> {
   const db = getDb();
 
   await db.transaction(async (transaction) => {
-    await transaction.execute(sql`select pg_advisory_xact_lock(hashtext('dashboard_admin_access'))`);
+    await transaction.execute(
+      sql`select pg_advisory_xact_lock(hashtext('dashboard_admin_access'))`,
+    );
 
     const [target] = await transaction
       .select()
@@ -34,9 +36,7 @@ export async function updateUserAccess(formData: FormData): Promise<void> {
     if (!target) throw new Error("Dashboard user not found.");
 
     const removingAdmin =
-      target.role === "ADMIN" &&
-      target.isActive &&
-      (input.role !== "ADMIN" || !input.isActive);
+      target.role === "ADMIN" && target.isActive && (input.role !== "ADMIN" || !input.isActive);
     if (removingAdmin) {
       const [adminCount] = await transaction
         .select({ value: count() })

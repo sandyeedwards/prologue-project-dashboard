@@ -75,7 +75,8 @@ export function DashboardProfitabilityTabs({
   const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     let nextIndex = activeIndex;
     if (event.key === "ArrowRight") nextIndex = (activeIndex + 1) % configuredViews.length;
-    if (event.key === "ArrowLeft") nextIndex = (activeIndex - 1 + configuredViews.length) % configuredViews.length;
+    if (event.key === "ArrowLeft")
+      nextIndex = (activeIndex - 1 + configuredViews.length) % configuredViews.length;
     if (event.key === "Home") nextIndex = 0;
     if (event.key === "End") nextIndex = configuredViews.length - 1;
     if (nextIndex === activeIndex) return;
@@ -87,7 +88,9 @@ export function DashboardProfitabilityTabs({
   };
 
   return (
-    <article className={`chart-panel executive-report-grid__profitability dashboard-profitability-tabs dashboard-profitability-tabs--${active.id}`}>
+    <article
+      className={`chart-panel executive-report-grid__profitability dashboard-profitability-tabs dashboard-profitability-tabs--${active.id}`}
+    >
       <div
         className="dashboard-profitability-tabs__list"
         role="tablist"
@@ -135,10 +138,15 @@ export function DashboardProfitabilityTabs({
             totalRow ? (
               <PortfolioFinancialComposition rows={[totalRow]} variant="total" />
             ) : (
-              <div className="chart-empty">No complete portfolio financial position is available.</div>
+              <div className="chart-empty">
+                No complete portfolio financial position is available.
+              </div>
             )
           ) : historicalSeries !== undefined ? (
-            <HistoricalRevenueProfitChart series={historicalSeries} initialDateRange={historicalInitialRange} />
+            <HistoricalRevenueProfitChart
+              series={historicalSeries}
+              initialDateRange={historicalInitialRange}
+            />
           ) : (
             <div className="chart-empty">No historical portfolio data is available.</div>
           )}

@@ -4,11 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import {
-  auditLog,
-  dataQualityIssues,
-  unplannedWorkReviews,
-} from "@/db/schema";
+import { auditLog, dataQualityIssues, unplannedWorkReviews } from "@/db/schema";
 import { requireRole } from "@/lib/auth/session";
 
 const issueSchema = z.object({

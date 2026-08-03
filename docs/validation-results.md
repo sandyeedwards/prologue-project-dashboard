@@ -31,11 +31,9 @@ npm run build
 
 The final acceptance test is `npm run step7:run` followed by a Step 7 verification result with `status: PASS`.
 
-
 ## Step 7 v1.0.1 correction
 
 Corrected strict-null typing in the expense subtotal, corrected Drizzle transaction execution in the reset helper, removed an unused variable, and changed the Step 7 runner to migrate before calculating.
-
 
 The packaging environment could not reach its npm dependency service during the v1.0.1 correction. The corrected source was reviewed against the exact five compiler errors supplied by the Windows validation run. Run `npm run step7:setup` on the development computer for the authoritative formatter, lint, TypeScript, test, build, migration, calculation, and verification result.
 

@@ -7,7 +7,10 @@ import { PrologueMark } from "@/components/prologue-brand";
 function initials(displayName: string): string {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "PS";
-  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
 }
 
 export function AppShell({
@@ -23,7 +26,11 @@ export function AppShell({
     <div className="app-frame">
       <header className="app-header">
         <div className="app-header__inner">
-          <Link className="app-header__brand" href="/dashboard" aria-label="Open Prologue Portfolio Dashboard">
+          <Link
+            className="app-header__brand"
+            href="/dashboard"
+            aria-label="Open Prologue Portfolio Dashboard"
+          >
             <PrologueMark height={48} />
             <span className="app-header__brand-copy">
               <strong>PROLOGUE</strong>
@@ -36,7 +43,9 @@ export function AppShell({
           </div>
 
           <div className="user-menu">
-            <span className="user-menu__avatar" aria-hidden="true">{initials(user.displayName)}</span>
+            <span className="user-menu__avatar" aria-hidden="true">
+              {initials(user.displayName)}
+            </span>
             <span className="user-menu__identity">
               <strong>{user.displayName}</strong>
               <small>{user.role}</small>
@@ -49,7 +58,12 @@ export function AppShell({
           </div>
         </div>
       </header>
-      <div className="app-frame__content app-frame__content--portfolio" data-content-tone={contentTone}>{children}</div>
+      <div
+        className="app-frame__content app-frame__content--portfolio"
+        data-content-tone={contentTone}
+      >
+        {children}
+      </div>
     </div>
   );
 }

@@ -27,7 +27,6 @@ function numberValue(value: unknown): number | null {
   return null;
 }
 
-
 type LegacyDateAuditRow = {
   legacyTimeEntryDates: number;
   legacyProjectStartDates: number;
@@ -66,8 +65,10 @@ export async function verifyCalculations() {
   const taskListIdWarnings = numberValue(latestSyncWarningCodes.TASK_LIST_ID_MISSING) ?? 0;
   const taskListProjectConflictWarnings =
     numberValue(latestSyncWarningCodes.TASK_LIST_PROJECT_CONFLICT) ?? 0;
-  const taskRelationshipWarnings = numberValue(latestSyncWarningCodes.TASK_RELATIONSHIP_MISSING) ?? 0;
-  const timeRelationshipWarnings = numberValue(latestSyncWarningCodes.TIME_RELATIONSHIP_MISSING) ?? 0;
+  const taskRelationshipWarnings =
+    numberValue(latestSyncWarningCodes.TASK_RELATIONSHIP_MISSING) ?? 0;
+  const timeRelationshipWarnings =
+    numberValue(latestSyncWarningCodes.TIME_RELATIONSHIP_MISSING) ?? 0;
   const reportableRelationshipWarnings =
     taskListIdWarnings +
     taskListProjectConflictWarnings +
@@ -83,10 +84,7 @@ export async function verifyCalculations() {
     numberValue(taskListRelationshipRecovery.conflictingTaskEvidence) ?? 0;
   const [eligibleProjects, activeTasks, metricProjects, metricTasks, metricGroups, issueCount] =
     await Promise.all([
-      db
-        .select({ value: count() })
-        .from(projects)
-        .where(eq(projects.excludedFromReporting, false)),
+      db.select({ value: count() }).from(projects).where(eq(projects.excludedFromReporting, false)),
       db
         .select({ value: count() })
         .from(tasks)
@@ -295,8 +293,7 @@ export async function verifyCalculations() {
           outsourcedEstimatedHours:
             pilotOutsourcedMinutes === null ? null : pilotOutsourcedMinutes / 60,
           projectedOutsourcedCost: pilotOutsourcedCost,
-          configuredOutsourcedHourlyRate:
-            REPORTING_RULES.outsourcedModelingHourlyRateUsd,
+          configuredOutsourcedHourlyRate: REPORTING_RULES.outsourcedModelingHourlyRateUsd,
           expectedOutsourcedCost: pilotExpectedOutsourcedCost,
           matchesConfiguredOutsourcedRate: pilotMatchesConfiguredRate,
           healthBand: pilot.healthBand,

@@ -1,12 +1,22 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { getProjectTypeFacets, type Coverage, type HealthBand, type ProjectReportRow } from "@/lib/reporting/dashboard-data";
+import {
+  getProjectTypeFacets,
+  type Coverage,
+  type HealthBand,
+  type ProjectReportRow,
+} from "@/lib/reporting/dashboard-data";
 import { hours, money, percent } from "@/lib/reporting/format";
 
 export function HealthBadge({ band, score }: { band: HealthBand; score: string | number | null }) {
   const parsed = score === null || score === "" ? null : Number(score);
   const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(2)}%` : "N/A";
-  const healthName: Record<HealthBand, string> = { GREEN: "Healthy", AMBER: "At risk", RED: "Unhealthy", GRAY: "N/A" };
+  const healthName: Record<HealthBand, string> = {
+    GREEN: "Healthy",
+    AMBER: "At risk",
+    RED: "Unhealthy",
+    GRAY: "N/A",
+  };
   return (
     <span
       className={`health-badge health-badge--${band.toLowerCase()}`}
@@ -19,7 +29,11 @@ export function HealthBadge({ band, score }: { band: HealthBand; score: string |
 }
 
 export function CoverageBadge({ value }: { value: Coverage }) {
-  return <span className={`coverage-badge coverage-badge--${value.toLowerCase()}`}>{value.replaceAll("_", " ")}</span>;
+  return (
+    <span className={`coverage-badge coverage-badge--${value.toLowerCase()}`}>
+      {value.replaceAll("_", " ")}
+    </span>
+  );
 }
 
 export function MetricCard({
@@ -40,7 +54,9 @@ export function MetricCard({
   priority?: "primary" | "secondary";
 }) {
   return (
-    <article className={`metric-card metric-card--${priority}${tone ? ` metric-card--${tone}` : ""}${accent ? ` metric-card--accent-${accent}` : ""}${help ? " metric-card--has-help" : ""}`}>
+    <article
+      className={`metric-card metric-card--${priority}${tone ? ` metric-card--${tone}` : ""}${accent ? ` metric-card--accent-${accent}` : ""}${help ? " metric-card--has-help" : ""}`}
+    >
       <header className="metric-card__header">
         <span className="metric-card__indicator" aria-hidden="true" />
         <p className="metric-card__label">{label}</p>
@@ -56,7 +72,9 @@ export function MetricCard({
           >
             ?
           </button>
-          <span className="metric-card__help-panel" role="tooltip">{help}</span>
+          <span className="metric-card__help-panel" role="tooltip">
+            {help}
+          </span>
         </span>
       ) : null}
     </article>
@@ -67,7 +85,9 @@ export function ProvisionalNotice({ row }: { row: ProjectReportRow }) {
   if (!row.isProvisional) return null;
   const missing = [
     row.laborCoverage !== "COMPLETE" ? `labor ${row.laborCoverage.toLowerCase()}` : null,
-    row.assignmentCoverage !== "COMPLETE" ? `assignments ${row.assignmentCoverage.toLowerCase()}` : null,
+    row.assignmentCoverage !== "COMPLETE"
+      ? `assignments ${row.assignmentCoverage.toLowerCase()}`
+      : null,
     row.taskListBudgetCoverage !== "COMPLETE" && row.taskListBudgetCoverage !== "NOT_EXPECTED"
       ? `task-list budgets ${row.taskListBudgetCoverage.toLowerCase()}`
       : null,
@@ -79,12 +99,14 @@ export function ProvisionalNotice({ row }: { row: ProjectReportRow }) {
     <div className="provisional-notice">
       <strong>Provisional financial result</strong>
       <span>
-        Actual costs already returned by Teamwork are included. The forecast is labeled provisional because at least one input needed to price expected or remaining work is incomplete{missing.length ? `: ${missing.join(", ")}` : ""}. The known forecast cost is therefore a minimum and the displayed margin is a ceiling.
+        Actual costs already returned by Teamwork are included. The forecast is labeled provisional
+        because at least one input needed to price expected or remaining work is incomplete
+        {missing.length ? `: ${missing.join(", ")}` : ""}. The known forecast cost is therefore a
+        minimum and the displayed margin is a ceiling.
       </span>
     </div>
   );
 }
-
 
 function numericMoney(value: string | number | null | undefined): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -134,11 +156,15 @@ export function ProjectTable({
             const profitValue = numericMoney(row.forecastProfit);
             const profitTone = profitValue !== null && profitValue < 0 ? "loss" : "profit";
             const projectPrefix = row.projectNumber ? `${row.projectNumber} - ` : "";
-            const projectName = projectPrefix && row.name.startsWith(projectPrefix)
-              ? row.name.slice(projectPrefix.length)
-              : row.name;
+            const projectName =
+              projectPrefix && row.name.startsWith(projectPrefix)
+                ? row.name.slice(projectPrefix.length)
+                : row.name;
             return (
-              <tr className={`project-table__row project-table__row--${row.healthBand.toLowerCase()}`} key={row.id}>
+              <tr
+                className={`project-table__row project-table__row--${row.healthBand.toLowerCase()}`}
+                key={row.id}
+              >
                 {selectable ? (
                   <td>
                     <input
@@ -152,33 +178,75 @@ export function ProjectTable({
                 ) : null}
                 <td>
                   <Link className="project-link" href={`/projects/${row.id}`}>
-                    <strong>{row.projectNumber ? `${row.projectNumber} · ` : ""}{projectName}</strong>
+                    <strong>
+                      {row.projectNumber ? `${row.projectNumber} · ` : ""}
+                      {projectName}
+                    </strong>
                     <span>{row.companyName ?? "No client company"}</span>
                   </Link>
                   <div className="tag-row">
-                    {getProjectTypeFacets(row).map((type) => <span className="tag" key={type}>{type}</span>)}
-                    {row.archivedAt || row.status.toLowerCase() === "archived" ? <span className="tag">Archived</span> : null}
-                    {row.isProvisional ? <span className="tag tag--warning">Provisional</span> : null}
+                    {getProjectTypeFacets(row).map((type) => (
+                      <span className="tag" key={type}>
+                        {type}
+                      </span>
+                    ))}
+                    {row.archivedAt || row.status.toLowerCase() === "archived" ? (
+                      <span className="tag">Archived</span>
+                    ) : null}
+                    {row.isProvisional ? (
+                      <span className="tag tag--warning">Provisional</span>
+                    ) : null}
                   </div>
                 </td>
-                <td><HealthBadge band={row.healthBand} score={row.healthScore} /></td>
-                <td className="project-table__money"><strong>{money(row.actualTotalCost)}</strong><small className="table-subvalue">Cost to date</small></td>
-                <td className="project-table__money"><strong>{money(remaining)}</strong><small className="table-subvalue">Costed work</small></td>
-                <td className={`project-table__money project-table__money--${profitTone}`}><strong>{money(row.forecastProfit)}</strong><small className="table-subvalue">{profitTone === "loss" ? "Forecast loss" : "Unspent revenue"}</small></td>
+                <td>
+                  <HealthBadge band={row.healthBand} score={row.healthScore} />
+                </td>
+                <td className="project-table__money">
+                  <strong>{money(row.actualTotalCost)}</strong>
+                  <small className="table-subvalue">Cost to date</small>
+                </td>
+                <td className="project-table__money">
+                  <strong>{money(remaining)}</strong>
+                  <small className="table-subvalue">Costed work</small>
+                </td>
+                <td className={`project-table__money project-table__money--${profitTone}`}>
+                  <strong>{money(row.forecastProfit)}</strong>
+                  <small className="table-subvalue">
+                    {profitTone === "loss" ? "Forecast loss" : "Unspent revenue"}
+                  </small>
+                </td>
                 <td>
                   <strong>{percent(row.forecastMarginPercent, 1)}</strong>
-                  {row.isProvisional ? <small className="table-subvalue table-subvalue--warning">Ceiling</small> : <small className="table-subvalue">Forecast</small>}
+                  {row.isProvisional ? (
+                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
+                  ) : (
+                    <small className="table-subvalue">Forecast</small>
+                  )}
                 </td>
                 <td>
                   {hours(row.loggedMinutes)}
-                  <small className="table-subvalue">of {hours(row.canonicalEstimatedMinutes)} est.</small>
+                  <small className="table-subvalue">
+                    of {hours(row.canonicalEstimatedMinutes)} est.
+                  </small>
                 </td>
-                <td><span className={row.dataQualityIssueCount ? "issue-count issue-count--warning" : "issue-count"}>{row.dataQualityIssueCount}</span></td>
+                <td>
+                  <span
+                    className={
+                      row.dataQualityIssueCount ? "issue-count issue-count--warning" : "issue-count"
+                    }
+                  >
+                    {row.dataQualityIssueCount}
+                  </span>
+                </td>
               </tr>
             );
           })}
           {!rows.length ? (
-            <tr><td colSpan={selectable ? 9 : 8} className="empty-state">No projects match these filters.</td></tr>
+            <tr>
+              <td colSpan={selectable ? 9 : 8} className="empty-state">
+                No projects match these filters.
+              </td>
+            </tr>
           ) : null}
         </tbody>
       </table>

@@ -26,52 +26,52 @@ export default async function TeamworkAdminPage({
   const runs = await db.select().from(syncRuns).orderBy(desc(syncRuns.startedAt)).limit(10);
   return (
     <AppShell user={session.user}>
-    <main className="shell">
-      <section className="hero">
-        <p className="eyebrow">Administration</p>
-        <h1>Teamwork connection</h1>
-        <p>
-          Authorize one Prologue administrator account to provide the dashboard’s central read-only
-          reporting connection.
-        </p>
-      </section>
-      <section className="panel">
-        <h2>{connection ? "Connected" : "Not connected"}</h2>
-        {connection ? (
-          <>
-            <p>
-              <strong>{connection.installationName}</strong>
-            </p>
-            <p>{connection.apiEndpoint}</p>
-            <p>Last sync: {connection.lastSyncAt?.toLocaleString() ?? "Not run"}</p>
-          </>
-        ) : (
+      <main className="shell">
+        <section className="hero">
+          <p className="eyebrow">Administration</p>
+          <h1>Teamwork connection</h1>
           <p>
-            Add the Step 6 environment values, then open{" "}
-            <code>/api/teamwork/oauth/start?key=YOUR_SETUP_KEY</code>.
+            Authorize one Prologue administrator account to provide the dashboard’s central
+            read-only reporting connection.
           </p>
-        )}
-        {params.connected && (
-          <p>Authorization completed successfully. Run the initial import from PowerShell.</p>
-        )}
-        {params.error && <p>Authorization error: {params.error}</p>}
-      </section>
-      <section className="panel">
-        <h2>Recent sync runs</h2>
-        {runs.length === 0 ? (
-          <p>No synchronization has run.</p>
-        ) : (
-          <ul>
-            {runs.map((run) => (
-              <li key={run.id}>
-                {run.kind} — {run.status} — {run.startedAt.toLocaleString()} — {run.recordsRead}{" "}
-                records read
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+        </section>
+        <section className="panel">
+          <h2>{connection ? "Connected" : "Not connected"}</h2>
+          {connection ? (
+            <>
+              <p>
+                <strong>{connection.installationName}</strong>
+              </p>
+              <p>{connection.apiEndpoint}</p>
+              <p>Last sync: {connection.lastSyncAt?.toLocaleString() ?? "Not run"}</p>
+            </>
+          ) : (
+            <p>
+              Add the Step 6 environment values, then open{" "}
+              <code>/api/teamwork/oauth/start?key=YOUR_SETUP_KEY</code>.
+            </p>
+          )}
+          {params.connected && (
+            <p>Authorization completed successfully. Run the initial import from PowerShell.</p>
+          )}
+          {params.error && <p>Authorization error: {params.error}</p>}
+        </section>
+        <section className="panel">
+          <h2>Recent sync runs</h2>
+          {runs.length === 0 ? (
+            <p>No synchronization has run.</p>
+          ) : (
+            <ul>
+              {runs.map((run) => (
+                <li key={run.id}>
+                  {run.kind} — {run.status} — {run.startedAt.toLocaleString()} — {run.recordsRead}{" "}
+                  records read
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </main>
     </AppShell>
   );
 }

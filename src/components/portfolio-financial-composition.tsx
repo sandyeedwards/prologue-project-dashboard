@@ -72,7 +72,9 @@ function ariaLabel(row: ProfitabilityRow, values: ResolvedRow): string {
     `Costed remaining work ${fullCurrency(values.remaining)}.`,
     `${values.profit < 0 ? "Forecast loss" : "Forecast profit"} ${fullCurrency(values.profit)}.`,
     `Forecast margin ${formatMargin(values.margin)}.`,
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function CompositionRow({
@@ -88,26 +90,32 @@ function CompositionRow({
   const plotRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
   const values = resolveRow(row);
-  const revenueBoundary = maximumOverrunRatio > 0
-    ? Math.max(62, 100 / (1 + Math.min(maximumOverrunRatio, 0.6)))
-    : 100;
+  const revenueBoundary =
+    maximumOverrunRatio > 0 ? Math.max(62, 100 / (1 + Math.min(maximumOverrunRatio, 0.6))) : 100;
   const revenue = values.revenue;
   const actualRatio = revenue > 0 ? values.actual / revenue : 0;
   const remainingRatio = revenue > 0 ? values.remaining / revenue : 0;
   const actualInsideRatio = Math.min(Math.max(actualRatio, 0), 1);
-  const remainingInsideRatio = Math.min(Math.max(remainingRatio, 0), Math.max(1 - actualInsideRatio, 0));
+  const remainingInsideRatio = Math.min(
+    Math.max(remainingRatio, 0),
+    Math.max(1 - actualInsideRatio, 0),
+  );
   const profit = Math.max(revenue - values.forecastCost, 0);
   const loss = Math.max(values.forecastCost - revenue, 0);
   const profitRatio = revenue > 0 ? profit / revenue : 0;
   const overrunRatio = revenue > 0 ? loss / revenue : loss > 0 ? maximumOverrunRatio : 0;
-  const overrunWidth = maximumOverrunRatio > 0
-    ? Math.min((overrunRatio / maximumOverrunRatio) * (100 - revenueBoundary), 100 - revenueBoundary)
-    : 0;
+  const overrunWidth =
+    maximumOverrunRatio > 0
+      ? Math.min(
+          (overrunRatio / maximumOverrunRatio) * (100 - revenueBoundary),
+          100 - revenueBoundary,
+        )
+      : 0;
   const style = {
     "--portfolio-actual-width": `${actualInsideRatio * revenueBoundary}%`,
     "--portfolio-remaining-left": `${actualInsideRatio * revenueBoundary}%`,
     "--portfolio-remaining-width": `${remainingInsideRatio * revenueBoundary}%`,
-    "--portfolio-profit-left": `${Math.min((values.forecastCost / Math.max(revenue, 1)), 1) * revenueBoundary}%`,
+    "--portfolio-profit-left": `${Math.min(values.forecastCost / Math.max(revenue, 1), 1) * revenueBoundary}%`,
     "--portfolio-profit-width": `${profitRatio * revenueBoundary}%`,
     "--portfolio-revenue-boundary": `${revenueBoundary}%`,
     "--portfolio-loss-width": `${overrunWidth}%`,
@@ -149,10 +157,22 @@ function CompositionRow({
 
       {hero ? (
         <div className="portfolio-composition__hero-metrics" aria-hidden="true">
-          <span><small>Actual Cost to Date</small><strong>{compactCurrency(values.actual)}</strong></span>
-          <span><small>Costed Remaining Work</small><strong>{compactCurrency(values.remaining)}</strong></span>
-          <span className={values.profit < 0 ? "is-loss" : "is-profit"}><small>{values.profit < 0 ? "Forecast Loss" : "Forecasted Profit"}</small><strong>{compactCurrency(values.profit)}</strong></span>
-          <span><small>Forecast Margin</small><strong>{formatMargin(values.margin)}</strong></span>
+          <span>
+            <small>Actual Cost to Date</small>
+            <strong>{compactCurrency(values.actual)}</strong>
+          </span>
+          <span>
+            <small>Costed Remaining Work</small>
+            <strong>{compactCurrency(values.remaining)}</strong>
+          </span>
+          <span className={values.profit < 0 ? "is-loss" : "is-profit"}>
+            <small>{values.profit < 0 ? "Forecast Loss" : "Forecasted Profit"}</small>
+            <strong>{compactCurrency(values.profit)}</strong>
+          </span>
+          <span>
+            <small>Forecast Margin</small>
+            <strong>{formatMargin(values.margin)}</strong>
+          </span>
         </div>
       ) : null}
 
@@ -179,8 +199,12 @@ function CompositionRow({
           {loss > 0 ? <span className="portfolio-composition__loss" /> : null}
         </div>
         <div className="portfolio-composition__meta">
-          <span>Revenue <strong>{fullCurrency(values.revenue)}</strong></span>
-          <span>Forecast cost <strong>{fullCurrency(values.forecastCost)}</strong></span>
+          <span>
+            Revenue <strong>{fullCurrency(values.revenue)}</strong>
+          </span>
+          <span>
+            Forecast cost <strong>{fullCurrency(values.forecastCost)}</strong>
+          </span>
         </div>
 
         {tooltip ? (
@@ -195,18 +219,47 @@ function CompositionRow({
               {row.detail ? <span>{row.detail}</span> : null}
             </header>
             <dl>
-              <div><dt><i className="is-revenue" />Allocated revenue</dt><dd>{fullCurrency(values.revenue)}</dd></div>
-              <div><dt><i className="is-actual" />Actual cost to date</dt><dd>{fullCurrency(values.actual)}</dd></div>
-              <div><dt><i className="is-remaining" />Costed remaining work</dt><dd>{fullCurrency(values.remaining)}</dd></div>
-              <div className={values.profit < 0 ? "is-loss" : "is-profit"}><dt><i />{values.profit < 0 ? "Forecast loss" : "Forecasted profit"}</dt><dd>{fullCurrency(values.profit)}</dd></div>
+              <div>
+                <dt>
+                  <i className="is-revenue" />
+                  Allocated revenue
+                </dt>
+                <dd>{fullCurrency(values.revenue)}</dd>
+              </div>
+              <div>
+                <dt>
+                  <i className="is-actual" />
+                  Actual cost to date
+                </dt>
+                <dd>{fullCurrency(values.actual)}</dd>
+              </div>
+              <div>
+                <dt>
+                  <i className="is-remaining" />
+                  Costed remaining work
+                </dt>
+                <dd>{fullCurrency(values.remaining)}</dd>
+              </div>
+              <div className={values.profit < 0 ? "is-loss" : "is-profit"}>
+                <dt>
+                  <i />
+                  {values.profit < 0 ? "Forecast loss" : "Forecasted profit"}
+                </dt>
+                <dd>{fullCurrency(values.profit)}</dd>
+              </div>
             </dl>
-            <footer><span>Forecast margin</span><strong>{formatMargin(values.margin)}</strong></footer>
+            <footer>
+              <span>Forecast margin</span>
+              <strong>{formatMargin(values.margin)}</strong>
+            </footer>
           </div>
         ) : null}
       </div>
 
       {!hero ? (
-        <div className={`portfolio-composition__outcome${values.profit < 0 ? " is-loss" : " is-profit"}`}>
+        <div
+          className={`portfolio-composition__outcome${values.profit < 0 ? " is-loss" : " is-profit"}`}
+        >
           <strong>{compactCurrency(values.profit)}</strong>
           <small>{values.profit < 0 ? "Forecast loss" : "Forecasted profit"}</small>
           <span>{formatMargin(values.margin)} margin</span>
@@ -225,7 +278,9 @@ export function PortfolioFinancialComposition({
   variant?: "total" | "groups";
   emptyMessage?: string;
 }) {
-  const available = rows.filter((row) => finite(row.revenue) || finite(row.actualCost) || finite(row.cost));
+  const available = rows.filter(
+    (row) => finite(row.revenue) || finite(row.actualCost) || finite(row.cost),
+  );
   if (!available.length) return <div className="chart-empty">{emptyMessage}</div>;
 
   const maximumOverrunRatio = Math.max(
@@ -240,10 +295,22 @@ export function PortfolioFinancialComposition({
   return (
     <div className={`portfolio-composition portfolio-composition--${variant}`}>
       <div className="portfolio-composition__legend" aria-hidden="true">
-        <span><i className="is-actual" />Actual Cost to Date</span>
-        <span><i className="is-remaining" />Costed Remaining Work</span>
-        <span><i className="is-profit" />Unspent Revenue / Forecasted Profit</span>
-        <span><i className="is-loss" />Cost Above Revenue</span>
+        <span>
+          <i className="is-actual" />
+          Actual Cost to Date
+        </span>
+        <span>
+          <i className="is-remaining" />
+          Costed Remaining Work
+        </span>
+        <span>
+          <i className="is-profit" />
+          Unspent Revenue / Forecasted Profit
+        </span>
+        <span>
+          <i className="is-loss" />
+          Cost Above Revenue
+        </span>
       </div>
       <div className="portfolio-composition__rows">
         {available.map((row) => (

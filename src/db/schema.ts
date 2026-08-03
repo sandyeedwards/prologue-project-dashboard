@@ -68,7 +68,6 @@ export const appUsers = pgTable(
   ],
 );
 
-
 export const appSessions = pgTable(
   "app_sessions",
   {
@@ -629,7 +628,6 @@ export const projectSnapshots = pgTable(
     index("project_snapshots_date_idx").on(table.snapshotDate),
   ],
 );
-
 
 export const calculationRuns = pgTable(
   "calculation_runs",

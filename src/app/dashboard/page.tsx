@@ -32,7 +32,11 @@ function knownFor(knownCount: number, projectCount: number): string {
   return `Known for ${knownCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
 }
 
-function actualCostCoverageDetail(completeCount: number, partialCount: number, projectCount: number): string {
+function actualCostCoverageDetail(
+  completeCount: number,
+  partialCount: number,
+  projectCount: number,
+): string {
   if (!partialCount) {
     return `Complete cost coverage for ${completeCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
   }
@@ -67,7 +71,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     getPortfolioHistoricalProfitSeries(projects),
   ]);
   const statuses = [...new Set(allProjects.map((row) => row.status).filter(Boolean))].sort();
-  const clients = [...new Set(allProjects.map((row) => row.companyName).filter((value): value is string => Boolean(value)))].sort();
+  const clients = [
+    ...new Set(
+      allProjects.map((row) => row.companyName).filter((value): value is string => Boolean(value)),
+    ),
+  ].sort();
   const types = getAvailableProjectTypes(allProjects);
   const profitabilityRows = operationalGroups.map((group) => ({
     label: group.groupName,
@@ -83,8 +91,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const totalRevenue = profitabilityRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
   const totalForecastCost = profitabilityRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
   const totalRemainingCost = profitabilityRows.reduce((sum, row) => {
-    if (row.remainingCost !== null && row.remainingCost !== undefined) return sum + row.remainingCost;
-    if (row.cost !== null && row.cost !== undefined && row.actualCost !== null && row.actualCost !== undefined) {
+    if (row.remainingCost !== null && row.remainingCost !== undefined)
+      return sum + row.remainingCost;
+    if (
+      row.cost !== null &&
+      row.cost !== undefined &&
+      row.actualCost !== null &&
+      row.actualCost !== undefined
+    ) {
       return sum + Math.max(row.cost - row.actualCost, 0);
     }
     return sum;
@@ -129,32 +143,79 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <div className="report-titlebar__copy">
             <p className="eyebrow">Executive portfolio intelligence</p>
             <h1>Project Financial Performance</h1>
-            <p>Understand cost exposure, remaining work, and forecasted profit across the active reporting portfolio.</p>
+            <p>
+              Understand cost exposure, remaining work, and forecasted profit across the active
+              reporting portfolio.
+            </p>
             <div className="report-titlebar__status" aria-label="Portfolio health summary">
-              <span className="portfolio-status-dot portfolio-status-dot--green" />{summary.greenCount} healthy
-              <span className="portfolio-status-dot portfolio-status-dot--amber" />{summary.amberCount} at risk
-              <span className="portfolio-status-dot portfolio-status-dot--red" />{summary.redCount} unhealthy
+              <span className="portfolio-status-dot portfolio-status-dot--green" />
+              {summary.greenCount} healthy
+              <span className="portfolio-status-dot portfolio-status-dot--amber" />
+              {summary.amberCount} at risk
+              <span className="portfolio-status-dot portfolio-status-dot--red" />
+              {summary.redCount} unhealthy
             </div>
           </div>
           <div className="report-titlebar__actions">
-            <span className="report-date-chip">Data as of {displayDate(summary.latestCalculatedAt)}</span>
+            <span className="report-date-chip">
+              Data as of {displayDate(summary.latestCalculatedAt)}
+            </span>
           </div>
         </section>
 
         <section className="executive-kpis" aria-label="Portfolio financial summary">
           <div className="executive-kpis__primary">
-            <MetricCard priority="primary" label="Actual Cost to Date" value={money(summary.totalActualCost)} detail={actualCostCoverageDetail(summary.actualCostKnownCount, summary.actualCostPartialCount, summary.projectCount)} help="Historical Teamwork labor cost plus active imported project expenses through the latest synchronization. The total includes known subtotals for projects with partial source coverage; missing cost records are never treated as zero." />
-            <MetricCard priority="primary" label="Costed Remaining Work" value={money(totalRemainingCost)} detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)} help={`Estimated remaining internal and outsourced cost from today to completion. This excludes actual cost already incurred and mirrors the costed remaining work shown in the profitability chart. ${summary.provisionalCount} project${summary.provisionalCount === 1 ? " is" : "s are"} provisional, so missing rates, assignments, or expenses can make this a known minimum.`} tone={summary.provisionalCount ? "warning" : "success"} />
-            <MetricCard priority="primary" label="Forecasted Profit" value={money(summary.totalForecastProfit)} detail={knownFor(summary.forecastProfitKnownCount, summary.projectCount)} help="Known client fees less known forecast cost. Provisional projects can cause this value to change when unresolved costs are priced." />
+            <MetricCard
+              priority="primary"
+              label="Actual Cost to Date"
+              value={money(summary.totalActualCost)}
+              detail={actualCostCoverageDetail(
+                summary.actualCostKnownCount,
+                summary.actualCostPartialCount,
+                summary.projectCount,
+              )}
+              help="Historical Teamwork labor cost plus active imported project expenses through the latest synchronization. The total includes known subtotals for projects with partial source coverage; missing cost records are never treated as zero."
+            />
+            <MetricCard
+              priority="primary"
+              label="Costed Remaining Work"
+              value={money(totalRemainingCost)}
+              detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)}
+              help={`Estimated remaining internal and outsourced cost from today to completion. This excludes actual cost already incurred and mirrors the costed remaining work shown in the profitability chart. ${summary.provisionalCount} project${summary.provisionalCount === 1 ? " is" : "s are"} provisional, so missing rates, assignments, or expenses can make this a known minimum.`}
+              tone={summary.provisionalCount ? "warning" : "success"}
+            />
+            <MetricCard
+              priority="primary"
+              label="Forecasted Profit"
+              value={money(summary.totalForecastProfit)}
+              detail={knownFor(summary.forecastProfitKnownCount, summary.projectCount)}
+              help="Known client fees less known forecast cost. Provisional projects can cause this value to change when unresolved costs are priced."
+            />
           </div>
           <div className="executive-kpis__secondary">
-            <MetricCard label="Allocated Revenue" value={money(summary.totalClientFee)} detail={knownFor(summary.clientFeeKnownCount, summary.projectCount)} help="Sum of fixed-fee project budgets returned by Teamwork. Missing fees remain missing and are not treated as $0." />
-            <MetricCard label="Projects in View" value={summary.projectCount} detail={`${summary.greenCount} healthy · ${summary.amberCount} at risk · ${summary.redCount} unhealthy`} />
-            <MetricCard label="Logged Hours" value={hours(summary.totalLoggedMinutes)} detail={`${hours(summary.totalLoggedMinutes)} of ${hours(summary.totalEstimatedMinutes)} estimated`} />
+            <MetricCard
+              label="Allocated Revenue"
+              value={money(summary.totalClientFee)}
+              detail={knownFor(summary.clientFeeKnownCount, summary.projectCount)}
+              help="Sum of fixed-fee project budgets returned by Teamwork. Missing fees remain missing and are not treated as $0."
+            />
+            <MetricCard
+              label="Projects in View"
+              value={summary.projectCount}
+              detail={`${summary.greenCount} healthy · ${summary.amberCount} at risk · ${summary.redCount} unhealthy`}
+            />
+            <MetricCard
+              label="Logged Hours"
+              value={hours(summary.totalLoggedMinutes)}
+              detail={`${hours(summary.totalLoggedMinutes)} of ${hours(summary.totalEstimatedMinutes)} estimated`}
+            />
           </div>
         </section>
 
-        <section className="executive-report-stack" aria-label="Portfolio profitability, health, and effort">
+        <section
+          className="executive-report-stack"
+          aria-label="Portfolio profitability, health, and effort"
+        >
           <DashboardProfitabilityTabs
             groupRows={profitabilityRows}
             totalRow={totalProfitabilityRow}
@@ -173,7 +234,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           />
 
           <div className="executive-support-row">
-            <ChartPanel className="executive-report-grid__health executive-support-row__health" eyebrow="Portfolio condition" title="Health Summary">
+            <ChartPanel
+              className="executive-report-grid__health executive-support-row__health"
+              eyebrow="Portfolio condition"
+              title="Health Summary"
+            >
               <HealthDonut
                 green={summary.greenCount}
                 amber={summary.amberCount}
@@ -183,7 +248,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             </ChartPanel>
             <ChartPanel
               className="executive-report-grid__effort executive-support-row__effort"
-              eyebrow="Effort exposure" title="Logged vs Estimated Hours by Group"
+              eyebrow="Effort exposure"
+              title="Logged vs Estimated Hours by Group"
               description="Each row shows logged hours as a percent of the estimate. Values above 100% indicate the group has exceeded its estimate."
             >
               <HoursCompletionSummary rows={effortRows} />

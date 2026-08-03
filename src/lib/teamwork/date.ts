@@ -19,7 +19,8 @@ function validCalendarDate(year: number, month: number, day: number): string | n
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
   const normalized = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   const parsed = new Date(`${normalized}T00:00:00Z`);
-  if (Number.isNaN(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== normalized) return null;
+  if (Number.isNaN(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== normalized)
+    return null;
   return normalized >= MIN_TEAMWORK_DATE ? normalized : null;
 }
 
