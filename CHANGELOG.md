@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0
+
+- Deployed the hosted staging application to Render using the `develop` branch.
+- Created and migrated the Neon staging database while preserving a separate production branch.
+- Added separate staging and production Render Blueprint definitions.
+- Added hosted URL construction through `APP_BASE_URL` for OAuth and logout redirects.
+- Authorized the central Teamwork reporting connection and completed the initial hosted synchronization.
+- Added automated staging synchronization at 7:00 AM and 4:00 PM America/New_York.
+- Added encrypted GitHub Actions access to the staging database and Teamwork token key.
+- Updated the health endpoint to report the version bundled from `package.json`.
+- Validated Teamwork login, Admin provisioning, database connectivity, dashboard reporting, lint, TypeScript, 123 tests, and the production build.
+- Left production deployment disabled pending staging approval.
+
 ## 1.2.0
 
 - Added sanitized environment configuration for local, staging, and production deployments.

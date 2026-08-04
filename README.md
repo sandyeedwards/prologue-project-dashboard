@@ -1,4 +1,16 @@
-# Prologue Project Dashboard — Step 11 v1.2.0
+# Prologue Project Dashboard - Step 12 v1.3.0
+
+## v1.3.0 Step 12 hosted staging environment
+
+- Deployed the staging application to Render from the `develop` branch.
+- Created separate Neon staging and production branches and migrated the staging database.
+- Authorized the central Prologue Systems Teamwork reporting connection.
+- Corrected hosted OAuth and logout redirects to use `APP_BASE_URL`.
+- Added Teamwork synchronization at 7:00 AM and 4:00 PM America/New_York every day.
+- Added encrypted GitHub Actions secrets for staging database and token access.
+- Corrected `/api/health` to report the bundled application version.
+- Preserved the existing reporting calculations, database schema, and Teamwork sync logic.
+- Production deployment remains separate and disabled pending staging approval.
 
 ## v1.2.0 Step 11 production architecture
 
