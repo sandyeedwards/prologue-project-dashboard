@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Added sanitized environment configuration for local, staging, and production deployments.
+- Added separate runtime and direct migration database URL support, with required environment validation and no hard-coded migration fallback.
+- Added Render staging and production service configuration using `develop` and `main`, with production automatic deployment initially disabled.
+- Documented the Render and Neon hosting architecture and added the Step 11 completion checklist.
+- Preserved reporting behavior, financial calculations, Teamwork synchronization, database schema, and the existing health endpoint.
+
 ## 1.1.15
 
 - Added `.env` loading and deterministic SQL-client cleanup to the final reporting-page verifier.
