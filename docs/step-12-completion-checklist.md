@@ -56,7 +56,7 @@
 - [x] Existing repository-wide formatting drift was not modified.
 - [x] Application version advanced to `1.3.0`.
 - [x] Health endpoint now reads the bundled package version.
-- [ ] Hosted `/api/health` reports version `1.3.0` after the closeout deployment.
+- [x] Hosted `/api/health` reports version `1.3.0` after the closeout deployment.
 
 ## Production Safeguards
 

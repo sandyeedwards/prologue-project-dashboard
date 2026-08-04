@@ -61,9 +61,10 @@ The combined `npm run check` command remains blocked by pre-existing formatting 
 
 ## Final Deployment Verification
 
-After the Step 12 closeout pull request is merged and Render finishes deployment:
-
-1. Confirm `/api/health` reports version `1.3.0`.
-2. Confirm Teamwork login still reaches the dashboard.
-3. Confirm `/api/health/database` still reports `status: ok`.
-4. Create and push the Step 12 release tag.
+- The Step 12 closeout release deployed successfully to Render.
+- Public `/api/health` returned `status: ok`.
+- Public `/api/health` reported application version `1.3.0`.
+- The Render staging service remains connected to the `develop` branch.
+- Render Auto-Deploy remains configured for successful CI checks.
+- The closeout deployment was started using **Manual Deploy → Deploy latest commit** after an automatic deployment did not begin.
+- The next merge to `develop` should be observed to confirm automatic deployment behavior.
