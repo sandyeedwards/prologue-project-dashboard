@@ -3,7 +3,9 @@ import { getSqlClient } from "@/db/client";
 import { runTeamworkSync } from "@/lib/teamwork/sync";
 
 async function main() {
-  const result = await runTeamworkSync(process.argv.includes("--initial") ? "INITIAL_IMPORT" : "MANUAL");
+  const result = await runTeamworkSync(
+    process.argv.includes("--initial") ? "INITIAL_IMPORT" : "MANUAL",
+  );
   console.log(JSON.stringify(result, null, 2));
 }
 

@@ -20,5 +20,9 @@ export async function GET() {
     .where(eq(teamworkConnections.isActive, true))
     .limit(1);
   const [lastRun] = await db.select().from(syncRuns).orderBy(desc(syncRuns.startedAt)).limit(1);
-  return NextResponse.json({ connected: Boolean(connection), connection: connection ?? null, lastRun: lastRun ?? null });
+  return NextResponse.json({
+    connected: Boolean(connection),
+    connection: connection ?? null,
+    lastRun: lastRun ?? null,
+  });
 }

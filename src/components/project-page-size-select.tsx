@@ -2,13 +2,7 @@
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
-export function ProjectPageSizeSelect({
-  formId,
-  value,
-}: {
-  formId: string;
-  value: number;
-}) {
+export function ProjectPageSizeSelect({ formId, value }: { formId: string; value: number }) {
   const handleChange = () => {
     const form = document.getElementById(formId);
     if (form instanceof HTMLFormElement) {
@@ -26,7 +20,9 @@ export function ProjectPageSizeSelect({
         onChange={handleChange}
       >
         {PAGE_SIZE_OPTIONS.map((option) => (
-          <option key={option} value={option}>{option}</option>
+          <option key={option} value={option}>
+            {option}
+          </option>
         ))}
       </select>
     </label>

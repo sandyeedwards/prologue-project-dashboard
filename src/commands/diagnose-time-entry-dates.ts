@@ -19,7 +19,11 @@ const LOGGED_DATE_PATHS = [
 async function main() {
   const db = getDb();
   const rows = await db
-    .select({ teamworkId: timeEntries.teamworkId, loggedDate: timeEntries.loggedDate, raw: timeEntries.raw })
+    .select({
+      teamworkId: timeEntries.teamworkId,
+      loggedDate: timeEntries.loggedDate,
+      raw: timeEntries.raw,
+    })
     .from(timeEntries);
 
   const unresolved = rows.flatMap((row) => {

@@ -14,7 +14,8 @@ function record(value: unknown): UnknownRecord | null {
 }
 
 function positiveId(value: unknown): number | null {
-  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
@@ -51,19 +52,10 @@ function unique(values: number[]): number[] {
 
 export function extractAssignments(raw: unknown): AssignmentSummary {
   const source = record(raw) ?? {};
-  const userIds = [
-    ...idsFrom(source.assigneeUserIds),
-    ...idsFrom(source.assigneeUsers),
-  ];
+  const userIds = [...idsFrom(source.assigneeUserIds), ...idsFrom(source.assigneeUsers)];
   const teamIds = [...idsFrom(source.assigneeTeamIds), ...idsFrom(source.assigneeTeams)];
-  const companyIds = [
-    ...idsFrom(source.assigneeCompanyIds),
-    ...idsFrom(source.assigneeCompanies),
-  ];
-  const jobRoleIds = [
-    ...idsFrom(source.assigneeJobRoleIds),
-    ...idsFrom(source.assigneeJobRoles),
-  ];
+  const companyIds = [...idsFrom(source.assigneeCompanyIds), ...idsFrom(source.assigneeCompanies)];
+  const jobRoleIds = [...idsFrom(source.assigneeJobRoleIds), ...idsFrom(source.assigneeJobRoles)];
 
   if (Array.isArray(source.assignees)) {
     for (const item of source.assignees) {
@@ -92,7 +84,9 @@ export function collectBranchUserIds(
   descendantTaskIds: readonly string[],
   rawByTaskId: ReadonlyMap<string, unknown>,
 ): AssignmentSummary {
-  const summaries = [taskId, ...descendantTaskIds].map((id) => extractAssignments(rawByTaskId.get(id)));
+  const summaries = [taskId, ...descendantTaskIds].map((id) =>
+    extractAssignments(rawByTaskId.get(id)),
+  );
   return {
     userIds: unique(summaries.flatMap((item) => item.userIds)),
     teamIds: unique(summaries.flatMap((item) => item.teamIds)),

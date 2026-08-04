@@ -25,9 +25,7 @@ export function ProjectOutcomeSummary({
   rows: OutcomeRow[];
   emptyMessage?: string;
 }) {
-  const available = rows.filter(
-    (row) => finite(row.values.margin) || finite(row.values.progress),
-  );
+  const available = rows.filter((row) => finite(row.values.margin) || finite(row.values.progress));
 
   if (!available.length) return <div className="chart-empty">{emptyMessage}</div>;
 
@@ -60,7 +58,9 @@ export function ProjectOutcomeSummary({
                 className={`project-outcome-summary__margin project-outcome-summary__margin--${marginTone}`}
               >
                 <strong>{formatPercent(margin)}</strong>
-                <small>{margin !== null && margin < 0 ? "Forecast loss" : "Margin / ceiling"}</small>
+                <small>
+                  {margin !== null && margin < 0 ? "Forecast loss" : "Margin / ceiling"}
+                </small>
               </div>
               <div className="project-outcome-summary__completion">
                 <div className="project-outcome-summary__track" style={style}>

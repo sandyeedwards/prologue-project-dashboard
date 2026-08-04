@@ -57,7 +57,9 @@ function tooltipLabel(row: ProfitabilityRow, revenueLabel: string): string {
       : null;
   const items = [
     `${row.label}.`,
-    finite(row.revenue) ? `${revenueLabel}: ${fullCurrency(row.revenue)}.` : `${revenueLabel}: missing.`,
+    finite(row.revenue)
+      ? `${revenueLabel}: ${fullCurrency(row.revenue)}.`
+      : `${revenueLabel}: missing.`,
     finite(row.cost)
       ? `Forecast cost at completion: ${fullCurrency(row.cost)}.`
       : "Forecast cost at completion: missing.",
@@ -111,8 +113,14 @@ export function ProfitabilityBridgeChart({
   const negativeMaximum = Math.max(tickStep * 2, Math.ceil(maximumCost / tickStep) * tickStep);
   const positiveTickCount = Math.round(positiveMaximum / tickStep);
   const negativeTickCount = Math.round(negativeMaximum / tickStep);
-  const positiveTicks = Array.from({ length: positiveTickCount + 1 }, (_, index) => index * tickStep);
-  const negativeTicks = Array.from({ length: negativeTickCount + 1 }, (_, index) => index * tickStep);
+  const positiveTicks = Array.from(
+    { length: positiveTickCount + 1 },
+    (_, index) => index * tickStep,
+  );
+  const negativeTicks = Array.from(
+    { length: negativeTickCount + 1 },
+    (_, index) => index * tickStep,
+  );
   const tickSpacing = 54;
   const topPadding = 28;
   const upperHeight = positiveTickCount * tickSpacing;
@@ -152,7 +160,11 @@ export function ProfitabilityBridgeChart({
 
   const handleFocus = (row: ProfitabilityRow, event: FocusEvent<SVGRectElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    positionTooltip(row, bounds.left + bounds.width / 2, bounds.top + Math.min(bounds.height / 2, 80));
+    positionTooltip(
+      row,
+      bounds.left + bounds.width / 2,
+      bounds.top + Math.min(bounds.height / 2, 80),
+    );
   };
 
   const tooltipRow = tooltip?.row ?? null;
@@ -426,14 +438,18 @@ export function ProfitabilityBridgeChart({
                   <i
                     className={`profitability-bridge__tooltip-key ${tooltipProfit !== null && tooltipProfit < 0 ? "profitability-bridge__tooltip-key--loss" : "profitability-bridge__tooltip-key--profit"}`}
                   />
-                  {tooltipProfit !== null && tooltipProfit < 0 ? "Forecast loss" : "Forecast profit"}
+                  {tooltipProfit !== null && tooltipProfit < 0
+                    ? "Forecast loss"
+                    : "Forecast profit"}
                 </dt>
                 <dd>{fullCurrency(tooltipProfit)}</dd>
               </div>
             </dl>
             <div className="profitability-bridge__tooltip-footer">
               <span>
-                {tooltipMargin === null ? "Margin unavailable" : `${tooltipMargin.toFixed(1)}% margin`}
+                {tooltipMargin === null
+                  ? "Margin unavailable"
+                  : `${tooltipMargin.toFixed(1)}% margin`}
               </span>
               {tooltipRow.projectCount !== undefined ? (
                 <span>
@@ -445,7 +461,10 @@ export function ProfitabilityBridgeChart({
         ) : null}
       </div>
       <p className="profitability-bridge__note">
-        The outlined bar is allocated revenue. Inside it, amber is forecast cost at completion and green is forecast profit. Forecast cost equals actual cost to date plus costed remaining work. The pale amber bar below $0 mirrors the same forecast cost for comparison and is not counted twice.
+        The outlined bar is allocated revenue. Inside it, amber is forecast cost at completion and
+        green is forecast profit. Forecast cost equals actual cost to date plus costed remaining
+        work. The pale amber bar below $0 mirrors the same forecast cost for comparison and is not
+        counted twice.
       </p>
     </div>
   );

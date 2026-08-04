@@ -1,0 +1,54 @@
+name: Staging Teamwork sync
+run-name: "Staging sync - ${{ github.event_name }} - ${{ github.event.schedule || 'manual' }}"
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 7 * * *"
+      timezone: "America/New_York"
+
+    - cron: "0 16 * * *"
+      timezone: "America/New_York"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-teamwork-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    env:
+      NODE_ENV: production
+      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      TEAMWORK_TOKEN_ENCRYPTION_KEY: ${{ secrets.STAGING_TEAMWORK_TOKEN_ENCRYPTION_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          test -n "$DATABASE_URL"
+          test -n "$TEAMWORK_TOKEN_ENCRYPTION_KEY"
+
+      - name: Check staging database
+        run: npm run db:check
+
+      - name: Synchronize Teamwork data
+        run: npm run job:nightly-sync

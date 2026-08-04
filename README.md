@@ -1,4 +1,25 @@
-# Prologue Project Dashboard — Step 10 v1.1.15
+# Prologue Project Dashboard - Step 12 v1.3.0
+
+## v1.3.0 Step 12 hosted staging environment
+
+- Deployed the staging application to Render from the `develop` branch.
+- Created separate Neon staging and production branches and migrated the staging database.
+- Authorized the central Prologue Systems Teamwork reporting connection.
+- Corrected hosted OAuth and logout redirects to use `APP_BASE_URL`.
+- Added Teamwork synchronization at 7:00 AM and 4:00 PM America/New_York every day.
+- Added encrypted GitHub Actions secrets for staging database and token access.
+- Corrected `/api/health` to report the bundled application version.
+- Preserved the existing reporting calculations, database schema, and Teamwork sync logic.
+- Production deployment remains separate and disabled pending staging approval.
+
+## v1.2.0 Step 11 production architecture
+
+- Added a sanitized `.env.example` and stricter validation for application, database, Teamwork OAuth, and security settings.
+- Added `DIRECT_DATABASE_URL` support for migrations while retaining `DATABASE_URL` for runtime access.
+- Removed the hard-coded migration database fallback.
+- Added Render staging and production service definitions for `develop` and `main`, with production automatic deployment initially disabled.
+- Documented the Render and Neon environment architecture and the Step 11 completion checklist.
+- Preserved reporting behavior, financial calculations, Teamwork synchronization, database schema, and the existing health endpoint.
 
 ## v1.1.15 Step 10 verifier closure
 
@@ -25,7 +46,6 @@
 - Adds `npm run teamwork:diagnose-time-dates` to identify any remaining Teamwork date shapes that are not recognized.
 - Silently skips task lists, tasks, and time entries belonging to `NoReport` projects so excluded records do not create relationship-warning noise.
 - Step 7 verification now fails when time entries still use fallback dates or reportable task-list relationships remain unresolved.
-
 
 ## Step 10 v1.1.12 project workspace refinement
 
@@ -206,5 +226,3 @@ The application expects the existing PostgreSQL database and Teamwork connection
 ## Known validation limitation
 
 The final dependency-backed Next.js build must be run locally. The packaging environment could not install one transitive npm package from its internal registry mirror. Static TypeScript/TSX syntax, imports, CSS, configuration, archive integrity, and unchanged calculation-source checks are documented in the accompanying validation report.
-
-

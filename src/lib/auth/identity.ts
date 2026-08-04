@@ -17,7 +17,11 @@ function normalizedEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function displayName(first: string | null | undefined, last: string | null | undefined, email: string) {
+function displayName(
+  first: string | null | undefined,
+  last: string | null | undefined,
+  email: string,
+) {
   const value = [first?.trim(), last?.trim()].filter(Boolean).join(" ");
   return value || email;
 }
@@ -177,12 +181,7 @@ export async function provisionLogin(identity: TeamworkIdentity): Promise<{
   const [person] = await db
     .select()
     .from(people)
-    .where(
-      or(
-        eq(people.teamworkId, identity.userId),
-        sql`lower(${people.email}) = ${email}`,
-      ),
-    )
+    .where(or(eq(people.teamworkId, identity.userId), sql`lower(${people.email}) = ${email}`))
     .limit(1);
   if (!person || !isEligibleEmployee(person)) {
     throw new Error("TEAMWORK_USER_NOT_ELIGIBLE");
@@ -192,10 +191,7 @@ export async function provisionLogin(identity: TeamworkIdentity): Promise<{
     .select()
     .from(appUsers)
     .where(
-      or(
-        eq(appUsers.teamworkUserId, identity.userId),
-        sql`lower(${appUsers.email}) = ${email}`,
-      ),
+      or(eq(appUsers.teamworkUserId, identity.userId), sql`lower(${appUsers.email}) = ${email}`),
     )
     .limit(1);
   const adminEmails = await bootstrapAdminEmails();

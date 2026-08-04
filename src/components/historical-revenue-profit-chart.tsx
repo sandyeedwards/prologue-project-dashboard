@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type PointerEvent,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type {
   HistoricalProfitPoint,
   HistoricalProfitSeries,
@@ -83,7 +76,9 @@ function subtractCalendarMonths(value: string, months: number): string {
   const originalDay = source.getUTCDate();
   source.setUTCDate(1);
   source.setUTCMonth(source.getUTCMonth() - months);
-  const lastDay = new Date(Date.UTC(source.getUTCFullYear(), source.getUTCMonth() + 1, 0)).getUTCDate();
+  const lastDay = new Date(
+    Date.UTC(source.getUTCFullYear(), source.getUTCMonth() + 1, 0),
+  ).getUTCDate();
   source.setUTCDate(Math.min(originalDay, lastDay));
   return isoDate(source);
 }
@@ -164,15 +159,16 @@ function rangeBounds(
   const earliestEventDate = sorted[0].date;
   const option = RANGE_OPTIONS.find((item) => item.id === range) ?? RANGE_OPTIONS[0];
   const to = option.id === "CUSTOM" && customRange ? customRange.to : latestDataDate;
-  const from = option.id === "CUSTOM" && customRange
-    ? customRange.from
-    : option.id === "LIFE" || option.id === "CUSTOM"
-      ? shiftDays(earliestEventDate, -1)
-      : option.months
-        ? subtractCalendarMonths(to, option.months)
-        : option.years
-          ? subtractCalendarYears(to, option.years)
-          : shiftDays(to, -(option.days ?? 30));
+  const from =
+    option.id === "CUSTOM" && customRange
+      ? customRange.from
+      : option.id === "LIFE" || option.id === "CUSTOM"
+        ? shiftDays(earliestEventDate, -1)
+        : option.months
+          ? subtractCalendarMonths(to, option.months)
+          : option.years
+            ? subtractCalendarYears(to, option.years)
+            : shiftDays(to, -(option.days ?? 30));
   return { from, to };
 }
 
@@ -249,9 +245,10 @@ export function HistoricalRevenueProfitChart({
   series: HistoricalProfitSeries[];
   initialDateRange?: { from?: string; to?: string };
 }) {
-  const initialCustomRange = initialDateRange?.from && initialDateRange?.to
-    ? { from: initialDateRange.from, to: initialDateRange.to }
-    : null;
+  const initialCustomRange =
+    initialDateRange?.from && initialDateRange?.to
+      ? { from: initialDateRange.from, to: initialDateRange.to }
+      : null;
   const svgRef = useRef<SVGSVGElement>(null);
   const plotRef = useRef<HTMLDivElement>(null);
   const pointerDownXRef = useRef<number | null>(null);
@@ -259,7 +256,9 @@ export function HistoricalRevenueProfitChart({
   const pointerDraggedRef = useRef(false);
   const anchorExistedOnPointerDownRef = useRef(false);
   const [range, setRange] = useState<RangeId>(initialCustomRange ? "CUSTOM" : "LIFE");
-  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(initialCustomRange);
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(
+    initialCustomRange,
+  );
   const [customPrompt, setCustomPrompt] = useState("");
   const [zoomAnchorDate, setZoomAnchorDate] = useState<string | null>(null);
   const [zoomCurrentDate, setZoomCurrentDate] = useState<string | null>(null);
@@ -290,7 +289,9 @@ export function HistoricalRevenueProfitChart({
         (availableStartDate && detail.from < availableStartDate) ||
         (availableEndDate && detail.to > availableEndDate)
       ) {
-        setCustomPrompt(`Choose dates between ${formatDate(availableStartDate)} and ${formatDate(availableEndDate)}.`);
+        setCustomPrompt(
+          `Choose dates between ${formatDate(availableStartDate)} and ${formatDate(availableEndDate)}.`,
+        );
         return;
       }
       setCustomRange({ from: detail.from, to: detail.to });
@@ -308,7 +309,8 @@ export function HistoricalRevenueProfitChart({
     };
 
     window.addEventListener(HISTORICAL_RANGE_CHANGE_EVENT, handleExternalRangeChange);
-    return () => window.removeEventListener(HISTORICAL_RANGE_CHANGE_EVENT, handleExternalRangeChange);
+    return () =>
+      window.removeEventListener(HISTORICAL_RANGE_CHANGE_EVENT, handleExternalRangeChange);
   }, [availableEndDate, availableStartDate]);
 
   const visiblePoints = useMemo(
@@ -359,7 +361,12 @@ export function HistoricalRevenueProfitChart({
       xTickDates,
       grossPath: stepLinePath(visiblePoints, (point) => point.grossRevenue, x, y),
       costPath: stepLinePath(visiblePoints, (point) => point.actualCostToDate, x, y),
-      anticipatedCostPath: stepLinePath(visiblePoints, (point) => point.anticipatedCostToDate, x, y),
+      anticipatedCostPath: stepLinePath(
+        visiblePoints,
+        (point) => point.anticipatedCostToDate,
+        x,
+        y,
+      ),
       netPath: stepLinePath(visiblePoints, (point) => point.netProfitToDate, x, y),
       forecastNetPath: stepLinePath(visiblePoints, (point) => point.forecastNetProfitToDate, x, y),
       grossAreaPath: stepAreaPath(visiblePoints, (point) => point.grossRevenue, x, y, y(0)),
@@ -437,9 +444,11 @@ export function HistoricalRevenueProfitChart({
     source: "preset" | "unlimited" | "zoom" | "reset" | "custom",
     focus = false,
   ) => {
-    window.dispatchEvent(new CustomEvent(HISTORICAL_RANGE_SYNC_EVENT, {
-      detail: { from, to, source, focus },
-    }));
+    window.dispatchEvent(
+      new CustomEvent(HISTORICAL_RANGE_SYNC_EVENT, {
+        detail: { from, to, source, focus },
+      }),
+    );
   };
 
   const readExternalDateFields = () => {
@@ -505,7 +514,10 @@ export function HistoricalRevenueProfitChart({
     setHoveredIndex(nearest);
     positionTooltip(event.clientX, event.clientY);
 
-    if (pointerDownXRef.current !== null && Math.abs(event.clientX - pointerDownXRef.current) >= DRAG_THRESHOLD_PX) {
+    if (
+      pointerDownXRef.current !== null &&
+      Math.abs(event.clientX - pointerDownXRef.current) >= DRAG_THRESHOLD_PX
+    ) {
       pointerDraggedRef.current = true;
     }
 
@@ -530,7 +542,9 @@ export function HistoricalRevenueProfitChart({
     } else {
       setZoomAnchorDate(pointerDate);
       setZoomCurrentDate(pointerDate);
-      setZoomMessage(`Range start set to ${formatDate(pointerDate)}. Drag and release, or move and click again, to zoom.`);
+      setZoomMessage(
+        `Range start set to ${formatDate(pointerDate)}. Drag and release, or move and click again, to zoom.`,
+      );
     }
     setNearestPoint(event);
   };
@@ -559,7 +573,9 @@ export function HistoricalRevenueProfitChart({
     anchorExistedOnPointerDownRef.current = false;
     setZoomAnchorDate(pointerStartDate);
     setZoomCurrentDate(pointerStartDate);
-    setZoomMessage(`Range start set to ${formatDate(pointerStartDate)}. Move left or right, then click again to zoom.`);
+    setZoomMessage(
+      `Range start set to ${formatDate(pointerStartDate)}. Move left or right, then click again to zoom.`,
+    );
   };
 
   const handleRangeSelection = (option: RangeOption) => {
@@ -578,9 +594,13 @@ export function HistoricalRevenueProfitChart({
         (!availableEndDate || external.to <= availableEndDate)
       ) {
         setCustomRange(external);
-        setCustomPrompt("Adjust the highlighted Project date fields above to refine this custom range.");
+        setCustomPrompt(
+          "Adjust the highlighted Project date fields above to refine this custom range.",
+        );
       } else {
-        setCustomPrompt("Enter Project date from and Project date through above. The fields are highlighted for a custom historical range.");
+        setCustomPrompt(
+          "Enter Project date from and Project date through above. The fields are highlighted for a custom historical range.",
+        );
       }
       return;
     }
@@ -629,14 +649,16 @@ export function HistoricalRevenueProfitChart({
     inspectPoint(event.key === "ArrowLeft" ? start - 1 : start + 1);
   };
 
-  const dateRangeCrossesYears = visiblePoints.length > 1 &&
+  const dateRangeCrossesYears =
+    visiblePoints.length > 1 &&
     visiblePoints[0].date.slice(0, 4) !== visiblePoints[visiblePoints.length - 1].date.slice(0, 4);
-  const zoomSelection = zoomAnchorDate && zoomCurrentDate
-    ? {
-        from: zoomAnchorDate < zoomCurrentDate ? zoomAnchorDate : zoomCurrentDate,
-        to: zoomAnchorDate < zoomCurrentDate ? zoomCurrentDate : zoomAnchorDate,
-      }
-    : null;
+  const zoomSelection =
+    zoomAnchorDate && zoomCurrentDate
+      ? {
+          from: zoomAnchorDate < zoomCurrentDate ? zoomAnchorDate : zoomCurrentDate,
+          to: zoomAnchorDate < zoomCurrentDate ? zoomCurrentDate : zoomAnchorDate,
+        }
+      : null;
 
   return (
     <div className="historical-profit-chart">
@@ -646,7 +668,11 @@ export function HistoricalRevenueProfitChart({
             <button
               key={option.id}
               type="button"
-              className={range === option.id ? "historical-profit-chart__range historical-profit-chart__range--active" : "historical-profit-chart__range"}
+              className={
+                range === option.id
+                  ? "historical-profit-chart__range historical-profit-chart__range--active"
+                  : "historical-profit-chart__range"
+              }
               aria-pressed={range === option.id}
               onClick={() => handleRangeSelection(option)}
             >
@@ -664,13 +690,20 @@ export function HistoricalRevenueProfitChart({
       </div>
 
       {customPrompt ? (
-        <p className="historical-profit-chart__custom-prompt" role="status">{customPrompt}</p>
+        <p className="historical-profit-chart__custom-prompt" role="status">
+          {customPrompt}
+        </p>
       ) : null}
 
       <p className="historical-profit-chart__zoom-help">
-        Press and drag across the graph to zoom, or click once to set a starting point and click again to finish. Press Escape to cancel.
+        Press and drag across the graph to zoom, or click once to set a starting point and click
+        again to finish. Press Escape to cancel.
       </p>
-      {zoomMessage ? <p className="historical-profit-chart__zoom-status" aria-live="polite">{zoomMessage}</p> : null}
+      {zoomMessage ? (
+        <p className="historical-profit-chart__zoom-status" aria-live="polite">
+          {zoomMessage}
+        </p>
+      ) : null}
 
       <div className="chart-legend historical-profit-chart__legend" aria-hidden="true">
         <span>
@@ -713,9 +746,18 @@ export function HistoricalRevenueProfitChart({
                     x2={WIDTH - MARGIN.right}
                     y1={y}
                     y2={y}
-                    className={value === 0 ? "historical-profit-chart__zero" : "historical-profit-chart__grid"}
+                    className={
+                      value === 0
+                        ? "historical-profit-chart__zero"
+                        : "historical-profit-chart__grid"
+                    }
                   />
-                  <text x={MARGIN.left - 14} y={y + 4} textAnchor="end" className="historical-profit-chart__axis-label">
+                  <text
+                    x={MARGIN.left - 14}
+                    y={y + 4}
+                    textAnchor="end"
+                    className="historical-profit-chart__axis-label"
+                  >
                     {compactCurrency(value)}
                   </text>
                 </g>
@@ -733,40 +775,119 @@ export function HistoricalRevenueProfitChart({
                     y2={HEIGHT - MARGIN.bottom}
                     className="historical-profit-chart__vertical-grid"
                   />
-                  <text x={x} y={HEIGHT - 30} textAnchor="middle" className="historical-profit-chart__axis-label">
+                  <text
+                    x={x}
+                    y={HEIGHT - 30}
+                    textAnchor="middle"
+                    className="historical-profit-chart__axis-label"
+                  >
                     {formatDate(date, dateRangeCrossesYears)}
                   </text>
                 </g>
               );
             })}
 
-            <path d={model.grossAreaPath} className="historical-profit-chart__area historical-profit-chart__area--gross" />
-            <path d={model.netAreaPath} className="historical-profit-chart__area historical-profit-chart__area--net" />
-            <path d={model.grossPath} className="historical-profit-chart__line historical-profit-chart__line--gross" />
-            <path d={model.costPath} className="historical-profit-chart__line historical-profit-chart__line--cost" />
-            <path d={model.anticipatedCostPath} className="historical-profit-chart__line historical-profit-chart__line--anticipated" />
-            <path d={model.netPath} className="historical-profit-chart__line historical-profit-chart__line--net" />
-            <path d={model.forecastNetPath} className="historical-profit-chart__line historical-profit-chart__line--forecast-net" />
+            <path
+              d={model.grossAreaPath}
+              className="historical-profit-chart__area historical-profit-chart__area--gross"
+            />
+            <path
+              d={model.netAreaPath}
+              className="historical-profit-chart__area historical-profit-chart__area--net"
+            />
+            <path
+              d={model.grossPath}
+              className="historical-profit-chart__line historical-profit-chart__line--gross"
+            />
+            <path
+              d={model.costPath}
+              className="historical-profit-chart__line historical-profit-chart__line--cost"
+            />
+            <path
+              d={model.anticipatedCostPath}
+              className="historical-profit-chart__line historical-profit-chart__line--anticipated"
+            />
+            <path
+              d={model.netPath}
+              className="historical-profit-chart__line historical-profit-chart__line--net"
+            />
+            <path
+              d={model.forecastNetPath}
+              className="historical-profit-chart__line historical-profit-chart__line--forecast-net"
+            />
 
-            <circle cx={model.x(visiblePoints[visiblePoints.length - 1])} cy={model.y(visiblePoints[visiblePoints.length - 1].grossRevenue)} r={4.5} className="historical-profit-chart__point historical-profit-chart__point--gross" />
-            <circle cx={model.x(visiblePoints[visiblePoints.length - 1])} cy={model.y(visiblePoints[visiblePoints.length - 1].actualCostToDate)} r={4.5} className="historical-profit-chart__point historical-profit-chart__point--cost" />
-            <circle cx={model.x(visiblePoints[visiblePoints.length - 1])} cy={model.y(visiblePoints[visiblePoints.length - 1].anticipatedCostToDate)} r={4.5} className="historical-profit-chart__point historical-profit-chart__point--anticipated" />
-            <circle cx={model.x(visiblePoints[visiblePoints.length - 1])} cy={model.y(visiblePoints[visiblePoints.length - 1].netProfitToDate)} r={4.5} className="historical-profit-chart__point historical-profit-chart__point--net" />
-            <circle cx={model.x(visiblePoints[visiblePoints.length - 1])} cy={model.y(visiblePoints[visiblePoints.length - 1].forecastNetProfitToDate)} r={4.5} className="historical-profit-chart__point historical-profit-chart__point--forecast-net" />
+            <circle
+              cx={model.x(visiblePoints[visiblePoints.length - 1])}
+              cy={model.y(visiblePoints[visiblePoints.length - 1].grossRevenue)}
+              r={4.5}
+              className="historical-profit-chart__point historical-profit-chart__point--gross"
+            />
+            <circle
+              cx={model.x(visiblePoints[visiblePoints.length - 1])}
+              cy={model.y(visiblePoints[visiblePoints.length - 1].actualCostToDate)}
+              r={4.5}
+              className="historical-profit-chart__point historical-profit-chart__point--cost"
+            />
+            <circle
+              cx={model.x(visiblePoints[visiblePoints.length - 1])}
+              cy={model.y(visiblePoints[visiblePoints.length - 1].anticipatedCostToDate)}
+              r={4.5}
+              className="historical-profit-chart__point historical-profit-chart__point--anticipated"
+            />
+            <circle
+              cx={model.x(visiblePoints[visiblePoints.length - 1])}
+              cy={model.y(visiblePoints[visiblePoints.length - 1].netProfitToDate)}
+              r={4.5}
+              className="historical-profit-chart__point historical-profit-chart__point--net"
+            />
+            <circle
+              cx={model.x(visiblePoints[visiblePoints.length - 1])}
+              cy={model.y(visiblePoints[visiblePoints.length - 1].forecastNetProfitToDate)}
+              r={4.5}
+              className="historical-profit-chart__point historical-profit-chart__point--forecast-net"
+            />
 
             {zoomSelection ? (
               <g className="historical-profit-chart__selection" aria-hidden="true">
                 <rect
                   x={model.xForDate(zoomSelection.from)}
                   y={MARGIN.top}
-                  width={Math.max(model.xForDate(zoomSelection.to) - model.xForDate(zoomSelection.from), 2)}
+                  width={Math.max(
+                    model.xForDate(zoomSelection.to) - model.xForDate(zoomSelection.from),
+                    2,
+                  )}
                   height={PLOT_HEIGHT}
                   className="historical-profit-chart__selection-fill"
                 />
-                <line x1={model.xForDate(zoomSelection.from)} x2={model.xForDate(zoomSelection.from)} y1={MARGIN.top} y2={HEIGHT - MARGIN.bottom} className="historical-profit-chart__selection-edge" />
-                <line x1={model.xForDate(zoomSelection.to)} x2={model.xForDate(zoomSelection.to)} y1={MARGIN.top} y2={HEIGHT - MARGIN.bottom} className="historical-profit-chart__selection-edge" />
-                <text x={model.xForDate(zoomSelection.from) + 5} y={MARGIN.top + 16} className="historical-profit-chart__selection-label">{formatDate(zoomSelection.from)}</text>
-                <text x={model.xForDate(zoomSelection.to) - 5} y={MARGIN.top + 16} textAnchor="end" className="historical-profit-chart__selection-label">{formatDate(zoomSelection.to)}</text>
+                <line
+                  x1={model.xForDate(zoomSelection.from)}
+                  x2={model.xForDate(zoomSelection.from)}
+                  y1={MARGIN.top}
+                  y2={HEIGHT - MARGIN.bottom}
+                  className="historical-profit-chart__selection-edge"
+                />
+                <line
+                  x1={model.xForDate(zoomSelection.to)}
+                  x2={model.xForDate(zoomSelection.to)}
+                  y1={MARGIN.top}
+                  y2={HEIGHT - MARGIN.bottom}
+                  className="historical-profit-chart__selection-edge"
+                />
+                <text
+                  x={model.xForDate(zoomSelection.from) + 5}
+                  y={MARGIN.top + 16}
+                  className="historical-profit-chart__selection-label"
+                >
+                  {formatDate(zoomSelection.from)}
+                </text>
+                <text
+                  x={model.xForDate(zoomSelection.to) - 5}
+                  y={MARGIN.top + 16}
+                  textAnchor="end"
+                  className="historical-profit-chart__selection-label"
+                >
+                  {formatDate(zoomSelection.to)}
+                </text>
               </g>
             ) : null}
 
@@ -779,11 +900,36 @@ export function HistoricalRevenueProfitChart({
                   y2={HEIGHT - MARGIN.bottom}
                   className="historical-profit-chart__hover-line"
                 />
-                <circle cx={model.x(hoveredPoint)} cy={model.y(hoveredPoint.grossRevenue)} r={5.5} className="historical-profit-chart__point historical-profit-chart__point--gross" />
-                <circle cx={model.x(hoveredPoint)} cy={model.y(hoveredPoint.actualCostToDate)} r={5.5} className="historical-profit-chart__point historical-profit-chart__point--cost" />
-                <circle cx={model.x(hoveredPoint)} cy={model.y(hoveredPoint.anticipatedCostToDate)} r={5.5} className="historical-profit-chart__point historical-profit-chart__point--anticipated" />
-                <circle cx={model.x(hoveredPoint)} cy={model.y(hoveredPoint.netProfitToDate)} r={5.5} className="historical-profit-chart__point historical-profit-chart__point--net" />
-                <circle cx={model.x(hoveredPoint)} cy={model.y(hoveredPoint.forecastNetProfitToDate)} r={5.5} className="historical-profit-chart__point historical-profit-chart__point--forecast-net" />
+                <circle
+                  cx={model.x(hoveredPoint)}
+                  cy={model.y(hoveredPoint.grossRevenue)}
+                  r={5.5}
+                  className="historical-profit-chart__point historical-profit-chart__point--gross"
+                />
+                <circle
+                  cx={model.x(hoveredPoint)}
+                  cy={model.y(hoveredPoint.actualCostToDate)}
+                  r={5.5}
+                  className="historical-profit-chart__point historical-profit-chart__point--cost"
+                />
+                <circle
+                  cx={model.x(hoveredPoint)}
+                  cy={model.y(hoveredPoint.anticipatedCostToDate)}
+                  r={5.5}
+                  className="historical-profit-chart__point historical-profit-chart__point--anticipated"
+                />
+                <circle
+                  cx={model.x(hoveredPoint)}
+                  cy={model.y(hoveredPoint.netProfitToDate)}
+                  r={5.5}
+                  className="historical-profit-chart__point historical-profit-chart__point--net"
+                />
+                <circle
+                  cx={model.x(hoveredPoint)}
+                  cy={model.y(hoveredPoint.forecastNetProfitToDate)}
+                  r={5.5}
+                  className="historical-profit-chart__point historical-profit-chart__point--forecast-net"
+                />
               </g>
             ) : null}
 
@@ -792,7 +938,11 @@ export function HistoricalRevenueProfitChart({
               y={MARGIN.top}
               width={PLOT_WIDTH}
               height={PLOT_HEIGHT}
-              className={zoomAnchorDate ? "historical-profit-chart__hit historical-profit-chart__hit--selecting" : "historical-profit-chart__hit"}
+              className={
+                zoomAnchorDate
+                  ? "historical-profit-chart__hit historical-profit-chart__hit--selecting"
+                  : "historical-profit-chart__hit"
+              }
               tabIndex={0}
               aria-label="Use the pointer or left and right arrow keys to inspect historical values. Press and drag, or click twice, to select and zoom into a date range."
               onPointerEnter={setNearestPoint}
@@ -821,23 +971,38 @@ export function HistoricalRevenueProfitChart({
               </div>
               <dl>
                 <div>
-                  <dt><i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--gross" />Gross revenue</dt>
+                  <dt>
+                    <i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--gross" />
+                    Gross revenue
+                  </dt>
                   <dd>{fullCurrency(hoveredPoint.grossRevenue)}</dd>
                 </div>
                 <div>
-                  <dt><i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--cost" />Actual cost to date</dt>
+                  <dt>
+                    <i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--cost" />
+                    Actual cost to date
+                  </dt>
                   <dd>{fullCurrency(hoveredPoint.actualCostToDate)}</dd>
                 </div>
                 <div>
-                  <dt><i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--anticipated" />Anticipated cost to date</dt>
+                  <dt>
+                    <i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--anticipated" />
+                    Anticipated cost to date
+                  </dt>
                   <dd>{fullCurrency(hoveredPoint.anticipatedCostToDate)}</dd>
                 </div>
                 <div>
-                  <dt><i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--net" />Net profit to date</dt>
+                  <dt>
+                    <i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--net" />
+                    Net profit to date
+                  </dt>
                   <dd>{fullCurrency(hoveredPoint.netProfitToDate)}</dd>
                 </div>
                 <div className="historical-profit-chart__tooltip-total">
-                  <dt><i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--forecast-net" />Forecasted net profit</dt>
+                  <dt>
+                    <i className="historical-profit-chart__tooltip-key historical-profit-chart__tooltip-key--forecast-net" />
+                    Forecasted net profit
+                  </dt>
                   <dd>{fullCurrency(hoveredPoint.forecastNetProfitToDate)}</dd>
                 </div>
               </dl>
@@ -847,12 +1012,38 @@ export function HistoricalRevenueProfitChart({
                 <span>Revenue known for {hoveredPoint.grossRevenueKnownCount}</span>
                 <span>Forecast cost known for {hoveredPoint.forecastCostKnownCount}</span>
                 <span>Forecast profit known for {hoveredPoint.forecastProfitKnownCount}</span>
-                <span>Cost coverage: {hoveredPoint.costCoverageCompleteCount} complete · {hoveredPoint.costCoveragePartialCount} partial/missing</span>
-                <span>{hoveredPoint.costedTimeEntryCount} costed time entr{hoveredPoint.costedTimeEntryCount === 1 ? "y" : "ies"}</span>
-                <span>{hoveredPoint.costedExpenseCount} costed expense{hoveredPoint.costedExpenseCount === 1 ? "" : "s"}</span>
-                {hoveredPoint.missingCostRecordCount ? <span>{hoveredPoint.missingCostRecordCount} source record{hoveredPoint.missingCostRecordCount === 1 ? "" : "s"} missing cost</span> : null}
-                {hoveredPoint.fallbackDatedLaborCount ? <span>{hoveredPoint.fallbackDatedLaborCount} labor entr{hoveredPoint.fallbackDatedLaborCount === 1 ? "y" : "ies"} assigned to project start because the source date was missing or invalid</span> : null}
-                {hoveredPoint.fallbackDatedExpenseCount ? <span>{hoveredPoint.fallbackDatedExpenseCount} expense{hoveredPoint.fallbackDatedExpenseCount === 1 ? "" : "s"} dated by import timestamp or project start</span> : null}
+                <span>
+                  Cost coverage: {hoveredPoint.costCoverageCompleteCount} complete ·{" "}
+                  {hoveredPoint.costCoveragePartialCount} partial/missing
+                </span>
+                <span>
+                  {hoveredPoint.costedTimeEntryCount} costed time entr
+                  {hoveredPoint.costedTimeEntryCount === 1 ? "y" : "ies"}
+                </span>
+                <span>
+                  {hoveredPoint.costedExpenseCount} costed expense
+                  {hoveredPoint.costedExpenseCount === 1 ? "" : "s"}
+                </span>
+                {hoveredPoint.missingCostRecordCount ? (
+                  <span>
+                    {hoveredPoint.missingCostRecordCount} source record
+                    {hoveredPoint.missingCostRecordCount === 1 ? "" : "s"} missing cost
+                  </span>
+                ) : null}
+                {hoveredPoint.fallbackDatedLaborCount ? (
+                  <span>
+                    {hoveredPoint.fallbackDatedLaborCount} labor entr
+                    {hoveredPoint.fallbackDatedLaborCount === 1 ? "y" : "ies"} assigned to project
+                    start because the source date was missing or invalid
+                  </span>
+                ) : null}
+                {hoveredPoint.fallbackDatedExpenseCount ? (
+                  <span>
+                    {hoveredPoint.fallbackDatedExpenseCount} expense
+                    {hoveredPoint.fallbackDatedExpenseCount === 1 ? "" : "s"} dated by import
+                    timestamp or project start
+                  </span>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -863,11 +1054,21 @@ export function HistoricalRevenueProfitChart({
 
       {selectedSeries && Math.abs(selectedSeries.reconciliationDifference) > 0.05 ? (
         <p className="historical-profit-chart__integrity-warning" role="alert">
-          Source transaction costs differ from the latest project-metric total by {fullCurrency(selectedSeries.reconciliationDifference)}. Run the calculation refresh and verification commands before relying on this historical result.
+          Source transaction costs differ from the latest project-metric total by{" "}
+          {fullCurrency(selectedSeries.reconciliationDifference)}. Run the calculation refresh and
+          verification commands before relying on this historical result.
         </p>
       ) : null}
       <p className="historical-profit-chart__note">
-        Gross revenue is recognized on each project start date. Actual labor cost is recognized on each valid Teamwork time-entry date using the historical cost total, or logged hours multiplied by the historical cost rate when a total is unavailable. Invalid legacy dates such as 1970 are excluded and reassigned to the project start date until the next Teamwork refresh repairs them. Expenses are recognized on their expense date; expenses without one use their import date or project start and are identified in the tooltip. Net profit to date equals gross revenue minus actual cost. Anticipated cost and forecasted net profit use the latest project forecast for every project started by the selected date; they are current projections arranged by project start date, not archived historical forecast snapshots.
+        Gross revenue is recognized on each project start date. Actual labor cost is recognized on
+        each valid Teamwork time-entry date using the historical cost total, or logged hours
+        multiplied by the historical cost rate when a total is unavailable. Invalid legacy dates
+        such as 1970 are excluded and reassigned to the project start date until the next Teamwork
+        refresh repairs them. Expenses are recognized on their expense date; expenses without one
+        use their import date or project start and are identified in the tooltip. Net profit to date
+        equals gross revenue minus actual cost. Anticipated cost and forecasted net profit use the
+        latest project forecast for every project started by the selected date; they are current
+        projections arranged by project start date, not archived historical forecast snapshots.
       </p>
     </div>
   );

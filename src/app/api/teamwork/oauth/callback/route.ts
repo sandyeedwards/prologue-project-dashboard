@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db/client";
 import { teamworkConnections } from "@/db/schema";
 import { safeReturnTo } from "@/lib/auth/authorization";
+import { applicationUrl } from "@/lib/app-url";
 import { provisionLogin } from "@/lib/auth/identity";
 import { createSession, setSessionCookie } from "@/lib/auth/session";
 import { encryptToken } from "@/lib/teamwork/crypto";
@@ -24,7 +25,9 @@ type UserInfo = {
 
 function errorRedirect(request: NextRequest, purpose: "CONNECTION" | "LOGIN", code: string) {
   const path = purpose === "LOGIN" ? "/login" : "/admin/teamwork";
-  return NextResponse.redirect(new URL(`${path}?error=${encodeURIComponent(code)}`, request.url));
+  return NextResponse.redirect(
+    applicationUrl(`${path}?error=${encodeURIComponent(code)}`, request.url),
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -48,11 +51,7 @@ export async function GET(request: NextRequest) {
   });
   const token = (await response.json()) as TokenResponse;
   if (!response.ok || !token.access_token || !token.installation?.id) {
-    return errorRedirect(
-      request,
-      oauthState.purpose,
-      token.message ?? "token_exchange_failed",
-    );
+    return errorRedirect(request, oauthState.purpose, token.message ?? "token_exchange_failed");
   }
 
   const userResponse = await fetch("https://www.teamwork.com/launchpad/v1/userinfo.json", {
@@ -76,7 +75,7 @@ export async function GET(request: NextRequest) {
       const session = await createSession(user.id);
       await setSessionCookie(session.token, session.expiresAt);
       return NextResponse.redirect(
-        new URL(safeReturnTo(oauthState.returnTo, "/dashboard"), request.url),
+        applicationUrl(safeReturnTo(oauthState.returnTo, "/dashboard"), request.url),
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "login_failed";
@@ -121,5 +120,5 @@ export async function GET(request: NextRequest) {
         updatedAt: new Date(),
       },
     });
-  return NextResponse.redirect(new URL("/admin/teamwork?connected=1", request.url));
+  return NextResponse.redirect(applicationUrl("/admin/teamwork?connected=1", request.url));
 }

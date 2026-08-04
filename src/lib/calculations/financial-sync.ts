@@ -115,9 +115,12 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
   for (const row of budgetRows) {
     const teamworkId = idAtPaths(row, ["id", "budgetId"]);
     const projectTeamworkId = idAtPaths(row, ["projectId", "project.id"]);
-    const projectId = projectTeamworkId === null ? null : projectByTeamworkId.get(projectTeamworkId);
+    const projectId =
+      projectTeamworkId === null ? null : projectByTeamworkId.get(projectTeamworkId);
     if (teamworkId === null || projectTeamworkId === null || !projectId) {
-      result.warnings.push("A project budget was skipped because its project relationship was missing.");
+      result.warnings.push(
+        "A project budget was skipped because its project relationship was missing.",
+      );
       continue;
     }
     const status = textAtPaths(row, ["status"]) ?? "UNKNOWN";
@@ -133,17 +136,23 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
         category: textAtPaths(row, ["budgetCategory", "category", "type"]),
         currencyCode: textAtPaths(row, ["currencyCode", "currency.code"]) ?? "USD",
         clientFee:
-          teamworkBudgetMoney(numberAtPaths(row, ["capacity", "budgetAmountFinancial", "amount"]))?.toString() ?? null,
-        targetCost: teamworkBudgetMoney(numberAtPaths(row, ["budgetExpectedCost", "expectedCost"]))?.toString() ?? null,
+          teamworkBudgetMoney(
+            numberAtPaths(row, ["capacity", "budgetAmountFinancial", "amount"]),
+          )?.toString() ?? null,
+        targetCost:
+          teamworkBudgetMoney(
+            numberAtPaths(row, ["budgetExpectedCost", "expectedCost"]),
+          )?.toString() ?? null,
         targetProfit:
-          teamworkBudgetMoney(numberAtPaths(row, ["budgetExpectedProfit", "expectedProfit"]))?.toString() ?? null,
+          teamworkBudgetMoney(
+            numberAtPaths(row, ["budgetExpectedProfit", "expectedProfit"]),
+          )?.toString() ?? null,
         targetMarginPercent:
           numberAtPaths(row, ["budgetProfitMargin", "profitMargin"])?.toString() ?? null,
         startsOn: dateText(firstValue(row, ["startDate", "startDateTime"])),
         endsOn: dateText(firstValue(row, ["endDate", "endDateTime"])),
         isCurrent,
-        financialDetailsHidden:
-          firstValue(row, ["financialDetailsHidden"]) === true,
+        financialDetailsHidden: firstValue(row, ["financialDetailsHidden"]) === true,
         teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt", "dateUpdated"])),
         raw: row,
       })
@@ -155,11 +164,17 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
           category: textAtPaths(row, ["budgetCategory", "category", "type"]),
           currencyCode: textAtPaths(row, ["currencyCode", "currency.code"]) ?? "USD",
           clientFee:
-            teamworkBudgetMoney(numberAtPaths(row, ["capacity", "budgetAmountFinancial", "amount"]))?.toString() ?? null,
+            teamworkBudgetMoney(
+              numberAtPaths(row, ["capacity", "budgetAmountFinancial", "amount"]),
+            )?.toString() ?? null,
           targetCost:
-            teamworkBudgetMoney(numberAtPaths(row, ["budgetExpectedCost", "expectedCost"]))?.toString() ?? null,
+            teamworkBudgetMoney(
+              numberAtPaths(row, ["budgetExpectedCost", "expectedCost"]),
+            )?.toString() ?? null,
           targetProfit:
-            teamworkBudgetMoney(numberAtPaths(row, ["budgetExpectedProfit", "expectedProfit"]))?.toString() ?? null,
+            teamworkBudgetMoney(
+              numberAtPaths(row, ["budgetExpectedProfit", "expectedProfit"]),
+            )?.toString() ?? null,
           targetMarginPercent:
             numberAtPaths(row, ["budgetProfitMargin", "profitMargin"])?.toString() ?? null,
           startsOn: dateText(firstValue(row, ["startDate", "startDateTime"])),
@@ -174,17 +189,16 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
     result.projectBudgetsImported += 1;
   }
 
-  const budgetMap = new Map<
-    number,
-    { id: string; teamworkId: number; projectId: string }
-  >(
-    (await db
-      .select({
-        id: projectBudgets.id,
-        teamworkId: projectBudgets.teamworkId,
-        projectId: projectBudgets.projectId,
-      })
-      .from(projectBudgets)).map((row) => [row.teamworkId, row]),
+  const budgetMap = new Map<number, { id: string; teamworkId: number; projectId: string }>(
+    (
+      await db
+        .select({
+          id: projectBudgets.id,
+          teamworkId: projectBudgets.teamworkId,
+          projectId: projectBudgets.projectId,
+        })
+        .from(projectBudgets)
+    ).map((row) => [row.teamworkId, row]),
   );
   const taskListRows = await db
     .select({
@@ -204,9 +218,14 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
     taskListsByProjectAndName.set(key, current);
   }
   const outsourcedTaskListIds = new Set(
-    (await db
-      .select({ taskListId: tasks.taskListId, isOutsourcedCandidate: tasks.isOutsourcedCandidate })
-      .from(tasks))
+    (
+      await db
+        .select({
+          taskListId: tasks.taskListId,
+          isOutsourcedCandidate: tasks.isOutsourcedCandidate,
+        })
+        .from(tasks)
+    )
       .filter((row) => row.isOutsourcedCandidate)
       .map((row) => row.taskListId),
   );
@@ -217,7 +236,9 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
         connection,
         `/projects/api/v3/projects/budgets/${budgetTeamworkId}/tasklists/budgets.json?include=tasklists,projectBudgets&page=1&pageSize=250`,
       );
-      const rows = collectionRows<TeamworkRecord>(payload.tasklistBudgets ?? payload.taskListBudgets);
+      const rows = collectionRows<TeamworkRecord>(
+        payload.tasklistBudgets ?? payload.taskListBudgets,
+      );
       result.taskListBudgetsRead += rows.length;
       for (const row of rows) {
         const teamworkId = idAtPaths(row, ["id", "tasklistBudgetId", "taskListBudgetId"]);
@@ -294,9 +315,9 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
         `/projects/api/v3/projects/budgets/${budgetTeamworkId}/expenses.json?page=1&pageSize=250&showDeleted=true`,
       );
       expenseRows.push(
-        ...collectionRows<TeamworkRecord>(
-          payload.budgetExpenses ?? payload.expenses,
-        ).map((row) => ({ row, source: "BUDGET" as const })),
+        ...collectionRows<TeamworkRecord>(payload.budgetExpenses ?? payload.expenses).map(
+          (row) => ({ row, source: "BUDGET" as const }),
+        ),
       );
     } catch (error) {
       result.warnings.push(
@@ -339,7 +360,8 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
       "tasklist.id",
       "taskList.id",
     ]);
-    let taskList = taskListTeamworkId === null ? null : taskListMap.get(taskListTeamworkId) ?? null;
+    let taskList =
+      taskListTeamworkId === null ? null : (taskListMap.get(taskListTeamworkId) ?? null);
     let taskListInferredFromTitle = false;
     if (!taskList || taskList.projectId !== projectId) {
       const candidates =
@@ -352,8 +374,7 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
       }
     }
     const isOutsourcedModeling =
-      isOutsourcedTitle(title) ||
-      (taskList !== null && outsourcedTaskListIds.has(taskList.id));
+      isOutsourcedTitle(title) || (taskList !== null && outsourcedTaskListIds.has(taskList.id));
     const totalCost = teamworkExpenseMoney(
       numberAtPaths(row, ["totalCost", "cost", "amount", "price"]),
       source,
@@ -409,7 +430,8 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
           markupPercent: numberAtPaths(row, ["markupPercent", "markup"])?.toString() ?? null,
           isOutsourcedModeling,
           isDeleted:
-            firstValue(row, ["deleted"]) === true || toDate(firstValue(row, ["deletedAt"])) !== null,
+            firstValue(row, ["deleted"]) === true ||
+            toDate(firstValue(row, ["deletedAt"])) !== null,
           teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt", "dateUpdated"])),
           raw,
           updatedAt: new Date(),

@@ -35,13 +35,7 @@ function currencyCode(value: TeamworkRecord): string | null {
 }
 
 function amount(value: TeamworkRecord): number | null {
-  return numberAtPaths(value, [
-    "rate.amount",
-    "amount",
-    "costRate",
-    "rate",
-    "value",
-  ]);
+  return numberAtPaths(value, ["rate.amount", "amount", "costRate", "rate", "value"]);
 }
 
 /**
@@ -67,10 +61,13 @@ export function parseJobRoleCostRate(
   const candidates = entries(row.costRatesByCurrencyId ?? row.costRates ?? row.costRate);
   const parsed = candidates
     .map((candidate) => ({ rate: amount(candidate), currency: currencyCode(candidate) }))
-    .filter((candidate): candidate is { rate: number; currency: string | null } =>
-      candidate.rate !== null,
+    .filter(
+      (candidate): candidate is { rate: number; currency: string | null } =>
+        candidate.rate !== null,
     );
-  const preferred = parsed.find((candidate) => candidate.currency === preferredCurrency.toUpperCase());
+  const preferred = parsed.find(
+    (candidate) => candidate.currency === preferredCurrency.toUpperCase(),
+  );
   const selected = preferred ?? parsed[0] ?? null;
   return {
     costRate: selected?.rate ?? null,
