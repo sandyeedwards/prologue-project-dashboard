@@ -1,0 +1,98 @@
+services:
+  - type: web
+    name: prologue-project-dashboard-staging
+    runtime: docker
+    plan: starter
+    region: virginia
+    branch: develop
+    autoDeployTrigger: checksPass
+
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: PORT
+        value: "3000"
+
+      - key: APP_ENV
+        value: test
+
+      - key: APP_BASE_URL
+        sync: false
+
+      - key: DATABASE_URL
+        sync: false
+
+      - key: DIRECT_DATABASE_URL
+        sync: false
+
+      - key: TEAMWORK_SITE_URL
+        value: https://prologuesystems.teamwork.com
+
+      - key: TEAMWORK_CLIENT_ID
+        sync: false
+
+      - key: TEAMWORK_CLIENT_SECRET
+        sync: false
+
+      - key: TEAMWORK_REDIRECT_URI
+        sync: false
+
+      - key: TEAMWORK_SETUP_KEY
+        sync: false
+
+      - key: TEAMWORK_TOKEN_ENCRYPTION_KEY
+        sync: false
+
+      - key: DASHBOARD_BOOTSTRAP_ADMIN_EMAILS
+        sync: false
+
+  - type: web
+    name: prologue-project-dashboard-production
+    runtime: docker
+    plan: starter
+    region: virginia
+    branch: main
+    autoDeployTrigger: off
+
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: PORT
+        value: "3000"
+
+      - key: APP_ENV
+        value: production
+
+      - key: APP_BASE_URL
+        sync: false
+
+      - key: DATABASE_URL
+        sync: false
+
+      - key: DIRECT_DATABASE_URL
+        sync: false
+
+      - key: TEAMWORK_SITE_URL
+        value: https://prologuesystems.teamwork.com
+
+      - key: TEAMWORK_CLIENT_ID
+        sync: false
+
+      - key: TEAMWORK_CLIENT_SECRET
+        sync: false
+
+      - key: TEAMWORK_REDIRECT_URI
+        sync: false
+
+      - key: TEAMWORK_SETUP_KEY
+        sync: false
+
+      - key: TEAMWORK_TOKEN_ENCRYPTION_KEY
+        sync: false
+
+      - key: DASHBOARD_BOOTSTRAP_ADMIN_EMAILS
+        sync: false

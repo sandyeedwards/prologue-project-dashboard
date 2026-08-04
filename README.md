@@ -1,4 +1,13 @@
-# Prologue Project Dashboard — Step 10 v1.1.15
+# Prologue Project Dashboard — Step 11 v1.2.0
+
+## v1.2.0 Step 11 production architecture
+
+- Added a sanitized `.env.example` and stricter validation for application, database, Teamwork OAuth, and security settings.
+- Added `DIRECT_DATABASE_URL` support for migrations while retaining `DATABASE_URL` for runtime access.
+- Removed the hard-coded migration database fallback.
+- Added Render staging and production service definitions for `develop` and `main`, with production automatic deployment initially disabled.
+- Documented the Render and Neon environment architecture and the Step 11 completion checklist.
+- Preserved reporting behavior, financial calculations, Teamwork synchronization, database schema, and the existing health endpoint.
 
 ## v1.1.15 Step 10 verifier closure
 
