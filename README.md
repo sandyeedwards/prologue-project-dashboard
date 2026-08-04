@@ -1,4 +1,17 @@
-# Prologue Project Dashboard - Step 12 v1.3.0
+# Prologue Project Dashboard - Step 13 v1.3.1
+
+## v1.3.1 Production security patch
+
+- Updated Next.js from `16.2.10` to `16.2.12`.
+- Updated `eslint-config-next` to `16.2.12`.
+- Updated Drizzle ORM from `0.44.7` to `0.45.2`.
+- Updated Drizzle Kit from `0.31.6` to `0.31.10`.
+- Overrode PostCSS to `8.5.23`.
+- Overrode Sharp to `0.35.3`.
+- Reduced the production dependency audit from four findings to zero vulnerabilities.
+- Preserved reporting calculations, Teamwork synchronization, authentication, database schema, and existing migrations.
+- Retained five development-tool audit findings for later Step 14 review.
+- No production Teamwork authorization or custom domain configuration was performed as part of this patch.
 
 ## v1.3.0 Step 12 hosted staging environment
 
