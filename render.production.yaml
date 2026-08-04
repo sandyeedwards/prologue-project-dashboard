@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: prologue-project-dashboard-staging
+    name: prologue-project-dashboard-production
     runtime: docker
-    plan: free
+    plan: starter
     region: virginia
-    branch: develop
-    autoDeployTrigger: checksPass
+    branch: main
+    autoDeployTrigger: off
 
     dockerfilePath: ./Dockerfile
     dockerContext: .
@@ -16,7 +16,7 @@ services:
         value: "3000"
 
       - key: APP_ENV
-        value: test
+        value: production
 
       - key: APP_BASE_URL
         sync: false
