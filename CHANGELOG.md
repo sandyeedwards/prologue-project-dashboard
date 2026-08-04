@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.1
+
+- Updated Next.js and its ESLint configuration from `16.2.10` to `16.2.12`.
+- Updated Drizzle ORM from `0.44.7` to `0.45.2`.
+- Updated Drizzle Kit from `0.31.6` to `0.31.10`.
+- Added dependency overrides for PostCSS `8.5.23` and Sharp `0.35.3`.
+- Confirmed the production dependency audit reports zero vulnerabilities.
+- Confirmed ESLint, strict TypeScript validation, 26 test files, 123 tests, and the Next.js production build pass.
+- Preserved application behavior, reporting calculations, Teamwork integration, database schema, and migrations.
+- Deferred remaining development-only audit findings to the Step 14 tooling and security review.
+
 ## 1.3.0
 
 - Deployed the hosted staging application to Render using the `develop` branch.
