@@ -46,21 +46,21 @@
 
 ## Staging Preparation
 
-- [ ] Create the Neon project.
+- [x] Create the Neon project.
 
-- [ ] Create separate staging and production database environments.
+- [x] Create separate staging and production database environments.
 
-- [ ] Create the Render Blueprint.
+- [x] Create the Render Blueprint.
 
-- [ ] Add staging environment variables in Render.
+- [x] Add staging environment variables in Render.
 
-- [ ] Run database migrations against the staging database.
+- [x] Run database migrations against the staging database.
 
-- [ ] Deploy the staging web service.
+- [x] Deploy the staging web service.
 
-- [ ] Configure the staging Teamwork OAuth callback.
+- [x] Configure the staging Teamwork OAuth callback.
 
-- [ ] Validate staging authentication and reporting.
+- [x] Validate staging authentication and reporting.
 
 ## Production Preparation
 

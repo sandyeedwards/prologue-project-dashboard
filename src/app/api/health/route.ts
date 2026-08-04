@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { APP_VERSION } from "@/lib/app-version";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,7 @@ export function GET() {
     {
       status: "ok",
       service: "prologue-project-dashboard",
-      version: process.env.npm_package_version ?? "0.1.0",
+      version: APP_VERSION,
       timestamp: new Date().toISOString(),
     },
     {
