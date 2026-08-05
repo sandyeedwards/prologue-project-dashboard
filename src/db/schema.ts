@@ -504,7 +504,12 @@ export const syncRuns = pgTable(
     summary: jsonb("summary"),
     triggeredByUserId: uuid("triggered_by_user_id").references(() => appUsers.id),
   },
-  (table) => [index("sync_runs_started_at_idx").on(table.startedAt)],
+  (table) => [
+    index("sync_runs_started_at_idx").on(table.startedAt),
+    uniqueIndex("sync_runs_single_running_unique")
+      .on(table.status)
+      .where(sql`${table.status} = 'RUNNING'`),
+  ],
 );
 
 export const syncIssues = pgTable(

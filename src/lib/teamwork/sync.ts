@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import { getDb, getSqlClient } from "@/db/client";
 import {
   companies,
@@ -46,6 +46,26 @@ import {
 
 const MAX_PAGES = 100;
 const MAX_SAVED_ISSUES_PER_CODE = 10;
+const SYNC_RUN_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
+const SYNC_RUN_RUNNING_INDEX = "sync_runs_single_running_unique";
+
+export class TeamworkSyncAlreadyRunningError extends Error {
+  constructor() {
+    super("A Teamwork synchronization is already running.");
+    this.name = "TeamworkSyncAlreadyRunningError";
+  }
+}
+
+export function isTeamworkSyncRunningConstraintError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+
+  const databaseError = error as {
+    code?: unknown;
+    constraint_name?: unknown;
+  };
+
+  return databaseError.code === "23505" && databaseError.constraint_name === SYNC_RUN_RUNNING_INDEX;
+}
 
 type SyncKind = "INITIAL_IMPORT" | "NIGHTLY" | "MANUAL";
 type DatasetName =
@@ -241,10 +261,42 @@ function markUpsert(stats: DatasetStats, existed: boolean) {
   else stats.created += 1;
 }
 
+async function startTeamworkSyncRun(kind: SyncKind) {
+  const db = getDb();
+  const staleBefore = new Date(Date.now() - SYNC_RUN_STALE_AFTER_MS);
+
+  await db
+    .update(syncRuns)
+    .set({
+      status: "FAILED",
+      completedAt: new Date(),
+      errors: 1,
+      summary: {
+        message: "Previous synchronization process exceeded the stale-run threshold.",
+      },
+    })
+    .where(and(eq(syncRuns.status, "RUNNING"), lt(syncRuns.startedAt, staleBefore)));
+
+  try {
+    const [run] = await db.insert(syncRuns).values({ kind }).returning();
+
+    if (!run) {
+      throw new Error("The Teamwork synchronization run could not be created.");
+    }
+
+    return run;
+  } catch (error) {
+    if (isTeamworkSyncRunningConstraintError(error)) {
+      throw new TeamworkSyncAlreadyRunningError();
+    }
+
+    throw error;
+  }
+}
+
 export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
   const db = getDb();
   const sqlClient = getSqlClient();
-  const connection = await activeConnection();
   const stats = emptyStats();
   const issues = new IssueCollector();
   const excludedNoReportRecords = {
@@ -259,19 +311,11 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
     conflictingTaskEvidence: 0,
   };
 
-  await db
-    .update(syncRuns)
-    .set({
-      status: "FAILED",
-      completedAt: new Date(),
-      errors: 1,
-      summary: { message: "Previous synchronization process ended unexpectedly." },
-    })
-    .where(eq(syncRuns.status, "RUNNING"));
-
-  const [run] = await db.insert(syncRuns).values({ kind }).returning();
+  const run = await startTeamworkSyncRun(kind);
 
   try {
+    const connection = await activeConnection();
+
     console.log("[1/6] Importing companies, tags, and projects...");
     const projectPayload = await teamworkFetch<TeamworkRecord>(
       connection,
