@@ -43,6 +43,13 @@
       "when": 1784755648745,
       "tag": "0005_step9_unplanned_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785963212903,
+      "tag": "0006_step14_sync_overlap_guard",
+      "breakpoints": true
     }
   ]
 }
