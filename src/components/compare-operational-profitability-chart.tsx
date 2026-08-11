@@ -52,11 +52,9 @@ const groupOrder: PortfolioOperationalGroupRow["groupName"][] = [
   "Fieldwork",
   "Mobilization",
   "Modeling",
-  "Ready Set",
-  "DataHall",
-  "Other",
+  "Admin",
+  "Unclassified",
 ];
-
 function finite(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -75,7 +73,7 @@ function fullCurrency(value: number | null | undefined): string {
 }
 
 function formatMargin(value: number | null | undefined): string {
-  if (!finite(value)) return "—";
+  if (!finite(value)) return "â€”";
   return `${new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 1,
   }).format(value)}%`;
@@ -209,11 +207,11 @@ function ComparisonRow({
           No work allocated to this group
         </div>
         <div className="compare-profitability-rows__outcome">
-          <strong>—</strong>
+          <strong>â€”</strong>
           <small>Forecast profit</small>
         </div>
         <div className="compare-profitability-rows__margin">
-          <strong>—</strong>
+          <strong>â€”</strong>
           <small>Margin</small>
         </div>
       </div>
@@ -292,7 +290,7 @@ function ComparisonRow({
           </span>
         </div>
         <small>
-          {row.project.projectNumber ? `${row.project.projectNumber} · ` : ""}
+          {row.project.projectNumber ? `${row.project.projectNumber} Â· ` : ""}
           {row.project.isProvisional ? "Provisional" : "Complete"}
         </small>
       </div>
@@ -346,7 +344,7 @@ function ComparisonRow({
               <strong>{row.project.projectName}</strong>
               <span>
                 {row.groupName ?? "Entire project"}
-                {row.project.projectNumber ? ` · ${row.project.projectNumber}` : ""}
+                {row.project.projectNumber ? ` Â· ${row.project.projectNumber}` : ""}
               </span>
             </div>
             <dl>
