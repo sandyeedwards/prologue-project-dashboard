@@ -20,6 +20,7 @@ import {
   getProjectUnplannedWork,
 } from "@/lib/reporting/dashboard-data";
 import { dateLabel, hours, money, percent } from "@/lib/reporting/format";
+import { buildMobAreaBreakdown } from "@/lib/reporting/mob-area-breakdown";
 import { dismissAllUnplannedWork, dismissUnplannedWork, reopenUnplannedWork } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,21 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
     searchParams,
   ]);
   const projectTypes = getProjectTypeFacets(project);
+  const specialProjectKind = projectTypes.includes("Ready Set")
+    ? "READY_SET"
+    : projectTypes.includes("DataHall")
+      ? "DATA_HALL"
+      : null;
+  const mobAreaBreakdowns = specialProjectKind
+    ? buildMobAreaBreakdown({
+        kind: specialProjectKind,
+        tasks,
+        expenses,
+      })
+    : [];
+  const requestedMobArea = one(query.mobArea)?.trim();
+  const selectedMobArea =
+    mobAreaBreakdowns.find((row) => row.name === requestedMobArea) ?? mobAreaBreakdowns[0] ?? null;
   const isArchived = project.archivedAt !== null || project.status.toLowerCase() === "archived";
   const clientFee = numeric(project.clientFee);
   const actualTotalCost = numeric(project.actualTotalCost);
@@ -266,6 +282,143 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           </ChartPanel>
         </section>
 
+        {specialProjectKind ? (
+          <section className="report-section">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Mobilization / Area</p>
+                <h2>Mob / Area Breakdown</h2>
+                <p className="section-description">
+                  {specialProjectKind === "READY_SET"
+                    ? "Ready Set mobilizations"
+                    : "Data Hall areas"}{" "}
+                  are preserved from Teamwork task-list names. Travel is shown separately inside
+                  Fieldwork without changing the overall Fieldwork service rollup.
+                </p>
+              </div>
+              <span className="section-meta">
+                {mobAreaBreakdowns.length}{" "}
+                {specialProjectKind === "READY_SET" ? "mobilizations" : "areas"}
+              </span>
+            </div>
+
+            {mobAreaBreakdowns.length ? (
+              <>
+                <form className="filter-bar filter-bar--compact" method="get">
+                  {taskQuery ? <input type="hidden" name="task" value={taskQuery} /> : null}
+                  {groupFilter !== "ALL" ? (
+                    <input type="hidden" name="group" value={groupFilter} />
+                  ) : null}
+                  {coverageFilter !== "ALL" ? (
+                    <input type="hidden" name="coverage" value={coverageFilter} />
+                  ) : null}
+
+                  <label className="filter-field">
+                    <span>{specialProjectKind === "READY_SET" ? "Mobilization" : "Area"}</span>
+                    <select name="mobArea" defaultValue={selectedMobArea?.name ?? ""}>
+                      {mobAreaBreakdowns.map((row) => (
+                        <option key={row.name} value={row.name}>
+                          {row.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <button className="button button--primary" type="submit">
+                    View
+                  </button>
+                </form>
+
+                {selectedMobArea ? (
+                  <>
+                    <div className="operation-group__metric-strip">
+                      <span>
+                        <small>Estimated hours</small>
+                        <strong>{hours(selectedMobArea.estimatedMinutes)}</strong>
+                      </span>
+                      <span>
+                        <small>Logged hours</small>
+                        <strong>{hours(selectedMobArea.loggedMinutes)}</strong>
+                      </span>
+                      <span>
+                        <small>Remaining hours</small>
+                        <strong>{hours(selectedMobArea.remainingMinutes)}</strong>
+                      </span>
+                      <span>
+                        <small>Actual labor</small>
+                        <strong>{money(selectedMobArea.actualLaborCost)}</strong>
+                      </span>
+                      <span>
+                        <small>Remaining labor</small>
+                        <strong>{money(selectedMobArea.remainingLaborCost)}</strong>
+                      </span>
+                      <span>
+                        <small>Forecast labor</small>
+                        <strong>{money(selectedMobArea.projectedLaborCost)}</strong>
+                      </span>
+                      <span>
+                        <small>Expenses</small>
+                        <strong>{money(selectedMobArea.actualExpenseCost)}</strong>
+                      </span>
+                      <span>
+                        <small>Actual cost total</small>
+                        <strong>{money(selectedMobArea.actualTotalCost)}</strong>
+                      </span>
+                    </div>
+
+                    <div className="table-wrap report-table-wrap">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Work split</th>
+                            <th>Estimated</th>
+                            <th>Logged</th>
+                            <th>Remaining</th>
+                            <th>Actual labor</th>
+                            <th>Remaining labor</th>
+                            <th>Forecast labor</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(
+                            [
+                              ["Travel", selectedMobArea.travel],
+                              ["Other Fieldwork", selectedMobArea.otherFieldwork],
+                            ] as const
+                          ).map(([label, rollup]) => (
+                            <tr key={label}>
+                              <td>
+                                <strong>{label}</strong>
+                              </td>
+                              <td>{hours(rollup.estimatedMinutes)}</td>
+                              <td>{hours(rollup.loggedMinutes)}</td>
+                              <td>{hours(rollup.remainingMinutes)}</td>
+                              <td>{money(rollup.actualLaborCost)}</td>
+                              <td>{money(rollup.remainingLaborCost)}</td>
+                              <td>{money(rollup.projectedLaborCost)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <p className="table-note">
+                      Teamwork expenses linked to {selectedMobArea.name} are included in the Mob /
+                      Area actual cost total. They are not assigned to Travel or Other Fieldwork
+                      because the reporting source does not provide task-level expense attribution.
+                    </p>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <div className="empty-panel">
+                No {specialProjectKind === "READY_SET" ? "mobilization" : "area"} task lists are
+                available for this project.
+              </div>
+            )}
+          </section>
+        ) : null}
+
         <section className="report-section">
           <div className="section-heading">
             <div>
@@ -364,6 +517,9 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             </span>
           </div>
           <form className="filter-bar filter-bar--compact" method="get">
+            {selectedMobArea ? (
+              <input type="hidden" name="mobArea" value={selectedMobArea.name} />
+            ) : null}
             <label className="filter-field filter-field--search">
               <span>Search tasks</span>
               <input name="task" defaultValue={taskQuery} placeholder="Task, list, or group" />
