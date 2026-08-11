@@ -1360,7 +1360,7 @@ export async function getProjectQualityIssues(projectId: string): Promise<Qualit
     id: entry.id,
     kind: "TIME_ENTRY",
     label: entry.taskName
-      ? `${entry.taskListName ?? "Task"} Â· ${entry.taskName}`
+      ? `${entry.taskListName ?? "Task"} · ${entry.taskName}`
       : "Time logged directly to the project",
     personName: entry.personName,
     loggedDate: entry.loggedDate,

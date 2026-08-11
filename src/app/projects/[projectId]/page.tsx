@@ -133,8 +133,8 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             </div>
             <h1>{project.name}</h1>
             <p className="lede">
-              {project.companyName ?? "No client company"} Ã‚Â·{" "}
-              {isArchived ? "archived" : project.status} Ã‚Â·{" "}
+              {project.companyName ?? "No client company"} ·{" "}
+              {isArchived ? "archived" : project.status} ·{" "}
               {projectTypes.length ? projectTypes.join(" + ") : "Unclassified"}
             </p>
           </div>
@@ -214,7 +214,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <MetricCard
             label="Logged Hours"
             value={hours(project.loggedMinutes)}
-            detail={`${percent(project.canonicalEstimatedMinutes ? ((project.loggedMinutes - project.unplannedLoggedMinutes) / project.canonicalEstimatedMinutes) * 100 : null)} planned estimate consumed${project.unplannedLoggedMinutes > 0 ? ` Ã‚Â· ${hours(project.unplannedLoggedMinutes)} unplanned` : ""}`}
+            detail={`${percent(project.canonicalEstimatedMinutes ? ((project.loggedMinutes - project.unplannedLoggedMinutes) / project.canonicalEstimatedMinutes) * 100 : null)} planned estimate consumed${project.unplannedLoggedMinutes > 0 ? ` · ${hours(project.unplannedLoggedMinutes)} unplanned` : ""}`}
           />
           <MetricCard
             label="Estimated Hours"
@@ -473,7 +473,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                               <strong>{task.name}</strong>
                               <small className="table-subvalue">
                                 {task.taskListName}
-                                {task.isOutsourced ? " Ã‚Â· Outsourced" : ""}
+                                {task.isOutsourced ? " · Outsourced" : ""}
                               </small>
                             </td>
                             <td>{task.isBranchComplete ? "Complete" : task.status}</td>
@@ -535,7 +535,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                 </p>
               </div>
               <span className="section-meta">
-                {activeUnplannedWork.length} open Ã‚Â· {dismissedUnplannedWork.length} reviewed
+                {activeUnplannedWork.length} open · {dismissedUnplannedWork.length} reviewed
               </span>
             </div>
             {isAdmin && activeUnplannedWork.length > 1 ? (
@@ -565,7 +565,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                     <div>
                       <dt>Logged dates</dt>
                       <dd>
-                        {dateLabel(item.firstLoggedDate)} Ã¢â‚¬â€œ {dateLabel(item.lastLoggedDate)}
+                        {dateLabel(item.firstLoggedDate)} – {dateLabel(item.lastLoggedDate)}
                       </dd>
                     </div>
                   </dl>
@@ -574,7 +574,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                       <input type="hidden" name="projectId" value={project.id} />
                       <input type="hidden" name="issueId" value={item.issueId} />
                       <button className="button button--secondary" type="submit">
-                        Reviewed Ã¢â‚¬â€ leave unplanned
+                        Reviewed — leave unplanned
                       </button>
                     </form>
                   ) : null}
@@ -588,7 +588,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                   <div>
                     <strong>{item.taskName}</strong>
                     <small>
-                      {item.taskListName} Ã‚Â· Reviewed by {item.dismissedByName ?? "Admin"}
+                      {item.taskListName} · Reviewed by {item.dismissedByName ?? "Admin"}
                     </small>
                   </div>
                   <dl>
@@ -642,7 +642,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                 {issue.taskName || issue.taskListName ? (
                   <small>
                     {issue.taskListName}
-                    {issue.taskName ? ` Ã‚Â· ${issue.taskName}` : ""}
+                    {issue.taskName ? ` · ${issue.taskName}` : ""}
                   </small>
                 ) : null}
                 <div className="issue-card__actions">
@@ -690,12 +690,12 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                                 ) : null}
                               </td>
                               <td>
-                                {item.personName ?? "Ã¢â‚¬â€"}
+                                {item.personName ?? "—"}
                                 <small className="table-subvalue">
                                   {dateLabel(item.loggedDate)}
                                 </small>
                               </td>
-                              <td>{item.minutes === null ? "Ã¢â‚¬â€" : hours(item.minutes)}</td>
+                              <td>{item.minutes === null ? "—" : hours(item.minutes)}</td>
                               <td>{money(item.laborCost)}</td>
                               <td>
                                 {item.teamworkUrl ? (
@@ -703,7 +703,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                                     Open
                                   </a>
                                 ) : (
-                                  "Ã¢â‚¬â€"
+                                  "—"
                                 )}
                               </td>
                             </tr>
