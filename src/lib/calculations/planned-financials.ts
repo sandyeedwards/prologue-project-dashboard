@@ -1,3 +1,5 @@
+import type { Coverage } from "./types";
+
 export type ProjectBudgetSource = {
   id: string;
   teamworkId: number;
@@ -42,17 +44,45 @@ export function selectRevenueBudget(
     return activeFixedFee;
   }
 
-  const anyFixedFee = projectBudgets.find((budget) => normalized(budget.category) === "FIXEDFEE");
+  return projectBudgets.find((budget) => normalized(budget.category) === "FIXEDFEE") ?? null;
+}
+export type TaskListCoverageSource = {
+  id: string;
+  operationalGroup: string;
+};
 
-  if (anyFixedFee) {
-    return anyFixedFee;
+export function calculateTaskListBudgetCoverage(
+  taskLists: readonly TaskListCoverageSource[],
+  taskListBudgets: readonly TaskListBudgetSource[],
+): Coverage {
+  const requiredTaskListIds = new Set(
+    taskLists
+      .filter((taskList) => taskList.operationalGroup !== "Admin")
+      .map((taskList) => taskList.id),
+  );
+
+  if (requiredTaskListIds.size === 0) {
+    return "NOT_EXPECTED";
   }
 
-  return (
-    projectBudgets.find((budget) => normalized(budget.status) === "ACTIVE") ??
-    projectBudgets[0] ??
-    null
+  const coveredTaskListIds = new Set(
+    taskListBudgets
+      .filter(
+        (budget) =>
+          requiredTaskListIds.has(budget.taskListId) && numeric(budget.targetCost) !== null,
+      )
+      .map((budget) => budget.taskListId),
   );
+
+  if (coveredTaskListIds.size === 0) {
+    return "MISSING";
+  }
+
+  if (coveredTaskListIds.size === requiredTaskListIds.size) {
+    return "COMPLETE";
+  }
+
+  return "PARTIAL";
 }
 
 export function calculatePlannedFinancials(

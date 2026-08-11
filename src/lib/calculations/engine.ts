@@ -29,6 +29,7 @@ import { resolveForecastAssignment } from "./forecast-assignment";
 import { calculateHealth } from "./health";
 import { resolveExpenseCoverage } from "./expense-coverage";
 import { createOutsourcedBranchResolver } from "./outsourced";
+import { calculatePlannedFinancials, calculateTaskListBudgetCoverage } from "./planned-financials";
 import type { CalculationTaskInput, Coverage } from "./types";
 import { identifyUnplannedTopLevelTasks } from "./unplanned-work";
 
@@ -241,14 +242,14 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         (row) => row.projectId === project.id && !row.isDeleted,
       );
       const projectBudgetsForProject = budgetRows.filter((row) => row.projectId === project.id);
-      const currentBudget =
-        projectBudgetsForProject.find((row) => row.isCurrent) ??
-        projectBudgetsForProject.find((row) => row.status.toUpperCase() === "ACTIVE") ??
-        projectBudgetsForProject[0] ??
-        null;
-      const currentTaskListBudgets = currentBudget
-        ? taskListBudgetRows.filter((row) => row.projectBudgetId === currentBudget.id)
-        : [];
+
+      const plannedFinancials = calculatePlannedFinancials(
+        projectBudgetsForProject,
+        taskListBudgetRows,
+      );
+
+      const currentBudget = plannedFinancials.revenueBudget;
+      const projectTaskListBudgets = plannedFinancials.applicableTaskListBudgets;
 
       const taskInputs: CalculationTaskInput[] = projectTasks.map((task) => ({
         id: task.id,
@@ -492,10 +493,22 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         .reduce((sum, expense) => sum + (numeric(expense.totalCost) ?? 0), 0);
       const remainingOutsourced = Math.max(projectedOutsourced - actualOutsourced, 0);
 
-      const budgetValues = currentTaskListBudgets.filter((row) => numeric(row.targetCost) !== null);
-      const taskListBudgetCoverage: Coverage = currentBudget
-        ? coverage(budgetValues.length, projectTaskLists.length)
-        : "MISSING";
+      const budgetRequiredTaskListIds = new Set(
+        projectTaskLists
+          .filter((taskList) => taskList.operationalGroup !== "Admin")
+          .map((taskList) => taskList.id),
+      );
+
+      const budgetedRequiredTaskListIds = new Set(
+        plannedFinancials.knownTaskListBudgets
+          .filter((budget) => budgetRequiredTaskListIds.has(budget.taskListId))
+          .map((budget) => budget.taskListId),
+      );
+
+      const taskListBudgetCoverage = calculateTaskListBudgetCoverage(
+        projectTaskLists,
+        plannedFinancials.knownTaskListBudgets,
+      );
       if (taskListBudgetCoverage === "MISSING" || taskListBudgetCoverage === "PARTIAL") {
         warningCount += 1;
         allIssues.push({
@@ -503,10 +516,10 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           severity: "WARNING",
           code: "TASK_LIST_BUDGET_COVERAGE_INCOMPLETE",
           message:
-            "No complete set of Teamwork task-list target budgets was returned for the current budget period.",
+            "No complete set of Teamwork task-list target budgets was returned across the project Finance budgets.",
           details: {
-            activeTaskLists: projectTaskLists.length,
-            taskListsWithTargetBudget: budgetValues.length,
+            budgetRequiredTaskLists: budgetRequiredTaskListIds.size,
+            taskListsWithTargetBudget: budgetedRequiredTaskListIds.size,
             coverage: taskListBudgetCoverage,
           },
         });
@@ -585,10 +598,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       const actualTotal = actualLaborKnown + actualNonLaborKnown;
       const forecastCost =
         actualLaborKnown + actualNonLaborKnown + remainingLaborKnown + remainingNonLabor;
-      const clientFee = numeric(currentBudget?.clientFee);
-      const targetCost = numeric(currentBudget?.targetCost);
-      const targetProfit = numeric(currentBudget?.targetProfit);
-      const targetMarginPercent = numeric(currentBudget?.targetMarginPercent);
+      const { clientFee, targetCost, targetProfit, targetMarginPercent } = plannedFinancials;
       const forecastProfit = clientFee === null ? null : clientFee - forecastCost;
       const forecastMarginPercent =
         clientFee === null || clientFee === 0 || forecastProfit === null
@@ -779,13 +789,17 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           groupActualNonLaborKnown +
           groupRemainingLaborKnown +
           groupRemainingOutsourced;
-        const groupBudgets = currentTaskListBudgets.filter((budget) =>
+        const groupBudgets = projectTaskListBudgets.filter((budget) =>
           groupTaskListIds.has(budget.taskListId),
         );
         const knownGroupBudgets = groupBudgets
           .map((budget) => numeric(budget.targetCost))
           .filter((value): value is number => value !== null);
-        const groupTargetCoverage = coverage(knownGroupBudgets.length, groupTaskListIds.size);
+        const groupTaskLists = projectTaskLists.filter((taskList) =>
+          groupTaskListIds.has(taskList.id),
+        );
+
+        const groupTargetCoverage = calculateTaskListBudgetCoverage(groupTaskLists, groupBudgets);
         const groupTarget =
           knownGroupBudgets.length === 0
             ? null
@@ -820,7 +834,11 @@ export async function calculateAllProjects(asOfDate = new Date()) {
             timeEntriesWithHistoricalCost: groupKnownCostEntries,
             expenseCount: groupExpenseRows.length,
             expensesWithCost: groupKnownExpenseRows.length,
-            taskListsWithTargetBudget: knownGroupBudgets.length,
+            taskListsWithTargetBudget: new Set(
+              groupBudgets
+                .filter((budget) => numeric(budget.targetCost) !== null)
+                .map((budget) => budget.taskListId),
+            ).size,
           },
         });
       }

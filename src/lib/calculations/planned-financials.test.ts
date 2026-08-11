@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculatePlannedFinancials,
+  calculateTaskListBudgetCoverage,
   selectRevenueBudget,
   type ProjectBudgetSource,
   type TaskListBudgetSource,
@@ -168,5 +169,123 @@ describe("calculatePlannedFinancials", () => {
 
     expect(result.targetCost).toBe(10500);
     expect(result.budgetedTaskListIds).toEqual(new Set(["admin", "fieldwork"]));
+  });
+});
+
+describe("AUB fixture financial rules", () => {
+  it("uses $53,200 revenue and $17,084 additive planned cost", () => {
+    const result = calculatePlannedFinancials(
+      [
+        budget({
+          id: "aub-original",
+          teamworkId: 365005,
+          clientFee: "53200.00",
+          isCurrent: true,
+        }),
+      ],
+      [
+        {
+          projectBudgetId: "aub-original",
+          taskListId: "fieldwork",
+          targetCost: "7600.00",
+        },
+        {
+          projectBudgetId: "aub-original",
+          taskListId: "modeling-total",
+          targetCost: "9484.00",
+        },
+      ],
+    );
+
+    expect(result.clientFee).toBe(53200);
+    expect(result.targetCost).toBe(17084);
+    expect(result.targetProfit).toBe(36116);
+    expect(result.targetMarginPercent).toBeCloseTo(67.887218, 5);
+  });
+});
+
+describe("calculateTaskListBudgetCoverage", () => {
+  it("counts duplicate change-order budgets as one covered task list", () => {
+    const result = calculateTaskListBudgetCoverage(
+      [
+        {
+          id: "fieldwork",
+          operationalGroup: "Fieldwork",
+        },
+      ],
+      [
+        {
+          projectBudgetId: "original",
+          taskListId: "fieldwork",
+          targetCost: "10000.00",
+        },
+        {
+          projectBudgetId: "change-order",
+          taskListId: "fieldwork",
+          targetCost: "3000.00",
+        },
+      ],
+    );
+
+    expect(result).toBe("COMPLETE");
+  });
+
+  it("does not require Admin to have a task-list budget", () => {
+    const result = calculateTaskListBudgetCoverage(
+      [
+        {
+          id: "admin",
+          operationalGroup: "Admin",
+        },
+        {
+          id: "fieldwork",
+          operationalGroup: "Fieldwork",
+        },
+      ],
+      [
+        {
+          projectBudgetId: "original",
+          taskListId: "fieldwork",
+          targetCost: "10000.00",
+        },
+      ],
+    );
+
+    expect(result).toBe("COMPLETE");
+  });
+
+  it("returns NOT_EXPECTED for an Admin-only project", () => {
+    const result = calculateTaskListBudgetCoverage(
+      [
+        {
+          id: "admin",
+          operationalGroup: "Admin",
+        },
+      ],
+      [],
+    );
+
+    expect(result).toBe("NOT_EXPECTED");
+  });
+});
+
+describe("fixed-fee-only revenue fallback", () => {
+  it("does not treat an active non-fixed-fee fallback budget as revenue", () => {
+    const result = calculatePlannedFinancials(
+      [
+        budget({
+          id: "non-fixed-fee",
+          teamworkId: 999001,
+          status: "ACTIVE",
+          category: "TIME",
+          clientFee: "99999.00",
+          isCurrent: false,
+        }),
+      ],
+      [],
+    );
+
+    expect(result.revenueBudget).toBeNull();
+    expect(result.clientFee).toBeNull();
   });
 });
