@@ -255,7 +255,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               className="executive-report-grid__effort executive-support-row__effort"
               eyebrow="Effort exposure"
               title="Logged vs Estimated Hours by Group"
-              description="Each row shows logged hours as a percent of the estimate. Values above 100% indicate the group has exceeded its estimate."
+              description="Estimate length shows relative workload across groups. Blue shows logged hours within the estimate; red shows work beyond the estimate."
             >
               <HoursCompletionSummary rows={effortRows} />
             </ChartPanel>

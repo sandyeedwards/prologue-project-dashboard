@@ -396,12 +396,17 @@ async function main() {
       sourceContains(
         "src/components/project-selection-reports.tsx",
         projectSelectionReportsSource,
-        "Values above 100% indicate",
+        "Estimate length shows relative workload",
       ),
       sourceContains(
         "src/components/hours-completion-summary.tsx",
         hoursCompletionSource,
-        "shared percentage scale",
+        "shared hours scale",
+      ),
+      sourceContains(
+        "src/components/hours-completion-summary.tsx",
+        hoursCompletionSource,
+        "--hours-estimate-width",
       ),
       sourceContains(
         "src/components/hours-completion-summary.tsx",
@@ -421,7 +426,12 @@ async function main() {
       sourceContains(
         "src/components/hours-completion-summary.tsx",
         hoursCompletionSource,
-        "The estimate marker is 100%",
+        "No estimate",
+      ),
+      sourceContains(
+        "src/components/hours-completion-summary.tsx",
+        hoursCompletionSource,
+        "Rows without an estimate show logged hours",
       ),
     ]),
     step10ExecutiveHierarchyPresent: auditRequirements([
@@ -715,11 +725,17 @@ async function main() {
       sideBySideProfitabilitySource.includes("onPointerMove") &&
       sideBySideProfitabilitySource.includes('role="tooltip"'),
     dashboardTotalProfitabilityUsesFilteredGroups:
-      dashboardSource.includes("const totalRevenue = profitabilityRows.reduce") &&
-      dashboardSource.includes("const totalForecastCost = profitabilityRows.reduce") &&
+      dashboardSource.includes("const profitabilityRows = reconciliationRows.filter") &&
+      dashboardSource.includes("const totalRevenue = reconciliationRows.reduce") &&
+      dashboardSource.includes("const totalForecastCost = reconciliationRows.reduce") &&
+      dashboardSource.includes("const actualCostCompositionComplete = reconciliationRows.every") &&
+      dashboardSource.includes("const totalProfitabilityRow = reconciliationRows.length") &&
       dashboardSource.includes('label: "All groups combined"') &&
       dashboardSource.includes("groupRows={profitabilityRows}") &&
-      dashboardSource.includes("totalRow={totalProfitabilityRow}"),
+      dashboardSource.includes("totalRow={totalProfitabilityRow}") &&
+      dashboardSource.includes(
+        "Unclassified reconciliation remains included in combined portfolio totals",
+      ),
     compareAndCombineUseCleanFinancialPresentation:
       projectSelectionReportsSource.includes("CompareOperationalProfitabilityChart") &&
       projectSelectionReportsSource.includes("DashboardProfitabilityTabs") &&
