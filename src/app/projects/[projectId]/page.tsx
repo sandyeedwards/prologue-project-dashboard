@@ -53,7 +53,6 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
     searchParams,
   ]);
   const projectTypes = getProjectTypeFacets(project);
-  const isDataHall = projectTypes.includes("DataHall");
   const isArchived = project.archivedAt !== null || project.status.toLowerCase() === "archived";
   const clientFee = numeric(project.clientFee);
   const actualTotalCost = numeric(project.actualTotalCost);
@@ -71,7 +70,9 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const taskQuery = one(query.task)?.trim().toLowerCase() ?? "";
   const groupFilter = one(query.group) ?? "ALL";
   const coverageFilter = one(query.coverage) ?? "ALL";
-  const filteredTasks = tasks.filter((task) => {
+  const visibleGroups = groups.filter((group) => group.groupName !== "Unclassified");
+  const reportingTasks = tasks.filter((task) => task.operationalGroup !== "Unclassified");
+  const filteredTasks = reportingTasks.filter((task) => {
     if (
       taskQuery &&
       ![task.name, task.taskListName, task.operationalGroup].some((value) =>
@@ -85,7 +86,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   });
   const displayedTasks = filteredTasks.slice(0, 250);
   const hasTaskFilters = Boolean(taskQuery) || groupFilter !== "ALL" || coverageFilter !== "ALL";
-  const operationalGroups = groups
+  const operationalGroups = visibleGroups
     .map((group) => ({
       ...group,
       tasks: displayedTasks.filter((task) => task.operationalGroup === group.groupName),
@@ -94,7 +95,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const activeUnplannedWork = unplannedWork.filter((item) => !item.isDismissed);
   const dismissedUnplannedWork = unplannedWork.filter((item) => item.isDismissed);
   const isAdmin = session.user.role === "ADMIN";
-  const groupChartRows = groups.map((group) => ({
+  const groupChartRows = visibleGroups.map((group) => ({
     label: group.groupName,
     values: {
       estimated: group.estimatedMinutes / 60,
@@ -104,7 +105,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
       forecast: numeric(group.forecastCost),
     },
   }));
-  const groupCostPerformanceRows = groups.map((group) => {
+  const groupCostPerformanceRows = visibleGroups.map((group) => {
     const actualLabor = numeric(group.actualLaborCost);
     const actualNonLabor = numeric(group.actualNonLaborCost);
     return {
@@ -131,8 +132,8 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             </div>
             <h1>{project.name}</h1>
             <p className="lede">
-              {project.companyName ?? "No client company"} ·{" "}
-              {isArchived ? "archived" : project.status} ·{" "}
+              {project.companyName ?? "No client company"} Â·{" "}
+              {isArchived ? "archived" : project.status} Â·{" "}
               {projectTypes.length ? projectTypes.join(" + ") : "Unclassified"}
             </p>
           </div>
@@ -193,9 +194,9 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
               detail={`${percent(actualMargin, 1)} margin to date`}
             />
             <MetricCard
-              label="Target Cost"
+              label="Planned Cost"
               value={money(project.targetCost)}
-              detail="Project budget expected cost"
+              detail="Sum of Teamwork task-list cost budgets"
             />
           </div>
         </section>
@@ -212,7 +213,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <MetricCard
             label="Logged Hours"
             value={hours(project.loggedMinutes)}
-            detail={`${percent(project.canonicalEstimatedMinutes ? ((project.loggedMinutes - project.unplannedLoggedMinutes) / project.canonicalEstimatedMinutes) * 100 : null)} planned estimate consumed${project.unplannedLoggedMinutes > 0 ? ` · ${hours(project.unplannedLoggedMinutes)} unplanned` : ""}`}
+            detail={`${percent(project.canonicalEstimatedMinutes ? ((project.loggedMinutes - project.unplannedLoggedMinutes) / project.canonicalEstimatedMinutes) * 100 : null)} planned estimate consumed${project.unplannedLoggedMinutes > 0 ? ` Â· ${hours(project.unplannedLoggedMinutes)} unplanned` : ""}`}
           />
           <MetricCard
             label="Estimated Hours"
@@ -243,11 +244,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           </ChartPanel>
           <ChartPanel
             eyebrow="Effort by operation"
-            title={
-              isDataHall
-                ? "Estimated and logged hours by area"
-                : "Estimated and logged hours by group"
-            }
+            title="Estimated and logged hours by group"
             description="Hours are rolled up from the same canonical task branches shown below."
           >
             <GroupedBarChart
@@ -261,7 +258,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           </ChartPanel>
           <ChartPanel
             eyebrow="Cost performance"
-            title={isDataHall ? "Cost against target by area" : "Cost against target by group"}
+            title="Cost against target by group"
             description="Operational groups do not have allocated revenue, so this compares actual and forecast cost with each group target instead of inventing group profit."
           >
             <CostPerformanceChart rows={groupCostPerformanceRows} />
@@ -280,8 +277,9 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           </div>
           <p className="section-description">
             Actual cost uses historical labor and imported expenses. A project is provisional only
-            when a source needed to price remaining or expected work is incomplete. Task-list target
-            costs affect group variance, not whole-project profit.
+            when a source needed to price remaining or expected work is incomplete. Task-list
+            budgets define planned internal cost and group cost targets; forecast profit remains the
+            fixed fee less forecast cost.
           </p>
           <div className="coverage-grid">
             <div>
@@ -354,16 +352,14 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <div className="section-heading">
             <div>
               <p className="eyebrow">Operations and task branches</p>
-              <h2>
-                {isDataHall ? "Area and mobilization performance" : "Operational group performance"}
-              </h2>
+              <h2>Operational group performance</h2>
               <p className="section-description">
                 Open a group to review its calculated task branches. Search and filters apply inside
                 every group without changing whole-project financials.
               </p>
             </div>
             <span className="section-meta">
-              {filteredTasks.length} of {tasks.length} tasks
+              {filteredTasks.length} of {reportingTasks.length} operational tasks
             </span>
           </div>
           <form className="filter-bar filter-bar--compact" method="get">
@@ -372,12 +368,14 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
               <input name="task" defaultValue={taskQuery} placeholder="Task, list, or group" />
             </label>
             <label className="filter-field">
-              <span>{isDataHall ? "Area / group" : "Group"}</span>
+              <span>Group</span>
               <select name="group" defaultValue={groupFilter}>
                 <option value="ALL">All</option>
-                {[...new Set(tasks.map((task) => task.operationalGroup))].sort().map((value) => (
-                  <option key={value}>{value}</option>
-                ))}
+                {[...new Set(reportingTasks.map((task) => task.operationalGroup))]
+                  .sort()
+                  .map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
               </select>
             </label>
             <label className="filter-field">
@@ -474,7 +472,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                               <strong>{task.name}</strong>
                               <small className="table-subvalue">
                                 {task.taskListName}
-                                {task.isOutsourced ? " · Outsourced" : ""}
+                                {task.isOutsourced ? " Â· Outsourced" : ""}
                               </small>
                             </td>
                             <td>{task.isBranchComplete ? "Complete" : task.status}</td>
@@ -536,7 +534,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                 </p>
               </div>
               <span className="section-meta">
-                {activeUnplannedWork.length} open · {dismissedUnplannedWork.length} reviewed
+                {activeUnplannedWork.length} open Â· {dismissedUnplannedWork.length} reviewed
               </span>
             </div>
             {isAdmin && activeUnplannedWork.length > 1 ? (
@@ -566,7 +564,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                     <div>
                       <dt>Logged dates</dt>
                       <dd>
-                        {dateLabel(item.firstLoggedDate)} – {dateLabel(item.lastLoggedDate)}
+                        {dateLabel(item.firstLoggedDate)} â€“ {dateLabel(item.lastLoggedDate)}
                       </dd>
                     </div>
                   </dl>
@@ -575,7 +573,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                       <input type="hidden" name="projectId" value={project.id} />
                       <input type="hidden" name="issueId" value={item.issueId} />
                       <button className="button button--secondary" type="submit">
-                        Reviewed — leave unplanned
+                        Reviewed â€” leave unplanned
                       </button>
                     </form>
                   ) : null}
@@ -589,7 +587,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                   <div>
                     <strong>{item.taskName}</strong>
                     <small>
-                      {item.taskListName} · Reviewed by {item.dismissedByName ?? "Admin"}
+                      {item.taskListName} Â· Reviewed by {item.dismissedByName ?? "Admin"}
                     </small>
                   </div>
                   <dl>
@@ -643,7 +641,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                 {issue.taskName || issue.taskListName ? (
                   <small>
                     {issue.taskListName}
-                    {issue.taskName ? ` · ${issue.taskName}` : ""}
+                    {issue.taskName ? ` Â· ${issue.taskName}` : ""}
                   </small>
                 ) : null}
                 <div className="issue-card__actions">
@@ -691,12 +689,12 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                                 ) : null}
                               </td>
                               <td>
-                                {item.personName ?? "—"}
+                                {item.personName ?? "â€”"}
                                 <small className="table-subvalue">
                                   {dateLabel(item.loggedDate)}
                                 </small>
                               </td>
-                              <td>{item.minutes === null ? "—" : hours(item.minutes)}</td>
+                              <td>{item.minutes === null ? "â€”" : hours(item.minutes)}</td>
                               <td>{money(item.laborCost)}</td>
                               <td>
                                 {item.teamworkUrl ? (
@@ -704,7 +702,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                                     Open
                                   </a>
                                 ) : (
-                                  "—"
+                                  "â€”"
                                 )}
                               </td>
                             </tr>
