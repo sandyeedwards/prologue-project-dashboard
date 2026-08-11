@@ -40,7 +40,7 @@ function actualCostCoverageDetail(
   if (!partialCount) {
     return `Complete cost coverage for ${completeCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
   }
-  return `Cost coverage: ${completeCount} complete Ã‚Â· ${partialCount} partial/missing`;
+  return `Cost coverage: ${completeCount} complete · ${partialCount} partial/missing`;
 }
 
 function displayDate(value: Date | null): string {
@@ -117,7 +117,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const totalProfitabilityRow = reconciliationRows.length
     ? {
         label: "All groups combined",
-        detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"} Ã‚Â· ${profitabilityRows.length} operational group${profitabilityRows.length === 1 ? "" : "s"}`,
+        detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"} · ${profitabilityRows.length} operational group${profitabilityRows.length === 1 ? "" : "s"}`,
         revenue: totalRevenue,
         cost: totalForecastCost,
         actualCost: actualCostCompositionComplete
@@ -206,7 +206,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <MetricCard
               label="Projects in View"
               value={summary.projectCount}
-              detail={`${summary.greenCount} healthy Ã‚Â· ${summary.amberCount} at risk Ã‚Â· ${summary.redCount} unhealthy`}
+              detail={`${summary.greenCount} healthy · ${summary.amberCount} at risk · ${summary.redCount} unhealthy`}
             />
             <MetricCard
               label="Logged Hours"
