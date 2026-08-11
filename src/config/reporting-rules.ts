@@ -3,43 +3,53 @@ export const REPORTING_RULES = {
   excludedProjectTags: ["NoReport"],
   dataHallProjectTag: "DataHall",
   readySetProjectTag: "Ready Set",
+
   projectTypeTags: {
     scanning: "Scanning",
     modeling: "Modeling",
   },
+
   outsourcedModelingHourlyRateUsd: 15,
   outsourcedTaskAliases: ["Outsourced Modeling", "Cosmere Modeling"],
+
   operationalGroupPatterns: {
-    Mobilization: ["mobilization"],
-    Fieldwork: ["fieldwork", "field work", "field ops", "field operations"],
+    Mobilization: ["mobilization", "travel"],
+    Fieldwork: [
+      "fieldwork",
+      "field work",
+      "field ops",
+      "field operations",
+      "scanning",
+      "field services",
+      "total station",
+      "data processing",
+    ],
     Modeling: ["modeling", "modelling"],
   },
-  dataHallAdministrativeTaskListPatterns: [
+
+  administrativeTaskListPatterns: [
     "admin",
     "administration",
     "project setup",
+    "teamwork setup",
     "project management",
     "general project management",
-    "office time",
-    "internal",
-    "billing",
-    "invoice",
-    "invoicing",
-    "quality control",
-    "qa qc",
-    "schedule",
-    "gantt",
-    "assign tasks",
-    "add hours estimates",
-    "link project",
-    "purge unneeded tasks",
-    "update milestones",
-    "payapp",
   ],
+
+  modelingTaskPatterns: ["model", "modeling", "modelling"],
+
+  fieldworkTaskPatterns: [
+    "scanning",
+    "field services",
+    "field service",
+    "total station",
+    "data processing",
+  ],
+
+  travelTaskPatterns: ["travel"],
 } as const;
 
 export type StandardOperationalGroup =
-  keyof typeof REPORTING_RULES.operationalGroupPatterns | "Other / Unmapped";
+  keyof typeof REPORTING_RULES.operationalGroupPatterns | "Admin" | "Unclassified";
 
-export type OperationalGroup =
-  StandardOperationalGroup | "Other / Administrative" | `Area: ${string}`;
+export type OperationalGroup = StandardOperationalGroup;

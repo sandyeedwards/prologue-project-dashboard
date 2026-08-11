@@ -14,7 +14,7 @@ import {
   teamworkConnections,
   timeEntries,
 } from "@/db/schema";
-import { classifyTaskList } from "@/lib/reporting/operational-group";
+import { classifyTaskList, classifyTaskListFromTasks } from "@/lib/reporting/operational-group";
 import { parseProjectNumber } from "@/lib/reporting/project-number";
 import { activeConnection, teamworkFetch } from "./client";
 import { collectionRows } from "./collections";
@@ -403,6 +403,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       ),
     );
     const dataHallProjectIds = new Set<string>();
+    const readySetProjectIds = new Set<string>();
 
     for (const row of projectRows) {
       const teamworkId = idAtPaths(row, ENTITY_ID_PATHS);
@@ -475,6 +476,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       markUpsert(stats.projects, existingProjects.has(teamworkId));
       existingProjects.add(teamworkId);
       if (reportingPolicy.isDataHall) dataHallProjectIds.add(saved.id);
+      if (reportingPolicy.isReadySet) readySetProjectIds.add(saved.id);
 
       await db.delete(projectTags).where(eq(projectTags.projectId, saved.id));
       for (const tagRef of projectTagRefs) {
@@ -660,6 +662,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
           isBillable: booleanAtPaths(row, ["isBillable", "billable"]),
           operationalGroup: classifyTaskList(name, {
             isDataHall: dataHallProjectIds.has(project.id),
+            isReadySet: readySetProjectIds.has(project.id),
           }),
           teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt"])),
           raw: rawRecord(row),
@@ -676,6 +679,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
             isBillable: booleanAtPaths(row, ["isBillable", "billable"]),
             operationalGroup: classifyTaskList(name, {
               isDataHall: dataHallProjectIds.has(project.id),
+              isReadySet: readySetProjectIds.has(project.id),
             }),
             teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt"])),
             raw: rawRecord(row),
@@ -866,6 +870,79 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       where child.parent_teamwork_id = parent.teamwork_id
         and child.parent_task_id is distinct from parent.id
     `;
+
+    // Task-list names are useful classification evidence, but some normal
+    // projects use generic list names. Once tasks are available, refine the
+    // persisted operational group using task-name evidence as well.
+    const includedProjectIds = new Set(
+      [...projectMap.values()]
+        .filter((project) => !project.excludedFromReporting)
+        .map((project) => project.id),
+    );
+
+    const activeTaskListsForClassification = await db
+      .select({
+        id: taskLists.id,
+        projectId: taskLists.projectId,
+        name: taskLists.name,
+        operationalGroup: taskLists.operationalGroup,
+      })
+      .from(taskLists)
+      .where(eq(taskLists.isDeleted, false));
+
+    const activeTasksForClassification = await db
+      .select({
+        taskListId: tasks.taskListId,
+        name: tasks.name,
+      })
+      .from(tasks)
+      .where(eq(tasks.isDeleted, false));
+
+    const taskNamesByTaskListId = new Map<string, string[]>();
+
+    for (const task of activeTasksForClassification) {
+      if (!task.taskListId) continue;
+
+      const names = taskNamesByTaskListId.get(task.taskListId) ?? [];
+      names.push(task.name);
+      taskNamesByTaskListId.set(task.taskListId, names);
+    }
+
+    for (const taskList of activeTaskListsForClassification) {
+      if (!includedProjectIds.has(taskList.projectId)) continue;
+
+      const operationalGroup = classifyTaskListFromTasks(
+        taskList.name,
+        taskNamesByTaskListId.get(taskList.id) ?? [],
+        {
+          isDataHall: dataHallProjectIds.has(taskList.projectId),
+          isReadySet: readySetProjectIds.has(taskList.projectId),
+        },
+      );
+
+      if (operationalGroup !== taskList.operationalGroup) {
+        await db
+          .update(taskLists)
+          .set({
+            operationalGroup,
+            updatedAt: new Date(),
+          })
+          .where(eq(taskLists.id, taskList.id));
+      }
+
+      if (operationalGroup === "Unclassified") {
+        issues.warn(
+          "TASK_LIST_OPERATIONAL_GROUP_UNCLASSIFIED",
+          "Task-list service could not be classified confidently from its name and tasks.",
+          "taskList",
+          null,
+          {
+            taskListName: taskList.name,
+            taskNames: taskNamesByTaskListId.get(taskList.id) ?? [],
+          },
+        );
+      }
+    }
 
     console.log("[5/6] Importing historical time entries...");
     const taskMap = await loadTaskMap(projectMap);
