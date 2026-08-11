@@ -77,7 +77,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     ),
   ].sort();
   const types = getAvailableProjectTypes(allProjects);
-  const profitabilityRows = operationalGroups.map((group) => ({
+  const visibleOperationalGroups = operationalGroups.filter(
+    (group) => group.groupName !== "Unclassified",
+  );
+  const reconciliationRows = operationalGroups.map((group) => ({
     label: group.groupName,
     detail: `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`,
     revenue: group.allocatedRevenue,
@@ -88,9 +91,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     margin: group.marginPercent,
     projectCount: group.projectCount,
   }));
-  const totalRevenue = profitabilityRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
-  const totalForecastCost = profitabilityRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
-  const totalRemainingCost = profitabilityRows.reduce((sum, row) => {
+  const profitabilityRows = reconciliationRows.filter((row) => row.label !== "Unclassified");
+  const totalRevenue = reconciliationRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
+  const totalForecastCost = reconciliationRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
+  const totalRemainingCost = reconciliationRows.reduce((sum, row) => {
     if (row.remainingCost !== null && row.remainingCost !== undefined)
       return sum + row.remainingCost;
     if (
@@ -104,30 +108,30 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     return sum;
   }, 0);
   const totalForecastProfit = totalRevenue - totalForecastCost;
-  const actualCostCompositionComplete = profitabilityRows.every(
+  const actualCostCompositionComplete = reconciliationRows.every(
     (row) => row.actualCost !== null && row.actualCost !== undefined,
   );
-  const remainingCostCompositionComplete = profitabilityRows.every(
+  const remainingCostCompositionComplete = reconciliationRows.every(
     (row) => row.remainingCost !== null && row.remainingCost !== undefined,
   );
-  const totalProfitabilityRow = profitabilityRows.length
+  const totalProfitabilityRow = reconciliationRows.length
     ? {
         label: "All groups combined",
         detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"} · ${profitabilityRows.length} operational group${profitabilityRows.length === 1 ? "" : "s"}`,
         revenue: totalRevenue,
         cost: totalForecastCost,
         actualCost: actualCostCompositionComplete
-          ? profitabilityRows.reduce((sum, row) => sum + (row.actualCost ?? 0), 0)
+          ? reconciliationRows.reduce((sum, row) => sum + (row.actualCost ?? 0), 0)
           : null,
         remainingCost: remainingCostCompositionComplete
-          ? profitabilityRows.reduce((sum, row) => sum + (row.remainingCost ?? 0), 0)
+          ? reconciliationRows.reduce((sum, row) => sum + (row.remainingCost ?? 0), 0)
           : null,
         profit: totalForecastProfit,
         margin: totalRevenue > 0 ? (totalForecastProfit / totalRevenue) * 100 : null,
         projectCount: summary.projectCount,
       }
     : null;
-  const effortRows = operationalGroups.map((group) => ({
+  const effortRows = visibleOperationalGroups.map((group) => ({
     label: group.groupName,
     detail: `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`,
     values: {
@@ -218,6 +222,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         >
           <DashboardProfitabilityTabs
             groupRows={profitabilityRows}
+            groupDescription="Compare allocated revenue, actual cost, remaining work, and forecast outcome across classified operational groups. Unclassified reconciliation remains included in combined portfolio totals but is not presented as an operational group."
             totalRow={totalProfitabilityRow}
             historicalSeries={historicalProfitSeries}
             historicalInitialRange={{ from: filter.dateFrom, to: filter.dateTo }}
@@ -250,7 +255,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               className="executive-report-grid__effort executive-support-row__effort"
               eyebrow="Effort exposure"
               title="Logged vs Estimated Hours by Group"
-              description="Each row shows logged hours as a percent of the estimate. Values above 100% indicate the group has exceeded its estimate."
+              description="Estimate length shows relative workload across groups. Blue shows logged hours within the estimate; red shows work beyond the estimate."
             >
               <HoursCompletionSummary rows={effortRows} />
             </ChartPanel>

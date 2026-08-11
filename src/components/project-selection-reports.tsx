@@ -134,7 +134,7 @@ export function ProjectComparisonReport({
           className="compare-hours-panel"
           eyebrow="Effort comparison"
           title="Logged vs Estimated Hours by Project"
-          description="Each project shows logged hours as a percent of its estimate. Values above 100% indicate the estimate has been exceeded."
+          description="Estimate length shows relative workload across projects. Blue shows logged hours within the estimate; red shows work beyond the estimate."
         >
           <HoursCompletionSummary rows={effortRows} />
         </ChartPanel>
@@ -376,7 +376,7 @@ export function CombinedPortfolioReport({
             className="executive-report-grid__effort executive-support-row__effort"
             eyebrow="Effort exposure"
             title="Logged vs Estimated Hours by Group"
-            description="Each row shows logged hours as a percent of the estimate. Values above 100% indicate the group has exceeded its estimate."
+            description="Estimate length shows relative workload across groups. Blue shows logged hours within the estimate; red shows work beyond the estimate."
           >
             <HoursCompletionSummary rows={effortRows} />
           </ChartPanel>

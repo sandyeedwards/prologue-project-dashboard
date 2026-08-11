@@ -1582,6 +1582,23 @@ code {
   background: #d49a16;
 }
 
+.cost-performance__overrun {
+  position: absolute;
+  inset-block: 0;
+  left: var(--cost-left);
+  width: var(--cost-width);
+  background: #b42318;
+}
+
+.cost-performance__overrun-key {
+  background: #b42318;
+}
+
+.cost-performance__overrun-value {
+  color: #b42318;
+  font-weight: 800;
+}
+
 .cost-performance__target {
   position: absolute;
   top: -4px;

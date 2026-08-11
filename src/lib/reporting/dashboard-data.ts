@@ -180,7 +180,7 @@ export type ProjectFilter = {
 };
 
 export type PortfolioOperationalGroupRow = {
-  groupName: "Fieldwork" | "Mobilization" | "Modeling" | "Ready Set" | "DataHall" | "Other";
+  groupName: "Fieldwork" | "Mobilization" | "Modeling" | "Admin" | "Unclassified";
   projectCount: number;
   allocatedRevenue: number;
   actualCostToDate: number | null;
@@ -884,24 +884,33 @@ type GroupAccumulator = {
 };
 
 function portfolioGroupName(
-  project: ProjectReportRow,
+  _project: ProjectReportRow,
   groupName: string,
 ): PortfolioOperationalGroupRow["groupName"] {
-  const facets = getProjectTypeFacets(project);
-  if (facets.includes("DataHall")) return "DataHall";
-  if (facets.includes("Ready Set")) return "Ready Set";
   const normalized = normalizeTeamworkLabel(groupName);
-  if (normalized.includes("mobilization")) return "Mobilization";
-  if (normalized.includes("modeling") || normalized.includes("modelling")) return "Modeling";
+
+  if (normalized === "admin" || normalized.includes("administrative")) {
+    return "Admin";
+  }
+
+  if (normalized.includes("mobilization")) {
+    return "Mobilization";
+  }
+
+  if (normalized.includes("modeling") || normalized.includes("modelling")) {
+    return "Modeling";
+  }
+
   if (
     normalized.includes("fieldwork") ||
     normalized.includes("fieldoperations") ||
     normalized.includes("scanning")
-  )
+  ) {
     return "Fieldwork";
-  return "Other";
-}
+  }
 
+  return "Unclassified";
+}
 async function getOperationalGroupMetricRows(): Promise<RawPortfolioGroupMetric[]> {
   const sql = getSqlClient();
   return sql<RawPortfolioGroupMetric[]>`
@@ -996,9 +1005,9 @@ export async function getPortfolioOperationalGroups(
       }
     }
     if (!grouped.size) {
-      grouped.set("Other", {
+      grouped.set("Unclassified", {
         projectId: project.id,
-        groupName: "Other",
+        groupName: "Unclassified",
         targetCost: project.targetCost,
         estimatedMinutes: project.canonicalEstimatedMinutes,
         loggedMinutes: project.loggedMinutes,
@@ -1007,12 +1016,7 @@ export async function getPortfolioOperationalGroups(
         forecastCost: project.forecastCost,
       });
     } else {
-      const facets = getProjectTypeFacets(project);
-      const fallbackName: PortfolioOperationalGroupRow["groupName"] = facets.includes("DataHall")
-        ? "DataHall"
-        : facets.includes("Ready Set")
-          ? "Ready Set"
-          : "Other";
+      const fallbackName: PortfolioOperationalGroupRow["groupName"] = "Unclassified";
       const mappedEstimated = [...grouped.values()].reduce(
         (sum, group) => sum + group.estimatedMinutes,
         0,
@@ -1131,9 +1135,8 @@ export async function getPortfolioOperationalGroups(
     "Fieldwork",
     "Mobilization",
     "Modeling",
-    "Ready Set",
-    "DataHall",
-    "Other",
+    "Admin",
+    "Unclassified",
   ];
   return order
     .map((groupName) => output.get(groupName))

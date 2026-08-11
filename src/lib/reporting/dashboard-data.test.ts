@@ -3,6 +3,7 @@ import {
   buildHistoricalProfitSeriesFromSource,
   filterAndSortProjects,
   getAvailableProjectTypes,
+  getPortfolioOperationalGroups,
   getProjectTypeFacets,
   normalizeDatabaseDate,
   summarizeProjects,
@@ -287,5 +288,130 @@ describe("historical portfolio financial series", () => {
       missingCostRecordCount: 1,
       fallbackDatedExpenseCount: 1,
     });
+  });
+});
+
+describe("portfolio operational group model", () => {
+  it("keeps Ready Set and DataHall as project types instead of operational groups", async () => {
+    const readySet: ProjectReportRow = {
+      ...base,
+      id: "ready-set",
+      teamworkId: 2,
+      projectType: "Ready Set",
+      tags: ["Ready Set"],
+      targetCost: null,
+      canonicalEstimatedMinutes: 60,
+      loggedMinutes: 30,
+      actualLaborCost: "100.00",
+      actualNonLaborCost: "0.00",
+      actualTotalCost: "100.00",
+      forecastCost: "200.00",
+    };
+
+    const dataHall: ProjectReportRow = {
+      ...readySet,
+      id: "data-hall",
+      teamworkId: 3,
+      projectType: "DataHall",
+      tags: ["DataHall"],
+    };
+
+    const sourceRows = [
+      {
+        projectId: readySet.id,
+        groupName: "Admin",
+        targetCost: null,
+        estimatedMinutes: 10,
+        loggedMinutes: 5,
+        actualLaborCost: "20.00",
+        actualNonLaborCost: "0.00",
+        forecastCost: "40.00",
+      },
+      {
+        projectId: readySet.id,
+        groupName: "Fieldwork",
+        targetCost: null,
+        estimatedMinutes: 50,
+        loggedMinutes: 25,
+        actualLaborCost: "80.00",
+        actualNonLaborCost: "0.00",
+        forecastCost: "160.00",
+      },
+      {
+        projectId: dataHall.id,
+        groupName: "Admin",
+        targetCost: null,
+        estimatedMinutes: 10,
+        loggedMinutes: 5,
+        actualLaborCost: "20.00",
+        actualNonLaborCost: "0.00",
+        forecastCost: "40.00",
+      },
+      {
+        projectId: dataHall.id,
+        groupName: "Fieldwork",
+        targetCost: null,
+        estimatedMinutes: 50,
+        loggedMinutes: 25,
+        actualLaborCost: "80.00",
+        actualNonLaborCost: "0.00",
+        forecastCost: "160.00",
+      },
+    ];
+
+    const groups = await getPortfolioOperationalGroups([readySet, dataHall], sourceRows);
+
+    const names = groups.map((group) => group.groupName);
+
+    expect(names).toContain("Admin");
+    expect(names).toContain("Fieldwork");
+    expect(names).not.toContain("Ready Set");
+    expect(names).not.toContain("DataHall");
+    expect(names).not.toContain("Other");
+  });
+
+  it("preserves unmapped project residuals as Unclassified instead of guessing Admin", async () => {
+    const project: ProjectReportRow = {
+      ...base,
+      id: "residual",
+      teamworkId: 4,
+      targetCost: null,
+      canonicalEstimatedMinutes: 100,
+      loggedMinutes: 100,
+      actualLaborCost: "100.00",
+      actualNonLaborCost: "0.00",
+      actualTotalCost: "100.00",
+      forecastCost: "200.00",
+    };
+
+    const groups = await getPortfolioOperationalGroups(
+      [project],
+      [
+        {
+          projectId: project.id,
+          groupName: "Fieldwork",
+          targetCost: null,
+          estimatedMinutes: 80,
+          loggedMinutes: 80,
+          actualLaborCost: "80.00",
+          actualNonLaborCost: "0.00",
+          forecastCost: "150.00",
+        },
+      ],
+    );
+
+    const fieldwork = groups.find((group) => group.groupName === "Fieldwork");
+
+    const unclassified = groups.find((group) => group.groupName === "Unclassified");
+
+    expect(fieldwork).toBeDefined();
+    expect(unclassified).toMatchObject({
+      estimatedMinutes: 20,
+      loggedMinutes: 20,
+      actualCostToDate: 20,
+      forecastCost: 50,
+    });
+
+    expect(groups.some((group) => group.groupName === "Admin")).toBe(false);
   });
 });
