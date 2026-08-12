@@ -28,9 +28,14 @@ import {
 } from "./fields";
 import { teamworkNumericId } from "./id";
 import { parseJobRoleCostRate } from "./job-role-rates";
+import { teamworkUserCostRate } from "./user-cost";
 import { teamworkDateText } from "./date";
 import { normalizeTeamworkLabel, teamworkLabelText } from "./normalize";
 import { projectReportingPolicy } from "./project-inclusion";
+import {
+  isCompleteSinglePageProjectFetch,
+  missingTeamworkProjectIds,
+} from "./project-reconciliation";
 import { buildTaskListProjectEvidence } from "./tasklist-recovery";
 import {
   ENTITY_ID_PATHS,
@@ -402,6 +407,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         (row) => row.teamworkId,
       ),
     );
+    const returnedProjectTeamworkIds = new Set<number>();
     const dataHallProjectIds = new Set<string>();
     const readySetProjectIds = new Set<string>();
 
@@ -412,6 +418,9 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         issues.warn("PROJECT_ID_MISSING", "Project has no valid Teamwork ID.", "project", null);
         continue;
       }
+
+      returnedProjectTeamworkIds.add(teamworkId);
+
       const companyTeamworkId = idAtPaths(row, ["companyId", "company.id", "company.idValue"]);
       const projectTagRefs = Array.isArray(row.tags)
         ? row.tags
@@ -491,6 +500,41 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       }
     }
 
+    if (isCompleteSinglePageProjectFetch(projectRows.length, 500)) {
+      const missingProjectIds = missingTeamworkProjectIds(
+        existingProjects,
+        returnedProjectTeamworkIds,
+      );
+
+      for (const teamworkId of missingProjectIds) {
+        await db
+          .update(projects)
+          .set({
+            excludedFromReporting: true,
+            exclusionReason: "Not returned by latest complete Teamwork project sync.",
+            updatedAt: new Date(),
+          })
+          .where(eq(projects.teamworkId, teamworkId));
+      }
+
+      if (missingProjectIds.length > 0) {
+        console.log(
+          `Excluded ${missingProjectIds.length} local project(s) not returned by Teamwork.`,
+        );
+      }
+    } else {
+      issues.warn(
+        "PROJECT_RECONCILIATION_SKIPPED",
+        "Project absence reconciliation was skipped because the Teamwork project page was full.",
+        "project",
+        null,
+        {
+          returnedProjects: projectRows.length,
+          pageSize: 500,
+        },
+      );
+    }
+
     console.log("[2/6] Importing employees and job roles...");
     const peopleRows = await paged(
       connection,
@@ -512,7 +556,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         continue;
       }
       const companyTeamworkId = idAtPaths(row, ["companyId", "company.id"]);
-      const costRate = numberAtPaths(row, ["userCost", "costRate"]);
+      const costRate = teamworkUserCostRate(numberAtPaths(row, ["userCost"]));
       await db
         .insert(people)
         .values({

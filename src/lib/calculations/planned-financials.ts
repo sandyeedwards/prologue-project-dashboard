@@ -29,7 +29,11 @@ function normalized(value: string | null | undefined): string {
 export function selectRevenueBudget(
   projectBudgets: readonly ProjectBudgetSource[],
 ): ProjectBudgetSource | null {
-  const explicitCurrent = projectBudgets.find((budget) => budget.isCurrent);
+  const explicitCurrent = projectBudgets.find(
+    (budget) =>
+      budget.isCurrent &&
+      (normalized(budget.category) === "" || normalized(budget.category) === "FIXEDFEE"),
+  );
 
   if (explicitCurrent) {
     return explicitCurrent;
@@ -90,7 +94,21 @@ export function calculatePlannedFinancials(
   taskListBudgets: readonly TaskListBudgetSource[],
 ) {
   const revenueBudget = selectRevenueBudget(projectBudgets);
-  const clientFee = numeric(revenueBudget?.clientFee);
+
+  const activeFixedFeeBudgets = projectBudgets.filter(
+    (budget) =>
+      normalized(budget.category) === "FIXEDFEE" && normalized(budget.status) === "ACTIVE",
+  );
+
+  const revenueBudgets =
+    activeFixedFeeBudgets.length > 0 ? activeFixedFeeBudgets : revenueBudget ? [revenueBudget] : [];
+
+  const revenueFeeValues = revenueBudgets.map((budget) => numeric(budget.clientFee));
+
+  const clientFee =
+    revenueBudgets.length === 0 || revenueFeeValues.some((value) => value === null)
+      ? null
+      : revenueFeeValues.reduce<number>((sum, value) => sum + (value ?? 0), 0);
 
   const projectBudgetIds = new Set(projectBudgets.map((budget) => budget.id));
 
@@ -131,6 +149,7 @@ export function calculatePlannedFinancials(
 
   return {
     revenueBudget,
+    revenueBudgets,
     clientFee,
     targetCost,
     targetProfit,

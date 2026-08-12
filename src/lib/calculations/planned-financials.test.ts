@@ -62,24 +62,54 @@ describe("selectRevenueBudget", () => {
     expect(result?.clientFee).toBe("53200.00");
   });
 
-  it("does not add Finance-budget capacities together for revenue", () => {
+  it("adds active fixed-fee budgets together for project revenue", () => {
     const result = calculatePlannedFinancials(
       [
         budget({
-          id: "original",
-          clientFee: "53200.00",
+          id: "four-seasons-original",
+          teamworkId: 356681,
+          clientFee: "83500.00",
+          status: "ACTIVE",
+          isCurrent: false,
+        }),
+        budget({
+          id: "four-seasons-additional",
+          teamworkId: 368247,
+          clientFee: "9378.00",
+          status: "ACTIVE",
+          isCurrent: true,
+        }),
+      ],
+      [],
+    );
+
+    expect(result.revenueBudget?.teamworkId).toBe(368247);
+    expect(result.revenueBudgets.map((item) => item.teamworkId)).toEqual([356681, 368247]);
+    expect(result.clientFee).toBe(92878);
+  });
+
+  it("does not add inactive fixed-fee budgets to project revenue", () => {
+    const result = calculatePlannedFinancials(
+      [
+        budget({
+          id: "active",
+          teamworkId: 1001,
+          clientFee: "50000.00",
+          status: "ACTIVE",
           isCurrent: true,
         }),
         budget({
-          id: "change-order",
-          clientFee: "3000.00",
+          id: "inactive",
+          teamworkId: 1002,
+          clientFee: "25000.00",
+          status: "COMPLETED",
           isCurrent: false,
         }),
       ],
       [],
     );
 
-    expect(result.clientFee).toBe(53200);
+    expect(result.clientFee).toBe(50000);
   });
 });
 
