@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ChartPanel,
-  HealthDonut,
+  MarginSummaryDonut,
   PortfolioAnalysisDisclosure,
 } from "@/components/reporting-charts";
 import { DashboardProfitabilityTabs } from "@/components/dashboard-profitability-tabs";
@@ -345,7 +345,7 @@ export function CombinedPortfolioReport({
 
       <section
         className="executive-report-stack"
-        aria-label="Combined portfolio profitability, health, and effort"
+        aria-label="Combined portfolio profitability, margin, and effort"
       >
         <DashboardProfitabilityTabs
           groupRows={profitabilityRows}
@@ -359,14 +359,12 @@ export function CombinedPortfolioReport({
         <div className="executive-support-row">
           <ChartPanel
             className="executive-report-grid__health executive-support-row__health"
-            eyebrow="Portfolio condition"
-            title="Health Summary"
+            eyebrow="Portfolio margin"
+            title="Margin Summary"
+            description="Project counts use the same forecast-margin thresholds applied throughout reporting."
           >
-            <HealthDonut
-              green={summary.greenCount}
-              amber={summary.amberCount}
-              red={summary.redCount}
-              gray={summary.grayCount}
+            <MarginSummaryDonut
+              margins={projects.map((project) => project.forecastMarginPercent)}
             />
           </ChartPanel>
           <ChartPanel
