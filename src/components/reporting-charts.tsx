@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import type { ProfitabilityRow } from "@/components/profitability-chart-types";
 import { MarginBadge } from "@/components/reporting-ui";
+import { PrologueMark } from "@/components/prologue-brand";
 import type { ProjectReportRow } from "@/lib/reporting/dashboard-data";
 import { hours, money, percent } from "@/lib/reporting/format";
 
@@ -347,7 +348,7 @@ function AnalysisTakeaway({ rows }: { rows: ProfitabilityRow[] }) {
   return (
     <aside className="analysis-takeaway">
       <span className="analysis-takeaway__icon" aria-hidden="true">
-        Ã¢â€ â€”
+        <PrologueMark height={28} className="analysis-takeaway__mark" />
       </span>
       <div>
         <strong>Key takeaway</strong>

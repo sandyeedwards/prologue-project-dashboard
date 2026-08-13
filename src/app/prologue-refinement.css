@@ -1268,13 +1268,19 @@ textarea {
 
 .analysis-takeaway__icon {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
   place-items: center;
+  border: 1px solid #cfe0f4;
   border-radius: 6px;
-  color: #fff;
-  background: var(--accent);
+  background: #fff;
+}
+
+.analysis-takeaway__mark {
+  display: block;
+  width: auto;
+  height: 28px;
 }
 
 .analysis-takeaway strong {
