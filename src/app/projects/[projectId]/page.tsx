@@ -131,6 +131,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
       targetCoverage: group.targetCostCoverage,
       actual: actualLabor === null || actualNonLabor === null ? null : actualLabor + actualNonLabor,
       forecast: numeric(group.forecastCost),
+      progressPercent: numeric(group.progressPercent),
     };
   });
 
@@ -286,7 +287,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <ChartPanel
             eyebrow="Cost performance"
             title="Cost against target by group"
-            description="Actual cost and costed remaining work are shown for every operational group. Complete task-list budgets add a planned-cost target and over/under comparison; groups without a complete target remain N/A rather than being compared with $0."
+            description="Actual cost and costed remaining work build to the forecast. Green shows forecast headroom below a complete planned-cost target; red shows cost above target. Groups without a complete target remain N/A."
           >
             <CostPerformanceChart rows={groupCostPerformanceRows} />
           </ChartPanel>

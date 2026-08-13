@@ -574,6 +574,7 @@ export function CostPerformanceChart({
     targetCoverage: "COMPLETE" | "PARTIAL" | "MISSING" | "NOT_EXPECTED";
     actual: number | null;
     forecast: number | null;
+    progressPercent: number | null;
   }>;
   emptyMessage?: string;
 }) {
@@ -586,8 +587,8 @@ export function CostPerformanceChart({
   return (
     <div
       className="cost-performance-chart"
-      role="img"
-      aria-label="Operational group actual and forecast cost compared with planned cost where a complete target exists"
+      role="group"
+      aria-label="Operational group actual cost, remaining work, forecast cost, and planned cost target"
     >
       <div className="chart-legend" aria-hidden="true">
         <span>
@@ -601,12 +602,16 @@ export function CostPerformanceChart({
         {hasCompleteTarget ? (
           <>
             <span>
-              <i className="cost-performance__target-key" />
-              Planned cost target
+              <i className="chart-swatch cost-performance__headroom-key" />
+              Target headroom
             </span>
             <span>
               <i className="chart-swatch cost-performance__overrun-key" />
               Above target
+            </span>
+            <span>
+              <i className="cost-performance__target-key" />
+              Planned target
             </span>
           </>
         ) : null}
@@ -614,35 +619,51 @@ export function CostPerformanceChart({
 
       <div className="cost-performance__rows">
         {rows.map((row) => {
-          const actualValue = row.actual;
-          const forecastValue = row.forecast;
-          const actualKnown = finite(actualValue);
-          const forecastKnown = finite(forecastValue);
+          const actualKnown = finite(row.actual);
+          const forecastKnown = finite(row.forecast);
 
-          const actual = actualKnown ? Math.max(actualValue, 0) : 0;
-          const forecast = forecastKnown ? Math.max(forecastValue, actual) : actual;
+          const actual = actualKnown ? Math.max(row.actual ?? 0, 0) : 0;
+          const forecast = forecastKnown ? Math.max(row.forecast ?? actual, actual) : actual;
+          const remainingKnown = actualKnown && forecastKnown;
+          const remaining = remainingKnown ? Math.max(forecast - actual, 0) : 0;
 
           const knownTarget = finite(row.target) && row.target > 0 ? row.target : null;
-
           const targetComparable = row.targetCoverage === "COMPLETE" && knownTarget !== null;
-
           const partialTarget = row.targetCoverage === "PARTIAL" && knownTarget !== null;
+          const isComplete = finite(row.progressPercent) && row.progressPercent >= 100;
 
-          const scale = Math.max(knownTarget ?? 0, forecast, actual, 1);
+          const scale =
+            targetComparable && knownTarget !== null
+              ? Math.max(knownTarget * 1.12, forecast * 1.03, actual * 1.03, 1)
+              : Math.max(forecast, actual, 1);
 
-          const actualWidth = (Math.min(actual, scale) / scale) * 100;
+          const actualWithinTarget =
+            targetComparable && knownTarget !== null ? Math.min(actual, knownTarget) : actual;
 
-          const remainingWidth = (Math.max(forecast - actual, 0) / scale) * 100;
+          const forecastWithinTarget =
+            targetComparable && knownTarget !== null ? Math.min(forecast, knownTarget) : forecast;
+
+          const remainingWithinTarget = Math.max(
+            forecastWithinTarget - actualWithinTarget,
+            0,
+          );
+
+          const actualWidth = (actualWithinTarget / scale) * 100;
+          const remainingLeft = (actualWithinTarget / scale) * 100;
+          const remainingWidth = (remainingWithinTarget / scale) * 100;
 
           const targetPosition =
             targetComparable && knownTarget !== null ? (knownTarget / scale) * 100 : null;
 
+          const headroom =
+            targetComparable && knownTarget !== null ? Math.max(knownTarget - forecast, 0) : 0;
+          const headroomLeft = (forecast / scale) * 100;
+          const headroomWidth = (headroom / scale) * 100;
+
           const overrun =
             targetComparable && knownTarget !== null ? Math.max(forecast - knownTarget, 0) : 0;
-
           const overrunLeft =
             targetComparable && knownTarget !== null ? (knownTarget / scale) * 100 : 0;
-
           const overrunWidth = (overrun / scale) * 100;
 
           const variance =
@@ -650,30 +671,35 @@ export function CostPerformanceChart({
               ? knownTarget - forecast
               : null;
 
-          let status = "No planned cost budget";
+          let status = "No planned target";
           let statusTone: "neutral" | "favorable" | "unfavorable" = "neutral";
 
-          if (row.targetCoverage === "NOT_EXPECTED" && row.label === "Admin") {
-            status = "Unbudgeted administrative cost";
-          }
-
           if (row.targetCoverage === "PARTIAL") {
-            status = "Planned cost budget incomplete";
+            status = "Planned target incomplete";
           }
 
-          if (targetComparable) {
+          if (targetComparable && knownTarget !== null) {
             if (!forecastKnown) {
               status = "Forecast cost missing";
             }
 
-            if (forecastKnown && variance !== null && variance >= 0) {
-              status = `${compactCurrency(variance)} under target`;
-              statusTone = "favorable";
-            }
-
-            if (forecastKnown && variance !== null && variance < 0) {
-              status = `${compactCurrency(Math.abs(variance))} over target`;
+            if (!isComplete && actualKnown && actual > knownTarget) {
+              status =
+                "Already " + compactCurrency(actual - knownTarget) + " over target";
               statusTone = "unfavorable";
+            } else if (forecastKnown && variance !== null && variance > 0.005) {
+              status = isComplete
+                ? "Came in " + compactCurrency(variance) + " under target"
+                : "Forecast " + compactCurrency(variance) + " under target";
+              statusTone = "favorable";
+            } else if (forecastKnown && variance !== null && variance < -0.005) {
+              status = isComplete
+                ? "Came in " + compactCurrency(Math.abs(variance)) + " over target"
+                : "Forecast " + compactCurrency(Math.abs(variance)) + " over target";
+              statusTone = "unfavorable";
+            } else if (forecastKnown && variance !== null) {
+              status = isComplete ? "Came in on target" : "Forecast on target";
+              statusTone = "favorable";
             }
           }
 
@@ -682,39 +708,55 @@ export function CostPerformanceChart({
               <div className="cost-performance__heading">
                 <strong>{row.label}</strong>
                 <span
-                  className={`cost-performance__status cost-performance__status--${statusTone}`}
+                  className={
+                    "cost-performance__status cost-performance__status--" + statusTone
+                  }
                 >
                   {status}
                 </span>
               </div>
 
               <div className="cost-performance__track" aria-hidden="true">
+                {headroom > 0 ? (
+                  <span
+                    className="cost-performance__headroom"
+                    style={
+                      {
+                        "--cost-left": String(headroomLeft) + "%",
+                        "--cost-width": String(headroomWidth) + "%",
+                      } as CSSProperties
+                    }
+                  />
+                ) : null}
+
                 <span
                   className="cost-performance__actual"
                   style={
                     {
-                      "--cost-width": `${actualWidth}%`,
+                      "--cost-width": String(actualWidth) + "%",
                     } as CSSProperties
                   }
                 />
 
-                <span
-                  className="cost-performance__remaining"
-                  style={
-                    {
-                      "--cost-left": `${actualWidth}%`,
-                      "--cost-width": `${remainingWidth}%`,
-                    } as CSSProperties
-                  }
-                />
+                {remainingWidth > 0 ? (
+                  <span
+                    className="cost-performance__remaining"
+                    style={
+                      {
+                        "--cost-left": String(remainingLeft) + "%",
+                        "--cost-width": String(remainingWidth) + "%",
+                      } as CSSProperties
+                    }
+                  />
+                ) : null}
 
                 {overrun > 0 ? (
                   <span
                     className="cost-performance__overrun"
                     style={
                       {
-                        "--cost-left": `${overrunLeft}%`,
-                        "--cost-width": `${overrunWidth}%`,
+                        "--cost-left": String(overrunLeft) + "%",
+                        "--cost-width": String(overrunWidth) + "%",
                       } as CSSProperties
                     }
                   />
@@ -725,7 +767,7 @@ export function CostPerformanceChart({
                     className="cost-performance__target"
                     style={
                       {
-                        "--target-position": `${targetPosition}%`,
+                        "--target-position": String(targetPosition) + "%",
                       } as CSSProperties
                     }
                   />
@@ -734,33 +776,26 @@ export function CostPerformanceChart({
 
               <div className="cost-performance__values">
                 <span>
-                  Actual <strong>{actualKnown ? compactCurrency(actual) : "Missing"}</strong>
+                  Actual
+                  <strong>{actualKnown ? compactCurrency(actual) : "Missing"}</strong>
                 </span>
 
                 <span>
-                  Forecast{" "}
-                  <strong>{forecastKnown ? compactCurrency(forecastValue) : "Missing"}</strong>
+                  Remaining
+                  <strong>{remainingKnown ? compactCurrency(remaining) : "Missing"}</strong>
                 </span>
 
-                {targetComparable && knownTarget !== null ? (
-                  <span>
-                    Target <strong>{compactCurrency(knownTarget)}</strong>
-                  </span>
-                ) : partialTarget && knownTarget !== null ? (
-                  <span>
-                    Known planned cost <strong>{compactCurrency(knownTarget)}</strong>
-                  </span>
-                ) : (
-                  <span>
-                    Target <strong>N/A</strong>
-                  </span>
-                )}
+                <span>
+                  Forecast
+                  <strong>{forecastKnown ? compactCurrency(forecast) : "Missing"}</strong>
+                </span>
 
-                {overrun > 0 ? (
-                  <span className="cost-performance__overrun-value">
-                    Above target <strong>{compactCurrency(overrun)}</strong>
-                  </span>
-                ) : null}
+                <span>
+                  {partialTarget ? "Known target" : "Target"}
+                  <strong>
+                    {knownTarget !== null ? compactCurrency(knownTarget) : "N/A"}
+                  </strong>
+                </span>
               </div>
             </div>
           );
@@ -769,6 +804,7 @@ export function CostPerformanceChart({
     </div>
   );
 }
+
 export function SingleValueBars({
   rows,
   valueKind = "currency",
