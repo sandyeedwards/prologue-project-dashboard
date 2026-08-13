@@ -5,6 +5,7 @@ import { MarginBadge } from "@/components/reporting-ui";
 import { PrologueMark } from "@/components/prologue-brand";
 import type { ProjectReportRow } from "@/lib/reporting/dashboard-data";
 import { hours, money, percent } from "@/lib/reporting/format";
+import { marginTone } from "@/lib/reporting/margin-status";
 
 export type ChartSeries = {
   key: string;
@@ -137,34 +138,64 @@ export function GroupedBarChart({
   );
 }
 
-export function HealthDonut({
-  green,
-  amber,
-  red,
-  gray,
+export function MarginSummaryDonut({
+  margins,
 }: {
-  green: number;
-  amber: number;
-  red: number;
-  gray: number;
+  margins: Array<string | number | null | undefined>;
 }) {
+  const counts = {
+    green: 0,
+    yellow: 0,
+    red: 0,
+    neutral: 0,
+  };
+
+  for (const margin of margins) {
+    counts[marginTone(margin)] += 1;
+  }
+
   const segments = [
-    { label: "Healthy", value: green, tone: "green" },
-    { label: "At risk", value: amber, tone: "amber" },
-    { label: "Unhealthy", value: red, tone: "red" },
-    { label: "N/A", value: gray, tone: "gray" },
+    {
+      label: "Strong margin",
+      detail: "50% or higher",
+      value: counts.green,
+      tone: "green",
+    },
+    {
+      label: "Watch margin",
+      detail: "Above 35% and below 50%",
+      value: counts.yellow,
+      tone: "amber",
+    },
+    {
+      label: "Low margin",
+      detail: "35% or lower",
+      value: counts.red,
+      tone: "red",
+    },
+    {
+      label: "N/A",
+      detail: "No margin",
+      value: counts.neutral,
+      tone: "gray",
+    },
   ] as const;
+
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
-  if (!total) return <div className="chart-empty">No calculated projects are available.</div>;
+
+  if (!total) {
+    return <div className="chart-empty">No calculated projects are available.</div>;
+  }
 
   let offset = 0;
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
+
   return (
     <div
       className="donut-chart"
       role="img"
-      aria-label={`Project health distribution across ${total} projects`}
+      aria-label={`Forecast margin distribution across ${total} projects`}
     >
       <div className="donut-chart__graphic">
         <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -173,6 +204,7 @@ export function HealthDonut({
             const length = (segment.value / total) * circumference;
             const currentOffset = offset;
             offset += length;
+
             return (
               <circle
                 key={segment.label}
@@ -186,11 +218,13 @@ export function HealthDonut({
             );
           })}
         </svg>
+
         <div className="donut-chart__center">
           <strong>{total}</strong>
           <span>projects</span>
         </div>
       </div>
+
       <div className="donut-chart__legend">
         {segments.map((segment) => (
           <div key={segment.label}>
@@ -199,7 +233,7 @@ export function HealthDonut({
               {segment.label}
             </span>
             <strong>{segment.value}</strong>
-            <small>{((segment.value / total) * 100).toFixed(0)}%</small>
+            <small>{segment.detail}</small>
           </div>
         ))}
       </div>
