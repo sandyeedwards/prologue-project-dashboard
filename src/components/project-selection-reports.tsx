@@ -18,7 +18,7 @@ import {
   type PortfolioOperationalGroupRow,
   type ProjectReportRow,
 } from "@/lib/reporting/dashboard-data";
-import { hours, money, percent } from "@/lib/reporting/format";
+import { hours, money } from "@/lib/reporting/format";
 
 function numeric(value: string | null): number | null {
   if (value === null || value.trim() === "") return null;

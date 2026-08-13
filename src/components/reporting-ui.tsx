@@ -6,7 +6,7 @@ import {
   type HealthBand,
   type ProjectReportRow,
 } from "@/lib/reporting/dashboard-data";
-import { hours, money, percent } from "@/lib/reporting/format";
+import { hours, money } from "@/lib/reporting/format";
 import { marginTone } from "@/lib/reporting/margin-status";
 
 export function HealthBadge({ band, score }: { band: HealthBand; score: string | number | null }) {
