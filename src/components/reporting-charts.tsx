@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import type { ProfitabilityRow } from "@/components/profitability-chart-types";
+import { MarginBadge } from "@/components/reporting-ui";
+import { PrologueMark } from "@/components/prologue-brand";
 import type { ProjectReportRow } from "@/lib/reporting/dashboard-data";
 import { hours, money, percent } from "@/lib/reporting/format";
 
@@ -346,7 +348,7 @@ function AnalysisTakeaway({ rows }: { rows: ProfitabilityRow[] }) {
   return (
     <aside className="analysis-takeaway">
       <span className="analysis-takeaway__icon" aria-hidden="true">
-        Ã¢â€ â€”
+        <PrologueMark height={28} className="analysis-takeaway__mark" />
       </span>
       <div>
         <strong>Key takeaway</strong>
@@ -384,9 +386,8 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
           <tr>
             <th>Project</th>
             <th>Client</th>
-            <th>Health</th>
+            <th>Margin</th>
             <th>Forecast profit</th>
-            <th>Margin / ceiling</th>
             <th>Logged hours</th>
             <th>vs. estimate</th>
             <th>Task completion</th>
@@ -398,14 +399,6 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
             const estimateHours = project.canonicalEstimatedMinutes / 60;
             const loggedHours = project.loggedMinutes / 60;
             const effortPercent = estimateHours > 0 ? (loggedHours / estimateHours) * 100 : null;
-            const healthLabel =
-              project.healthBand === "GREEN"
-                ? "Healthy"
-                : project.healthBand === "AMBER"
-                  ? "At risk"
-                  : project.healthBand === "RED"
-                    ? "Unhealthy"
-                    : "N/A";
             return (
               <tr key={project.id}>
                 <td>
@@ -418,11 +411,12 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
                 </td>
                 <td>{project.companyName ?? "Ã¢â‚¬â€"}</td>
                 <td>
-                  <span
-                    className={`project-health-label project-health-label--${project.healthBand.toLowerCase()}`}
-                  >
-                    {healthLabel}
-                  </span>
+                  <MarginBadge value={project.forecastMarginPercent} />
+                  {project.isProvisional ? (
+                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
+                  ) : (
+                    <small className="table-subvalue">Forecast</small>
+                  )}
                 </td>
                 <td
                   className={
@@ -433,12 +427,7 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
                 >
                   {money(project.forecastProfit)}
                 </td>
-                <td>
-                  {percent(project.forecastMarginPercent, 2)}
-                  {project.isProvisional ? (
-                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
-                  ) : null}
-                </td>
+
                 <td>{hours(project.loggedMinutes)}</td>
                 <td>{effortPercent === null ? "N/A" : `${effortPercent.toFixed(0)}%`}</td>
                 <td>{percent(project.progressPercent)}</td>
@@ -458,7 +447,7 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
           })}
           {!sorted.length ? (
             <tr>
-              <td className="empty-state" colSpan={9}>
+              <td className="empty-state" colSpan={8}>
                 No projects are available in this report.
               </td>
             </tr>

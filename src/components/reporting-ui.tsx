@@ -6,7 +6,8 @@ import {
   type HealthBand,
   type ProjectReportRow,
 } from "@/lib/reporting/dashboard-data";
-import { hours, money, percent } from "@/lib/reporting/format";
+import { hours, money } from "@/lib/reporting/format";
+import { marginTone } from "@/lib/reporting/margin-status";
 
 export function HealthBadge({ band, score }: { band: HealthBand; score: string | number | null }) {
   const parsed = score === null || score === "" ? null : Number(score);
@@ -26,6 +27,38 @@ export function HealthBadge({ band, score }: { band: HealthBand; score: string |
       {label}
     </span>
   );
+}
+
+export function MarginBadge({
+  value,
+  digits = 1,
+}: {
+  value: string | number | null | undefined;
+  digits?: number;
+}) {
+  const tone = marginTone(value);
+  const parsed = value === null || value === undefined || value === "" ? null : Number(value);
+  const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : "N/A";
+
+  return (
+    <span className={`margin-badge margin-badge--${tone}`} aria-label={`Margin ${label}`}>
+      {label}
+    </span>
+  );
+}
+
+export function MarginText({
+  value,
+  digits = 1,
+}: {
+  value: string | number | null | undefined;
+  digits?: number;
+}) {
+  const tone = marginTone(value);
+  const parsed = value === null || value === undefined || value === "" ? null : Number(value);
+  const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : "N/A";
+
+  return <span className={`margin-text margin-text--${tone}`}>{label}</span>;
 }
 
 export function CoverageBadge({ value }: { value: Coverage }) {
@@ -141,11 +174,10 @@ export function ProjectTable({
           <tr>
             {selectable ? <th aria-label="Select project">Select</th> : null}
             <th>Project</th>
-            <th>Health</th>
+            <th>Margin</th>
             <th>Actual Cost</th>
             <th>Remaining Work</th>
             <th>Forecasted Profit</th>
-            <th>Margin</th>
             <th>Hours</th>
             <th>Quality</th>
           </tr>
@@ -161,10 +193,7 @@ export function ProjectTable({
                 ? row.name.slice(projectPrefix.length)
                 : row.name;
             return (
-              <tr
-                className={`project-table__row project-table__row--${row.healthBand.toLowerCase()}`}
-                key={row.id}
-              >
+              <tr className="project-table__row" key={row.id}>
                 {selectable ? (
                   <td>
                     <input
@@ -199,7 +228,12 @@ export function ProjectTable({
                   </div>
                 </td>
                 <td>
-                  <HealthBadge band={row.healthBand} score={row.healthScore} />
+                  <MarginBadge value={row.forecastMarginPercent} />
+                  {row.isProvisional ? (
+                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
+                  ) : (
+                    <small className="table-subvalue">Forecast</small>
+                  )}
                 </td>
                 <td className="project-table__money">
                   <strong>{money(row.actualTotalCost)}</strong>
@@ -214,14 +248,6 @@ export function ProjectTable({
                   <small className="table-subvalue">
                     {profitTone === "loss" ? "Forecast loss" : "Unspent revenue"}
                   </small>
-                </td>
-                <td>
-                  <strong>{percent(row.forecastMarginPercent, 1)}</strong>
-                  {row.isProvisional ? (
-                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
-                  ) : (
-                    <small className="table-subvalue">Forecast</small>
-                  )}
                 </td>
                 <td>
                   {hours(row.loggedMinutes)}
@@ -243,7 +269,7 @@ export function ProjectTable({
           })}
           {!rows.length ? (
             <tr>
-              <td colSpan={selectable ? 9 : 8} className="empty-state">
+              <td colSpan={selectable ? 8 : 7} className="empty-state">
                 No projects match these filters.
               </td>
             </tr>

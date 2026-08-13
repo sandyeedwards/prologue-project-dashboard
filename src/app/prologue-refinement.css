@@ -1268,13 +1268,19 @@ textarea {
 
 .analysis-takeaway__icon {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
   place-items: center;
+  border: 1px solid #cfe0f4;
   border-radius: 6px;
-  color: #fff;
-  background: var(--accent);
+  background: #fff;
+}
+
+.analysis-takeaway__mark {
+  display: block;
+  width: auto;
+  height: 28px;
 }
 
 .analysis-takeaway strong {
@@ -2022,13 +2028,13 @@ textarea {
 .compare-register__head,
 .compare-register__row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) 92px repeat(3, minmax(110px, 0.68fr)) 76px minmax(
+  grid-template-columns: minmax(220px, 1.35fr) 92px repeat(3, minmax(110px, 0.68fr)) minmax(
       210px,
       1fr
     );
   align-items: center;
   gap: 12px;
-  min-width: 1160px;
+  min-width: 1060px;
 }
 
 .compare-register__head {
@@ -2903,8 +2909,7 @@ textarea {
 
 .executive-support-row__effort .hours-completion__rows {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .executive-support-row__effort .hours-completion__row {

@@ -23,12 +23,12 @@ import {
 } from "@/db/schema";
 import { REPORTING_RULES } from "@/config/reporting-rules";
 import { normalizeTeamworkLabel } from "@/lib/teamwork/normalize";
-import { calculateCanonicalTaskMetrics, rootTaskIds } from "./canonical-estimates";
+import { calculateCanonicalTaskMetrics } from "./canonical-estimates";
 import { collectBranchUserIds, extractAssignments } from "./assignments";
 import { resolveForecastAssignment } from "./forecast-assignment";
 import { calculateHealth } from "./health";
 import { resolveExpenseCoverage } from "./expense-coverage";
-import { createOutsourcedBranchResolver } from "./outsourced";
+import { createOutsourcedBranchResolver, sumInternalCanonicalEstimatedMinutes } from "./outsourced";
 import { calculatePlannedFinancials, calculateTaskListBudgetCoverage } from "./planned-financials";
 import type { CalculationTaskInput, Coverage } from "./types";
 import { identifyUnplannedTopLevelTasks } from "./unplanned-work";
@@ -273,10 +273,10 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       const canonical = calculateCanonicalTaskMetrics(taskInputs, ownLoggedByTask);
       const rawByTaskId = new Map<string, unknown>(projectTasks.map((task) => [task.id, task.raw]));
       const isOutsourcedBranch = createOutsourcedBranchResolver(projectTasks, isOutsourcedName);
-      const roots = rootTaskIds(taskInputs);
-      const canonicalEstimatedMinutes = roots.reduce(
-        (sum, rootId) => sum + (canonical.get(rootId)?.branchEstimatedMinutes ?? 0),
-        0,
+      const canonicalEstimatedMinutes = sumInternalCanonicalEstimatedMinutes(
+        projectTasks.map((task) => task.id),
+        canonical,
+        isOutsourcedBranch,
       );
       const taskLinkedMinutes = projectTime
         .filter((entry) => entry.taskId !== null)
@@ -715,9 +715,10 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         const groupTime = projectTime.filter(
           (entry) => entry.taskId && groupTaskIds.has(entry.taskId),
         );
-        const groupEstimated = groupTasks.reduce(
-          (sum, task) => sum + (canonical.get(task.id)?.countedEstimatedMinutes ?? 0),
-          0,
+        const groupEstimated = sumInternalCanonicalEstimatedMinutes(
+          groupTasks.map((task) => task.id),
+          canonical,
+          isOutsourcedBranch,
         );
         const groupLogged = groupTime.reduce((sum, entry) => sum + entry.minutes, 0);
         const groupLaborHolders = groupTasks.filter(
