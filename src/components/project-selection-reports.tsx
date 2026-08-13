@@ -361,11 +361,11 @@ export function CombinedPortfolioReport({
             className="executive-report-grid__health executive-support-row__health"
             eyebrow="Portfolio margin"
             title="Margin Summary"
-              description="Project counts use the same forecast-margin thresholds applied throughout reporting."
+            description="Project counts use the same forecast-margin thresholds applied throughout reporting."
           >
             <MarginSummaryDonut
-                margins={projects.map((project) => project.forecastMarginPercent)}
-              />
+              margins={projects.map((project) => project.forecastMarginPercent)}
+            />
           </ChartPanel>
           <ChartPanel
             className="executive-report-grid__effort executive-support-row__effort"

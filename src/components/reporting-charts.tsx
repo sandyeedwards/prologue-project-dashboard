@@ -643,10 +643,7 @@ export function CostPerformanceChart({
           const forecastWithinTarget =
             targetComparable && knownTarget !== null ? Math.min(forecast, knownTarget) : forecast;
 
-          const remainingWithinTarget = Math.max(
-            forecastWithinTarget - actualWithinTarget,
-            0,
-          );
+          const remainingWithinTarget = Math.max(forecastWithinTarget - actualWithinTarget, 0);
 
           const actualWidth = (actualWithinTarget / scale) * 100;
           const remainingLeft = (actualWithinTarget / scale) * 100;
@@ -684,8 +681,7 @@ export function CostPerformanceChart({
             }
 
             if (!isComplete && actualKnown && actual > knownTarget) {
-              status =
-                "Already " + compactCurrency(actual - knownTarget) + " over target";
+              status = "Already " + compactCurrency(actual - knownTarget) + " over target";
               statusTone = "unfavorable";
             } else if (forecastKnown && variance !== null && variance > 0.005) {
               status = isComplete
@@ -708,9 +704,7 @@ export function CostPerformanceChart({
               <div className="cost-performance__heading">
                 <strong>{row.label}</strong>
                 <span
-                  className={
-                    "cost-performance__status cost-performance__status--" + statusTone
-                  }
+                  className={"cost-performance__status cost-performance__status--" + statusTone}
                 >
                   {status}
                 </span>
@@ -792,9 +786,7 @@ export function CostPerformanceChart({
 
                 <span>
                   {partialTarget ? "Known target" : "Target"}
-                  <strong>
-                    {knownTarget !== null ? compactCurrency(knownTarget) : "N/A"}
-                  </strong>
+                  <strong>{knownTarget !== null ? compactCurrency(knownTarget) : "N/A"}</strong>
                 </span>
               </div>
             </div>
