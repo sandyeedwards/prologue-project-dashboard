@@ -24,6 +24,14 @@ function formatPercent(value: number | null): string {
   return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}%`;
 }
 
+export function compressedHoursScalePercent(value: number, maximum: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  if (!Number.isFinite(maximum) || maximum <= 0) return 0;
+
+  const normalized = Math.min(value / maximum, 1);
+  return Math.sqrt(normalized) * 100;
+}
+
 export function HoursCompletionSummary({
   rows,
   emptyMessage = "No effort data is available.",
@@ -74,7 +82,7 @@ export function HoursCompletionSummary({
     <div
       className="hours-completion"
       role="img"
-      aria-label="Logged hours compared with estimated hours on a shared hours scale"
+      aria-label="Logged hours compared with estimated hours on a compressed shared hours scale"
     >
       <div className="chart-legend hours-completion__legend" aria-hidden="true">
         <span>
@@ -94,18 +102,20 @@ export function HoursCompletionSummary({
       <div className="hours-completion__rows">
         {normalized.map((row) => {
           const estimateWidth =
-            row.estimated === null ? 0 : (row.estimated / sharedHoursMaximum) * 100;
-
-          const loggedWithinEstimate =
-            row.logged === null
+            row.estimated === null
               ? 0
-              : row.estimated === null
-                ? row.logged
-                : Math.min(row.logged, row.estimated);
+              : compressedHoursScalePercent(row.estimated, sharedHoursMaximum);
 
-          const loggedWidth = (loggedWithinEstimate / sharedHoursMaximum) * 100;
+          const loggedTotalWidth =
+            row.logged === null ? 0 : compressedHoursScalePercent(row.logged, sharedHoursMaximum);
 
-          const overrunWidth = (row.overrunHours / sharedHoursMaximum) * 100;
+          const loggedWidth =
+            row.estimated === null ? loggedTotalWidth : Math.min(loggedTotalWidth, estimateWidth);
+
+          const overrunWidth =
+            row.estimated !== null && row.logged !== null
+              ? Math.max(loggedTotalWidth - estimateWidth, 0)
+              : 0;
 
           const style = {
             "--hours-estimate-width": String(estimateWidth) + "%",
@@ -175,9 +185,10 @@ export function HoursCompletionSummary({
       </div>
 
       <p className="hours-completion__note">
-        Estimate length shows relative workload across rows on a shared hours scale. Blue shows
-        logged hours within the estimate; red extends beyond the estimate when logged work is over
-        plan. Rows without an estimate show logged hours without a percentage target.
+        Bar lengths use a compressed shared hours scale (square-root) so smaller groups remain
+        readable while larger workloads still appear longer. Blue shows logged hours within the
+        estimate; red extends beyond the estimate when logged work is over plan. Rows without an
+        estimate show logged hours without a percentage target.
       </p>
     </div>
   );

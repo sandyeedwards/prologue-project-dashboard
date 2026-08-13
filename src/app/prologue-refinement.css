@@ -2903,8 +2903,7 @@ textarea {
 
 .executive-support-row__effort .hours-completion__rows {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .executive-support-row__effort .hours-completion__row {
