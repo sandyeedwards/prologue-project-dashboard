@@ -2022,13 +2022,13 @@ textarea {
 .compare-register__head,
 .compare-register__row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) 92px repeat(3, minmax(110px, 0.68fr)) 76px minmax(
+  grid-template-columns: minmax(220px, 1.35fr) 92px repeat(3, minmax(110px, 0.68fr)) minmax(
       210px,
       1fr
     );
   align-items: center;
   gap: 12px;
-  min-width: 1160px;
+  min-width: 1060px;
 }
 
 .compare-register__head {

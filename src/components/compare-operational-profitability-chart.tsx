@@ -11,6 +11,7 @@ import {
   type PointerEvent,
 } from "react";
 import type { PortfolioOperationalGroupRow } from "@/lib/reporting/dashboard-data";
+import { marginTone } from "@/lib/reporting/margin-status";
 
 export type ComparedProfitabilityPosition = {
   allocatedRevenue: number | null;
@@ -72,7 +73,7 @@ function fullCurrency(value: number | null | undefined): string {
 }
 
 function formatMargin(value: number | null | undefined): string {
-  if (!finite(value)) return "Ã¢â‚¬â€";
+  if (!finite(value)) return "N/A";
   return `${new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 1,
   }).format(value)}%`;
@@ -209,8 +210,8 @@ function ComparisonRow({
           <strong>Ã¢â‚¬â€</strong>
           <small>Forecast profit</small>
         </div>
-        <div className="compare-profitability-rows__margin">
-          <strong>Ã¢â‚¬â€</strong>
+        <div className="compare-profitability-rows__margin compare-profitability-rows__margin--neutral">
+          <strong>N/A</strong>
           <small>Margin</small>
         </div>
       </div>
@@ -275,6 +276,7 @@ function ComparisonRow({
     "--compare-loss-width": `${overrunWidth}%`,
   } as CSSProperties;
   const outcomeTone = position.forecastProfit < 0 ? "loss" : "profit";
+  const marginStatus = marginTone(position.marginPercent);
   const status = performanceStatus(position);
 
   return (
@@ -387,7 +389,11 @@ function ComparisonRow({
               </div>
             </dl>
             <div className="compare-profitability-rows__tooltip-footer">
-              <span>{formatMargin(position.marginPercent)} margin</span>
+              <span
+                className={`compare-profitability-rows__tooltip-margin compare-profitability-rows__tooltip-margin--${marginStatus}`}
+              >
+                {formatMargin(position.marginPercent)} margin
+              </span>
               <span>{row.project.isProvisional ? "Provisional" : "Complete"}</span>
             </div>
           </div>
@@ -402,7 +408,7 @@ function ComparisonRow({
       </div>
 
       <div
-        className={`compare-profitability-rows__margin compare-profitability-rows__margin--${outcomeTone}`}
+        className={`compare-profitability-rows__margin compare-profitability-rows__margin--${marginStatus}`}
       >
         <strong>{formatMargin(position.marginPercent)}</strong>
         <small>Margin</small>

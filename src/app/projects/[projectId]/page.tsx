@@ -5,7 +5,8 @@ import { ChartPanel, CostPerformanceChart, GroupedBarChart } from "@/components/
 import { ProjectFinancialPosition } from "@/components/project-financial-position";
 import {
   CoverageBadge,
-  HealthBadge,
+  MarginBadge,
+  MarginText,
   MetricCard,
   ProvisionalNotice,
 } from "@/components/reporting-ui";
@@ -144,7 +145,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
         <section className="page-heading page-heading--split project-heading">
           <div>
             <div className="heading-badges">
-              <HealthBadge band={project.healthBand} score={project.healthScore} />
+              <MarginBadge value={project.forecastMarginPercent} />
               {project.isProvisional ? <span className="tag tag--warning">Provisional</span> : null}
             </div>
             <h1>{project.name}</h1>
@@ -195,7 +196,12 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                   : "Unspent Revenue / Forecasted Profit"
               }
               value={money(project.forecastProfit)}
-              detail={`${percent(project.forecastMarginPercent, 1)} ${project.isProvisional ? "margin ceiling" : "forecast margin"}`}
+              detail={
+                <>
+                  <MarginText value={project.forecastMarginPercent} />{" "}
+                  {project.isProvisional ? "margin ceiling" : "forecast margin"}
+                </>
+              }
               tone={project.isProvisional ? "warning" : undefined}
             />
           </div>
@@ -208,7 +214,11 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             <MetricCard
               label="Profit to Date"
               value={money(actualProfit)}
-              detail={`${percent(actualMargin, 1)} margin to date`}
+              detail={
+                <>
+                  <MarginText value={actualMargin} /> margin to date
+                </>
+              }
             />
             <MetricCard
               label="Planned Cost"

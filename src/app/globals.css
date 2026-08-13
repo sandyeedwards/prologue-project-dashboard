@@ -10014,3 +10014,79 @@ body {
     text-align: left;
   }
 }
+
+/* Forecast margin status */
+.margin-badge {
+  display: inline-flex;
+  min-width: 82px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: 0.015em;
+}
+
+.margin-badge--green {
+  color: #0f6340;
+  background: #dff7e9;
+}
+
+.margin-badge--yellow {
+  color: #7a4a00;
+  background: #fff0c7;
+}
+
+.margin-badge--red {
+  color: #8e2525;
+  background: #ffe1e1;
+}
+
+.margin-badge--neutral {
+  color: #566071;
+  background: #edf0f4;
+}
+
+/* Shared margin thresholds in profitability comparisons */
+.compare-profitability-rows__margin--green strong,
+.compare-profitability-rows__tooltip-margin--green {
+  color: #0f6340;
+}
+
+.compare-profitability-rows__margin--yellow strong,
+.compare-profitability-rows__tooltip-margin--yellow {
+  color: #7a4a00;
+}
+
+.compare-profitability-rows__margin--red strong,
+.compare-profitability-rows__tooltip-margin--red {
+  color: #8e2525;
+}
+
+.compare-profitability-rows__margin--neutral strong,
+.compare-profitability-rows__tooltip-margin--neutral {
+  color: #566071;
+}
+
+/* Compact margin status */
+.margin-text {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.margin-text--green {
+  color: #0f6340;
+}
+
+.margin-text--yellow {
+  color: #7a4a00;
+}
+
+.margin-text--red {
+  color: #8e2525;
+}
+
+.margin-text--neutral {
+  color: #566071;
+}

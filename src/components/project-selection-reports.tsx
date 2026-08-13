@@ -12,7 +12,7 @@ import {
   CompareOperationalProfitabilityChart,
   type ComparedProjectOperationalGroups,
 } from "@/components/compare-operational-profitability-chart";
-import { CoverageBadge, HealthBadge, MetricCard } from "@/components/reporting-ui";
+import { CoverageBadge, MarginBadge, MetricCard } from "@/components/reporting-ui";
 import {
   summarizeProjects,
   type PortfolioOperationalGroupRow,
@@ -159,11 +159,10 @@ export function ProjectComparisonReport({
         <div className="compare-register__scroll">
           <div className="compare-register__head" aria-hidden="true">
             <span>Project</span>
-            <span>Health</span>
+            <span>Margin</span>
             <span>Actual Cost</span>
             <span>Remaining Work</span>
             <span>Forecast Profit</span>
-            <span>Margin</span>
             <span>Coverage</span>
           </div>
           <div className="compare-register__rows">
@@ -185,8 +184,9 @@ export function ProjectComparisonReport({
                       {project.isProvisional ? " · Provisional" : ""}
                     </span>
                   </div>
-                  <div>
-                    <HealthBadge band={project.healthBand} score={project.healthScore} />
+                  <div className="compare-register__margin">
+                    <MarginBadge value={project.forecastMarginPercent} />
+                    <small>{project.isProvisional ? "Ceiling" : "Forecast"}</small>
                   </div>
                   <div className="compare-register__money">
                     <strong>{money(project.actualTotalCost)}</strong>
@@ -204,10 +204,7 @@ export function ProjectComparisonReport({
                       {profit !== null && profit < 0 ? "Forecast loss" : "Unspent revenue"}
                     </small>
                   </div>
-                  <div className="compare-register__margin">
-                    <strong>{percent(project.forecastMarginPercent, 1)}</strong>
-                    <small>{project.isProvisional ? "Ceiling" : "Forecast"}</small>
-                  </div>
+
                   <div className="compare-register__coverage" aria-label="Source coverage">
                     <CoverageBadge value={project.laborCoverage} />
                     <CoverageBadge value={project.assignmentCoverage} />
@@ -334,7 +331,7 @@ export function CombinedPortfolioReport({
           />
           <MetricCard
             label={summary.provisionalCount ? "Margin Ceiling" : "Forecast Margin"}
-            value={combinedMargin === null ? "Missing" : `${combinedMargin.toFixed(1)}%`}
+            value={<MarginBadge value={combinedMargin} />}
             detail={knownFor(summary.forecastMarginKnownCount, summary.projectCount)}
             help="Combined forecast profit divided by combined client fees. This is not an average of the selected project margins."
           />
