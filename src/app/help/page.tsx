@@ -114,6 +114,9 @@ export default async function HelpPage() {
               the Teamwork record rather than editing calculated dashboard values. The NoReport tag
               is the sole reporting-exclusion tag; Ready Set and DataHall projects remain eligible.
             </p>
+            <Link className="button button--secondary button--small" href="/help/teamwork-issues">
+              Open Teamwork Issues
+            </Link>
           </article>
         </section>
 
