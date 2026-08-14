@@ -3685,6 +3685,56 @@ body {
   background: #fff;
 }
 
+.teamwork-issues-filter-panel {
+  padding: 22px;
+}
+
+.teamwork-issues-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.6fr) repeat(4, minmax(150px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.teamwork-issues-filter-grid__search {
+  min-width: 0;
+}
+
+.teamwork-issues-filter-grid__actions {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+}
+
+.teamwork-issues-filter-grid__actions .button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1200px) {
+  .teamwork-issues-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .teamwork-issues-filter-grid__search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .teamwork-issues-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .teamwork-issues-filter-grid__search {
+    grid-column: auto;
+  }
+
+  .teamwork-issues-filter-grid__actions {
+    flex-wrap: wrap;
+  }
+}
+
 .filter-panel--projects {
   padding: 22px;
 }

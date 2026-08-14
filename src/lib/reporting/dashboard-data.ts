@@ -150,10 +150,132 @@ export type UnplannedWorkRow = {
   laborCost: string | null;
   firstLoggedDate: string | null;
   lastLoggedDate: string | null;
+  lastDetectedAt: Date;
   isDismissed: boolean;
   dismissedAt: Date | null;
   dismissedByName: string | null;
 };
+
+export type TeamworkIssueStatus = "OPEN" | "REVIEWED";
+export type TeamworkIssueResolutionPath = "TEAMWORK_REQUIRED" | "TEAMWORK_OR_REVIEW";
+
+export type TeamworkIssueCenterRow = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  projectNumber: string | null;
+  companyName: string | null;
+  projectStatus: string;
+  taskId: string | null;
+  taskListName: string | null;
+  taskName: string | null;
+  severity: "INFO" | "WARNING" | "ERROR";
+  code: string;
+  message: string;
+  lastDetectedAt: Date;
+  recommendedAction: string;
+  status: TeamworkIssueStatus;
+  resolutionPath: TeamworkIssueResolutionPath;
+  teamworkUrl: string | null;
+  details: Record<string, unknown> | null;
+  evidence: QualityIssueEvidenceRow[];
+  reviewedAt: Date | null;
+  reviewedByName: string | null;
+};
+export type TeamworkSyncDiagnosticRow = {
+  id: string;
+  syncRunId: string;
+  severity: "INFO" | "WARNING" | "ERROR";
+  entityType: string | null;
+  teamworkEntityId: number | null;
+  code: string;
+  message: string;
+  details: Record<string, unknown> | null;
+  createdAt: Date;
+};
+
+export type TeamworkSyncDiagnostics = {
+  runId: string;
+  kind: "INITIAL_IMPORT" | "NIGHTLY" | "MANUAL" | "SNAPSHOT";
+  status: "RUNNING" | "SUCCEEDED" | "SUCCEEDED_WITH_WARNINGS" | "FAILED";
+  startedAt: Date;
+  completedAt: Date | null;
+  recordsRead: number;
+  warnings: number;
+  errors: number;
+  diagnostics: TeamworkSyncDiagnosticRow[];
+};
+
+function teamworkIssueGuidance(code: string): {
+  recommendedAction: string;
+  resolutionPath: TeamworkIssueResolutionPath;
+} {
+  switch (code) {
+    case "UNPLANNED_ACTUAL_WORK":
+      return {
+        recommendedAction:
+          "Add a top-level estimate in Teamwork, or have an Admin mark the item reviewed and leave it unplanned.",
+        resolutionPath: "TEAMWORK_OR_REVIEW",
+      };
+    case "MISSING_TASK_ASSIGNMENT":
+      return {
+        recommendedAction:
+          "Assign the remaining work to an individual or job role in Teamwork so forecast labor can be costed.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "NON_COSTED_ASSIGNMENT_UNRESOLVED":
+      return {
+        recommendedAction:
+          "Replace or supplement the team/company-only assignment with a costed individual or job role in Teamwork.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "MISSING_JOB_ROLE_COST_RATE":
+      return {
+        recommendedAction: "Add or correct the Teamwork cost rate for the assigned job role.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "MISSING_EMPLOYEE_COST_RATE":
+      return {
+        recommendedAction: "Add or correct the Teamwork cost rate for the assigned employee.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "TASK_LIST_BUDGET_COVERAGE_INCOMPLETE":
+      return {
+        recommendedAction:
+          "Complete the missing task-list target costs in the current Teamwork project budget.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "PROJECT_BUDGET_MISSING":
+      return {
+        recommendedAction:
+          "Create or correct the current fixed-fee project budget in Teamwork Finance.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "UNALLOCATED_PROJECT_TIME":
+      return {
+        recommendedAction:
+          "Move project-level time to the appropriate Teamwork task so it can be attributed to a task and operational group.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "ACTUAL_LABOR_COST_INCOMPLETE":
+      return {
+        recommendedAction:
+          "Correct the affected Teamwork cost data or underlying user cost rate, then rerun the sync.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "OUTSOURCED_EXPENSE_MISSING":
+      return {
+        recommendedAction: "Add the matching outsourced modeling expense in Teamwork Finance.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    default:
+      return {
+        recommendedAction:
+          "Review the source record in Teamwork and correct the reported data issue.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+  }
+}
 
 export type EmployeeLaborRow = {
   personId: string;
@@ -1429,7 +1551,12 @@ export async function getProjectQualityIssues(projectId: string): Promise<Qualit
 
 export async function getProjectUnplannedWork(projectId: string): Promise<UnplannedWorkRow[]> {
   const sql = getSqlClient();
-  const rows = await sql<(Omit<UnplannedWorkRow, "dismissedAt"> & { dismissedAt: unknown })[]>`
+  const rows = await sql<
+    (Omit<UnplannedWorkRow, "dismissedAt" | "lastDetectedAt"> & {
+      dismissedAt: unknown;
+      lastDetectedAt: unknown;
+    })[]
+  >`
     select
       dqi.id as "issueId",
       dqi.project_id as "projectId",
@@ -1437,6 +1564,7 @@ export async function getProjectUnplannedWork(projectId: string): Promise<Unplan
       nullif(dqi.details ->> 'teamworkTaskId', '')::bigint as "teamworkTaskId",
       t.name as "taskName",
       tl.name as "taskListName",
+      dqi.last_detected_at as "lastDetectedAt",
       coalesce((dqi.details ->> 'minutes')::int, 0) as "loggedMinutes",
       nullif(dqi.details ->> 'laborCost', '') as "laborCost",
       nullif(dqi.details ->> 'firstLoggedDate', '') as "firstLoggedDate",
@@ -1460,11 +1588,195 @@ export async function getProjectUnplannedWork(projectId: string): Promise<Unplan
   return rows.map((row) => ({
     ...row,
     teamworkTaskId: row.teamworkTaskId === null ? null : Number(row.teamworkTaskId),
+    lastDetectedAt: normalizeDatabaseDate(
+      row.lastDetectedAt,
+      `unplanned-work issue ${row.issueId} lastDetectedAt`,
+    ),
     dismissedAt: normalizeOptionalDatabaseDate(
       row.dismissedAt,
       `unplanned-work issue ${row.issueId} dismissedAt`,
     ),
   }));
+}
+
+export async function getTeamworkIssueCenterRows(): Promise<TeamworkIssueCenterRow[]> {
+  const sql = getSqlClient();
+  const [connection] = await sql<Array<{ apiEndpoint: string | null }>>`
+    select tc.api_endpoint as "apiEndpoint"
+    from teamwork_connections tc
+    where tc.is_active = true
+    order by tc.connected_at desc
+    limit 1
+  `;
+  const teamworkBase = connection?.apiEndpoint?.replace(/\/+$/, "") ?? null;
+  const projects = await getProjectRows();
+  const grouped = await Promise.all(
+    projects.map(async (project) => {
+      const [qualityIssues, unplannedWork] = await Promise.all([
+        getProjectQualityIssues(project.id),
+        getProjectUnplannedWork(project.id),
+      ]);
+
+      const qualityRows: TeamworkIssueCenterRow[] = qualityIssues.map((issue) => {
+        const guidance = teamworkIssueGuidance(issue.code);
+        return {
+          id: issue.id,
+          projectId: project.id,
+          projectName: project.name,
+          projectNumber: project.projectNumber,
+          companyName: project.companyName,
+          projectStatus: project.status,
+          taskId: issue.taskId,
+          taskListName: issue.taskListName,
+          taskName: issue.taskName,
+          severity: issue.severity,
+          code: issue.code,
+          message: issue.message,
+          lastDetectedAt: issue.lastDetectedAt,
+          recommendedAction: guidance.recommendedAction,
+          status: "OPEN",
+          resolutionPath: guidance.resolutionPath,
+          teamworkUrl: issue.teamworkUrl,
+          details: issue.details,
+          evidence: issue.evidence,
+          reviewedAt: null,
+          reviewedByName: null,
+        };
+      });
+
+      const unplannedRows: TeamworkIssueCenterRow[] = unplannedWork.map((issue) => {
+        const guidance = teamworkIssueGuidance("UNPLANNED_ACTUAL_WORK");
+        return {
+          id: issue.issueId,
+          projectId: project.id,
+          projectName: project.name,
+          projectNumber: project.projectNumber,
+          companyName: project.companyName,
+          projectStatus: project.status,
+          taskId: issue.taskId,
+          taskListName: issue.taskListName,
+          taskName: issue.taskName,
+          severity: "INFO",
+          code: "UNPLANNED_ACTUAL_WORK",
+          message:
+            "Time was logged to a top-level task without an estimate. Actual hours and historical labor cost remain included.",
+          lastDetectedAt: issue.lastDetectedAt,
+          recommendedAction: guidance.recommendedAction,
+          status: issue.isDismissed ? "REVIEWED" : "OPEN",
+          resolutionPath: guidance.resolutionPath,
+          teamworkUrl:
+            teamworkBase && issue.teamworkTaskId
+              ? `${teamworkBase}/app/tasks/${issue.teamworkTaskId}`
+              : teamworkBase
+                ? `${teamworkBase}/app/projects/${project.teamworkId}/time`
+                : null,
+          details: {
+            loggedMinutes: issue.loggedMinutes,
+            laborCost: issue.laborCost,
+            firstLoggedDate: issue.firstLoggedDate,
+            lastLoggedDate: issue.lastLoggedDate,
+            teamworkTaskId: issue.teamworkTaskId,
+          },
+          evidence: [],
+          reviewedAt: issue.dismissedAt,
+          reviewedByName: issue.dismissedByName,
+        };
+      });
+
+      return [...qualityRows, ...unplannedRows];
+    }),
+  );
+
+  const severityRank = { ERROR: 0, WARNING: 1, INFO: 2 } as const;
+  return grouped
+    .flat()
+    .sort(
+      (a, b) =>
+        Number(a.status === "REVIEWED") - Number(b.status === "REVIEWED") ||
+        severityRank[a.severity] - severityRank[b.severity] ||
+        a.projectName.localeCompare(b.projectName) ||
+        b.lastDetectedAt.getTime() - a.lastDetectedAt.getTime(),
+    );
+}
+
+export async function getLatestTeamworkSyncDiagnostics(): Promise<TeamworkSyncDiagnostics | null> {
+  const sql = getSqlClient();
+  const [run] = await sql<
+    Array<{
+      runId: string;
+      kind: TeamworkSyncDiagnostics["kind"];
+      status: TeamworkSyncDiagnostics["status"];
+      startedAt: unknown;
+      completedAt: unknown;
+      recordsRead: number;
+      warnings: number;
+      errors: number;
+    }>
+  >`
+    select
+      sr.id as "runId",
+      sr.kind,
+      sr.status,
+      sr.started_at as "startedAt",
+      sr.completed_at as "completedAt",
+      sr.records_read as "recordsRead",
+      sr.warnings,
+      sr.errors
+    from sync_runs sr
+    order by sr.started_at desc
+    limit 1
+  `;
+
+  if (!run) return null;
+
+  const diagnostics = await sql<
+    Array<{
+      id: string;
+      syncRunId: string;
+      severity: "INFO" | "WARNING" | "ERROR";
+      entityType: string | null;
+      teamworkEntityId: number | null;
+      code: string;
+      message: string;
+      details: Record<string, unknown> | null;
+      createdAt: unknown;
+    }>
+  >`
+    select
+      si.id,
+      si.sync_run_id as "syncRunId",
+      si.severity,
+      si.entity_type as "entityType",
+      si.teamwork_entity_id as "teamworkEntityId",
+      si.code,
+      si.message,
+      si.details,
+      si.created_at as "createdAt"
+    from sync_issues si
+    where si.sync_run_id = ${run.runId}
+    order by
+      case si.severity when 'ERROR' then 0 when 'WARNING' then 1 else 2 end,
+      si.code,
+      si.created_at desc
+  `;
+
+  return {
+    runId: run.runId,
+    kind: run.kind,
+    status: run.status,
+    startedAt: normalizeDatabaseDate(run.startedAt, `sync run ${run.runId} startedAt`),
+    completedAt: normalizeOptionalDatabaseDate(
+      run.completedAt,
+      `sync run ${run.runId} completedAt`,
+    ),
+    recordsRead: run.recordsRead,
+    warnings: run.warnings,
+    errors: run.errors,
+    diagnostics: diagnostics.map((row) => ({
+      ...row,
+      createdAt: normalizeDatabaseDate(row.createdAt, `sync diagnostic ${row.id} createdAt`),
+    })),
+  };
 }
 
 export async function getEmployeeLaborRows(): Promise<EmployeeLaborRow[]> {
