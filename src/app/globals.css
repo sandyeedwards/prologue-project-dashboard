@@ -4670,7 +4670,7 @@ body {
 }
 
 .executive-report-grid__health .donut-chart__legend > div {
-  grid-template-columns: 1fr 26px 40px;
+  grid-template-columns: minmax(0, 1fr) 26px minmax(96px, 118px);
   gap: 8px;
   padding: 7px 0;
   font-size: 0.74rem;

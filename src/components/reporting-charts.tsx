@@ -630,6 +630,7 @@ export function CostPerformanceChart({
           const knownTarget = finite(row.target) && row.target > 0 ? row.target : null;
           const targetComparable = row.targetCoverage === "COMPLETE" && knownTarget !== null;
           const partialTarget = row.targetCoverage === "PARTIAL" && knownTarget !== null;
+          const displayedTarget = targetComparable || partialTarget ? knownTarget : null;
           const isComplete = finite(row.progressPercent) && row.progressPercent >= 100;
 
           const scale =
@@ -786,7 +787,9 @@ export function CostPerformanceChart({
 
                 <span>
                   {partialTarget ? "Known target" : "Target"}
-                  <strong>{knownTarget !== null ? compactCurrency(knownTarget) : "N/A"}</strong>
+                  <strong>
+                    {displayedTarget !== null ? compactCurrency(displayedTarget) : "N/A"}
+                  </strong>
                 </span>
               </div>
             </div>
