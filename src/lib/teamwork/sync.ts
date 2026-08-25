@@ -31,12 +31,18 @@ import { parseJobRoleCostRate } from "./job-role-rates";
 import { teamworkUserCostRate } from "./user-cost";
 import { teamworkDateText } from "./date";
 import { normalizeTeamworkLabel, teamworkLabelText } from "./normalize";
-import { projectReportingPolicy } from "./project-inclusion";
+import { isTimeReportingProjectName, projectReportingPolicy } from "./project-inclusion";
 import {
   isCompleteSinglePageProjectFetch,
   missingTeamworkProjectIds,
 } from "./project-reconciliation";
 import { buildTaskListProjectEvidence } from "./tasklist-recovery";
+import {
+  buildTeamworkProjectTimePath,
+  buildTeamworkTimeSyncPaths,
+  buildTeamworkTimeSyncWindow,
+  latestSuccessfulTeamworkSyncStartedAt,
+} from "./time-sync-window";
 import {
   ENTITY_ID_PATHS,
   PARENT_TASK_ID_PATHS,
@@ -214,11 +220,18 @@ async function loadProjectMap(): Promise<Map<number, ProjectLookupValue>> {
     .select({
       id: projects.id,
       teamworkId: projects.teamworkId,
+      name: projects.name,
       startDate: projects.startDate,
       excludedFromReporting: projects.excludedFromReporting,
     })
     .from(projects);
   return new Map(rows.map((row) => [row.teamworkId, row]));
+}
+
+function shouldExcludeProjectOperationalSync(
+  project: ProjectLookupValue | null | undefined,
+): boolean {
+  return Boolean(project?.excludedFromReporting && !isTimeReportingProjectName(project.name));
 }
 
 async function loadTaskListMap(
@@ -320,6 +333,15 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
 
   try {
     const connection = await activeConnection();
+
+    const priorSyncRuns = await db
+      .select({
+        status: syncRuns.status,
+        startedAt: syncRuns.startedAt,
+      })
+      .from(syncRuns);
+
+    const previousSuccessfulSyncStartedAt = latestSuccessfulTeamworkSyncStartedAt(priorSyncRuns);
 
     console.log("[1/6] Importing companies, tags, and projects...");
     const projectPayload = await teamworkFetch<TeamworkRecord>(
@@ -750,7 +772,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       const projectTeamworkId = idAtPaths(row, PROJECT_ID_PATHS);
       const project =
         projectTeamworkId === null ? null : (projectMap.get(projectTeamworkId) ?? null);
-      if (project?.excludedFromReporting) {
+      if (shouldExcludeProjectOperationalSync(project)) {
         stats.taskLists.skipped += 1;
         excludedNoReportRecords.taskLists += 1;
         excludedTaskListTeamworkIds.add(teamworkId);
@@ -795,7 +817,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       const projectTeamworkId = evidence.projectTeamworkId;
       const project =
         projectTeamworkId === null ? null : (projectMap.get(projectTeamworkId) ?? null);
-      if (project?.excludedFromReporting) {
+      if (shouldExcludeProjectOperationalSync(project)) {
         stats.taskLists.skipped += 1;
         excludedNoReportRecords.taskLists += 1;
         excludedTaskListTeamworkIds.add(teamworkId);
@@ -819,7 +841,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
     for (const row of taskRows) {
       const resolved = resolveTaskRelationships(row, projectMap, taskListMap);
       if (
-        resolved.project?.excludedFromReporting ||
+        shouldExcludeProjectOperationalSync(resolved.project) ||
         (resolved.taskListTeamworkId !== null &&
           excludedTaskListTeamworkIds.has(resolved.taskListTeamworkId))
       ) {
@@ -995,11 +1017,45 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         (row) => [row.teamworkId, row.id],
       ),
     );
-    const timeRows = await paged(
-      connection,
-      "/projects/api/v3/time.json?includeArchivedProjects=true&showDeleted=true&returnCostInfo=true&returnBillableInfo=true&includeTotals=true&useFallbackMethod=true&include=projects,projects.companies,tasks,tasks.parentTasks,tasks.tasklists,tasks.users,users,project.billing,project.billing.currencies",
-      ["timelogs", "timeEntries", "time"],
+    const timeBasePath =
+      "/projects/api/v3/time.json?includeArchivedProjects=true&showDeleted=true&returnCostInfo=true&returnBillableInfo=true&includeTotals=true&useFallbackMethod=true&include=projects,projects.companies,tasks,tasks.parentTasks,tasks.tasklists,tasks.users,users,project.billing,project.billing.currencies";
+
+    const timeSyncWindow = buildTeamworkTimeSyncWindow(
+      previousSuccessfulSyncStartedAt ?? connection.lastSyncAt,
+      kind === "INITIAL_IMPORT",
     );
+    const timePaths = buildTeamworkTimeSyncPaths(timeBasePath, timeSyncWindow);
+
+    if (timeSyncWindow.mode === "INCREMENTAL") {
+      const timeReportingProject = [...projectMap.values()].find((project) =>
+        isTimeReportingProjectName(project.name),
+      );
+
+      if (timeReportingProject) {
+        timePaths.push(buildTeamworkProjectTimePath(timeBasePath, timeReportingProject.teamworkId));
+      }
+    }
+
+    const timeRowSets = await Promise.all(
+      timePaths.map((path) => paged(connection, path, ["timelogs", "timeEntries", "time"])),
+    );
+
+    const timeRowsByTeamworkId = new Map<number, TeamworkRecord>();
+    const timeRowsWithoutTeamworkId: TeamworkRecord[] = [];
+
+    for (const row of timeRowSets.flat()) {
+      const teamworkId = idAtPaths(row, ENTITY_ID_PATHS);
+
+      if (teamworkId === null) {
+        timeRowsWithoutTeamworkId.push(row);
+        continue;
+      }
+
+      timeRowsByTeamworkId.set(teamworkId, row);
+    }
+
+    const timeRows = [...timeRowsByTeamworkId.values(), ...timeRowsWithoutTeamworkId];
+
     stats.timeEntries.read = timeRows.length;
     const existingTimeEntries = new Set(
       (await db.select({ teamworkId: timeEntries.teamworkId }).from(timeEntries)).map(
@@ -1008,14 +1064,13 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
     );
     for (const row of timeRows) {
       const resolved = resolveTimeRelationships(row, projectMap, taskMap);
-      if (
-        resolved.project?.excludedFromReporting ||
-        (resolved.taskTeamworkId !== null && excludedTaskTeamworkIds.has(resolved.taskTeamworkId))
-      ) {
-        stats.timeEntries.skipped += 1;
-        excludedNoReportRecords.timeEntries += 1;
-        continue;
-      }
+
+      // Time Reporting intentionally caches employee time from every Teamwork
+      // project, including projects excluded from Portfolio reporting. Ordinary
+      // NoReport task/task-list structure may remain uncached; a directly
+      // resolved project is sufficient and the time entry can safely retain a
+      // null taskId. Internal Operations keeps its task structure through the
+      // dedicated operational-sync exception above.
       if (resolved.reason || !resolved.project || resolved.timeTeamworkId === null) {
         stats.timeEntries.skipped += 1;
         issues.warn(

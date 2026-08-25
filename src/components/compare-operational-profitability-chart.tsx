@@ -207,7 +207,7 @@ function ComparisonRow({
           No work allocated to this group
         </div>
         <div className="compare-profitability-rows__outcome">
-          <strong>Ã¢â‚¬â€</strong>
+          <strong>{"\u2014"}</strong>
           <small>Forecast profit</small>
         </div>
         <div className="compare-profitability-rows__margin compare-profitability-rows__margin--neutral">
@@ -245,7 +245,7 @@ function ComparisonRow({
     const bounds = event.currentTarget.getBoundingClientRect();
     positionTooltip(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
   };
-  const revenueBoundary = 82;
+  const revenueBoundary = 94;
   const revenue = position.allocatedRevenue;
   const actualRatio = revenue > 0 ? position.actualCostToDate / revenue : 0;
   const remainingRatio = revenue > 0 ? position.remainingCost / revenue : 0;
@@ -291,7 +291,7 @@ function ComparisonRow({
           </span>
         </div>
         <small>
-          {row.project.projectNumber ? `${row.project.projectNumber} Ã‚Â· ` : ""}
+          {row.project.projectNumber ? `${row.project.projectNumber} \u00b7 ` : ""}
           {row.project.isProvisional ? "Provisional" : "Complete"}
         </small>
       </div>
@@ -345,7 +345,7 @@ function ComparisonRow({
               <strong>{row.project.projectName}</strong>
               <span>
                 {row.groupName ?? "Entire project"}
-                {row.project.projectNumber ? ` Ã‚Â· ${row.project.projectNumber}` : ""}
+                {row.project.projectNumber ? ` \u00b7 ${row.project.projectNumber}` : ""}
               </span>
             </div>
             <dl>

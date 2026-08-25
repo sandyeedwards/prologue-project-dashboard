@@ -179,7 +179,7 @@ export function ProjectTable({
             <th>Remaining Work</th>
             <th>Forecasted Profit</th>
             <th>Hours</th>
-            <th>Quality</th>
+            <th>Data Issues</th>
           </tr>
         </thead>
         <tbody>
@@ -256,13 +256,17 @@ export function ProjectTable({
                   </small>
                 </td>
                 <td>
-                  <span
-                    className={
-                      row.dataQualityIssueCount ? "issue-count issue-count--warning" : "issue-count"
-                    }
-                  >
-                    {row.dataQualityIssueCount}
-                  </span>
+                  {row.dataQualityIssueCount ? (
+                    <Link
+                      className="issue-count issue-count--warning issue-count--link"
+                      href={`/help/teamwork-issues?project=${row.id}&scope=DATA_ISSUES`}
+                      aria-label={`View ${row.dataQualityIssueCount} data issues for ${row.name}`}
+                    >
+                      {row.dataQualityIssueCount}
+                    </Link>
+                  ) : (
+                    <span className="issue-count">0</span>
+                  )}
                 </td>
               </tr>
             );

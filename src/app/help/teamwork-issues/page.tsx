@@ -26,16 +26,23 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
   ]);
 
   const query = one(params.q)?.trim() ?? "";
-  const status = one(params.status) ?? "ALL";
+  const status = one(params.status) ?? "OPEN";
   const severity = one(params.severity) ?? "ALL";
   const code = one(params.code) ?? "ALL";
   const correctionPath = one(params.path) ?? "ALL";
+  const projectId = one(params.project);
+  const scope = one(params.scope) ?? "ALL";
   const normalizedQuery = query.toLowerCase();
 
-  const issueCodes = [...new Set(allIssues.map((issue) => issue.code))].sort();
+  const scopedIssues =
+    scope === "DATA_ISSUES"
+      ? allIssues.filter((issue) => issue.code !== "UNPLANNED_ACTUAL_WORK")
+      : allIssues;
 
-  const issues = allIssues.filter((issue) => {
-    if (status !== "ALL" && issue.status !== status) return false;
+  const issueCodes = [...new Set(scopedIssues.map((issue) => issue.code))].sort();
+
+  const statusScopedIssues = scopedIssues.filter((issue) => {
+    if (projectId && issue.projectId !== projectId) return false;
     if (severity !== "ALL" && issue.severity !== severity) return false;
     if (code !== "ALL" && issue.code !== code) return false;
     if (correctionPath !== "ALL" && issue.resolutionPath !== correctionPath) return false;
@@ -61,8 +68,13 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
     return true;
   });
 
-  const openIssues = issues.filter((issue) => issue.status === "OPEN");
-  const reviewedIssues = issues.filter((issue) => issue.status === "REVIEWED");
+  const issues =
+    status === "ALL"
+      ? statusScopedIssues
+      : statusScopedIssues.filter((issue) => issue.status === status);
+
+  const openIssues = statusScopedIssues.filter((issue) => issue.status === "OPEN");
+  const reviewedIssues = statusScopedIssues.filter((issue) => issue.status === "REVIEWED");
 
   return (
     <AppShell user={session.user}>
@@ -86,10 +98,11 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
           <div className="section-heading">
             <div>
               <p className="eyebrow">Current issues</p>
-              <h2>Portfolio data-quality register</h2>
+              <h2>Portfolio reporting issue register</h2>
               <p className="section-description">
                 Open items require source correction or review. Once corrected in Teamwork, an item
-                disappears after the next sync and calculation run.
+                disappears after the next sync and calculation run. Reviewed unplanned-work items
+                remain available for reference and can be reopened when needed.
               </p>
             </div>
             <span className="section-meta">
@@ -166,6 +179,9 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                   <option value="TEAMWORK_OR_REVIEW">Teamwork or Admin review</option>
                 </select>
               </label>
+
+              {projectId ? <input type="hidden" name="project" value={projectId} /> : null}
+              {scope !== "ALL" ? <input type="hidden" name="scope" value={scope} /> : null}
 
               <div className="teamwork-issues-filter-grid__actions">
                 <button className="button button--primary" type="submit">

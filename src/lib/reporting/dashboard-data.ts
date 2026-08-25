@@ -26,6 +26,7 @@ export type ProjectReportRow = {
   forecastProfit: string | null;
   forecastMarginPercent: string | null;
   canonicalEstimatedMinutes: number;
+  plannedLoggedMinutes: number | null;
   loggedMinutes: number;
   unplannedLoggedMinutes: number;
   completedTaskCount: number;
@@ -294,6 +295,10 @@ export type ProjectFilter = {
   health?: string;
   status?: string;
   type?: string;
+  clients?: string[];
+  healths?: string[];
+  statuses?: string[];
+  types?: string[];
   provisional?: string;
   sort?: string;
   projectIds?: string[];
@@ -316,16 +321,28 @@ export type PortfolioOperationalGroupRow = {
   allocationMethods: string[];
 };
 
-export const PROJECT_TYPE_ORDER = ["Scanning", "Modeling", "Ready Set", "DataHall"] as const;
+export const PROJECT_TYPE_ORDER = [
+  "Scanning & Modeling",
+  "Scanning",
+  "Modeling",
+  "Ready Set",
+  "DataHall",
+] as const;
 
 export function getProjectTypeFacets(
   row: Pick<ProjectReportRow, "projectType" | "tags">,
 ): string[] {
+  const sourceTagKeys = new Set(
+    row.tags
+      .filter((value): value is string => Boolean(value))
+      .map((value) => normalizeTeamworkLabel(value)),
+  );
   const keys = new Set(
     [...row.tags, row.projectType]
       .filter((value): value is string => Boolean(value))
       .map((value) => normalizeTeamworkLabel(value)),
   );
+
   const isReadySet = keys.has("readyset");
   const isDataHall = keys.has("datahall");
   const hasScanning =
@@ -334,7 +351,13 @@ export function getProjectTypeFacets(
     keys.has("scanning") ||
     [...keys].some((key) => key.includes("scanning"));
   const hasModeling = keys.has("modeling") || [...keys].some((key) => key.includes("modeling"));
+
+  // The combined category is intentionally stricter than the individual
+  // facets: it must come from both explicit Teamwork source tags.
+  const hasScanningAndModeling = sourceTagKeys.has("scanning") && sourceTagKeys.has("modeling");
+
   const facets: string[] = [];
+  if (hasScanningAndModeling) facets.push("Scanning & Modeling");
   if (hasScanning) facets.push("Scanning");
   if (hasModeling) facets.push("Modeling");
   if (isReadySet) facets.push("Ready Set");
@@ -428,6 +451,7 @@ export async function getProjectRows(): Promise<ProjectReportRow[]> {
       pm.forecast_profit as "forecastProfit",
       pm.forecast_margin_percent as "forecastMarginPercent",
       pm.canonical_estimated_minutes as "canonicalEstimatedMinutes",
+      nullif(pm.details ->> 'plannedTaskLinkedMinutes', '')::int as "plannedLoggedMinutes",
       pm.logged_minutes as "loggedMinutes",
       pm.unestimated_logged_minutes as "unplannedLoggedMinutes",
       pm.completed_task_count as "completedTaskCount",
@@ -451,14 +475,9 @@ export async function getProjectRows(): Promise<ProjectReportRow[]> {
     left join lateral (
       select count(*)::int as issue_count
       from data_quality_issues dqi
-      left join unplanned_work_reviews uwr on uwr.task_id = dqi.task_id
       where dqi.project_id = p.id
         and dqi.resolved_at is null
-        and (
-          dqi.code <> 'UNPLANNED_ACTUAL_WORK'
-          or uwr.task_id is null
-          or coalesce((dqi.details ->> 'minutes')::int, 0) > uwr.dismissed_logged_minutes
-        )
+        and dqi.code <> 'UNPLANNED_ACTUAL_WORK'
     ) dq on true
     left join lateral (
       select array_agg(t.name order by t.name) as tags
@@ -491,6 +510,29 @@ function projectOverlapsDateRange(
   return true;
 }
 
+function normalizeProjectFilterSelection(value: string | string[] | undefined): string[] {
+  const selected = Array.isArray(value) ? value : value ? [value] : [];
+  return selected.filter((item) => item !== "ALL");
+}
+
+function matchesProjectFilterValue(
+  value: string | null | undefined,
+  selection: string | string[] | undefined,
+): boolean {
+  const selected = normalizeProjectFilterSelection(selection);
+  if (!selected.length) return true;
+  return value !== null && value !== undefined && selected.includes(value);
+}
+
+function matchesProjectFilterFacets(
+  facets: string[],
+  selection: string | string[] | undefined,
+): boolean {
+  const selected = normalizeProjectFilterSelection(selection);
+  if (!selected.length) return true;
+  return selected.some((value) => facets.includes(value));
+}
+
 export function filterAndSortProjects(
   rows: ProjectReportRow[],
   filter: ProjectFilter,
@@ -505,10 +547,10 @@ export function filterAndSortProjects(
     ) {
       return false;
     }
-    if (filter.client && filter.client !== "ALL" && row.companyName !== filter.client) return false;
-    if (filter.health && filter.health !== "ALL" && row.healthBand !== filter.health) return false;
-    if (filter.status && filter.status !== "ALL" && row.status !== filter.status) return false;
-    if (filter.type && filter.type !== "ALL" && !getProjectTypeFacets(row).includes(filter.type))
+    if (!matchesProjectFilterValue(row.companyName, filter.clients ?? filter.client)) return false;
+    if (!matchesProjectFilterValue(row.healthBand, filter.healths ?? filter.health)) return false;
+    if (!matchesProjectFilterValue(row.status, filter.statuses ?? filter.status)) return false;
+    if (!matchesProjectFilterFacets(getProjectTypeFacets(row), filter.types ?? filter.type))
       return false;
     if (filter.provisional === "YES" && !row.isProvisional) return false;
     if (filter.provisional === "NO" && row.isProvisional) return false;

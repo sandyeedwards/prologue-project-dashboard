@@ -28,6 +28,11 @@ function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function many(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 function knownFor(knownCount: number, projectCount: number): string {
   return `Known for ${knownCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
 }
@@ -57,10 +62,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const params = await searchParams;
   const allProjects = await getProjectRows();
   const filter: ProjectFilter = {
-    client: one(params.client),
-    health: one(params.health),
-    status: one(params.status),
-    type: one(params.type),
+    clients: many(params.client),
+    healths: many(params.health),
+    statuses: many(params.status),
+    types: many(params.type),
     dateFrom: one(params.dateFrom),
     dateTo: one(params.dateTo),
   };
@@ -244,16 +249,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               eyebrow="Portfolio margin"
               title="Margin Summary"
               description="Project counts use the same forecast-margin thresholds applied throughout reporting."
+              help="Forecast margin is calculated from project revenue and forecast cost. Strong margin is 50% or higher, Watch margin is above 35% and below 50%, Low margin is 35% or lower, and N/A means no usable forecast margin is available."
             >
-              <MarginSummaryDonut
-                margins={projects.map((project) => project.forecastMarginPercent)}
-              />
+              <MarginSummaryDonut projects={projects} />
             </ChartPanel>
             <ChartPanel
               className="executive-report-grid__effort executive-support-row__effort"
               eyebrow="Effort exposure"
               title="Logged vs Estimated Hours by Group"
               description="Estimate length shows relative workload across groups. Blue shows logged hours within the estimate; red shows work beyond the estimate."
+              help="Estimated hours come from the reporting estimate baseline for each operational group. Logged hours come from synced Teamwork time entries. Blue represents logged time within the estimate; red represents logged time beyond the estimate."
             >
               <HoursCompletionSummary rows={effortRows} />
             </ChartPanel>

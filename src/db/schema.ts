@@ -131,6 +131,28 @@ export const people = pgTable(
   ],
 );
 
+export const ptoAllowanceOverrides = pgTable(
+  "pto_allowance_overrides",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    calendarYear: integer("calendar_year").notNull(),
+    allowanceMinutes: integer("allowance_minutes").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex("pto_allowance_overrides_person_year_unique").on(
+      table.personId,
+      table.calendarYear,
+    ),
+    index("pto_allowance_overrides_year_idx").on(table.calendarYear),
+    check("pto_allowance_overrides_year_valid", sql`${table.calendarYear} >= 2000`),
+    check("pto_allowance_overrides_minutes_nonnegative", sql`${table.allowanceMinutes} >= 0`),
+  ],
+);
+
 export const jobRoles = pgTable(
   "job_roles",
   {
