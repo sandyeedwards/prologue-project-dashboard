@@ -448,10 +448,18 @@ export function FlexibleDateRangeFields({
   initialFrom,
   initialTo,
   className = "",
+  fromName = "dateFrom",
+  toName = "dateTo",
+  fromLabel = "Project date from",
+  toLabel = "Project date through",
 }: {
   initialFrom?: string;
   initialTo?: string;
   className?: string;
+  fromName?: string;
+  toName?: string;
+  fromLabel?: string;
+  toLabel?: string;
 }) {
   const [from, setFrom] = useState<DateFieldState>(() => fromIso(initialFrom));
   const [to, setTo] = useState<DateFieldState>(() => fromIso(initialTo));
@@ -512,8 +520,9 @@ export function FlexibleDateRangeFields({
           manual: true,
         }));
       } else {
-        const hiddenFrom =
-          rootRef.current?.querySelector<HTMLInputElement>('input[name="dateFrom"]');
+        const hiddenFrom = rootRef.current?.querySelector<HTMLInputElement>(
+          `input[name="${fromName}"]`,
+        );
         if (hiddenFrom) hiddenFrom.value = parsedFrom.iso;
         setFrom({ iso: parsedFrom.iso, display: parsedFrom.display, error: "", manual: false });
       }
@@ -534,7 +543,9 @@ export function FlexibleDateRangeFields({
           manual: true,
         }));
       } else {
-        const hiddenTo = rootRef.current?.querySelector<HTMLInputElement>('input[name="dateTo"]');
+        const hiddenTo = rootRef.current?.querySelector<HTMLInputElement>(
+          `input[name="${toName}"]`,
+        );
         if (hiddenTo) hiddenTo.value = parsedTo.iso;
         setTo({ iso: parsedTo.iso, display: parsedTo.display, error: "", manual: false });
       }
@@ -549,7 +560,7 @@ export function FlexibleDateRangeFields({
 
     form.addEventListener("submit", handleSubmit);
     return () => form.removeEventListener("submit", handleSubmit);
-  }, [from.display, to.display]);
+  }, [from.display, fromName, to.display, toName]);
 
   return (
     <div
@@ -558,15 +569,15 @@ export function FlexibleDateRangeFields({
       data-historical-range-target="true"
     >
       <DateField
-        label="Project date from"
-        name="dateFrom"
+        label={fromLabel}
+        name={fromName}
         state={from}
         setState={setFrom}
         onUserInteraction={markUserChange}
       />
       <DateField
-        label="Project date through"
-        name="dateTo"
+        label={toLabel}
+        name={toName}
         state={to}
         setState={setTo}
         minimumIso={from.iso}

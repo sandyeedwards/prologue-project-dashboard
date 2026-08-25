@@ -43,12 +43,14 @@ export function ChartPanel({
   title,
   eyebrow,
   description,
+  help,
   children,
   className = "",
 }: {
   title: string;
   eyebrow?: string;
   description?: string;
+  help?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
@@ -60,6 +62,20 @@ export function ChartPanel({
           <h3>{title}</h3>
           {description ? <p>{description}</p> : null}
         </div>
+        {help ? (
+          <span className="chart-panel__help">
+            <button
+              className="chart-panel__help-trigger"
+              type="button"
+              aria-label={`Information about ${title}`}
+            >
+              ?
+            </button>
+            <span className="chart-panel__help-panel" role="tooltip">
+              {help}
+            </span>
+          </span>
+        ) : null}
       </header>
       {children}
     </article>
@@ -138,50 +154,46 @@ export function GroupedBarChart({
   );
 }
 
-export function MarginSummaryDonut({
-  margins,
-}: {
-  margins: Array<string | number | null | undefined>;
-}) {
-  const counts = {
-    green: 0,
-    yellow: 0,
-    red: 0,
-    neutral: 0,
+export function MarginSummaryDonut({ projects }: { projects: ProjectReportRow[] }) {
+  const groupedProjects: Record<"green" | "yellow" | "red" | "neutral", ProjectReportRow[]> = {
+    green: [],
+    yellow: [],
+    red: [],
+    neutral: [],
   };
 
-  for (const margin of margins) {
-    counts[marginTone(margin)] += 1;
+  for (const project of projects) {
+    groupedProjects[marginTone(project.forecastMarginPercent)].push(project);
   }
 
   const segments = [
     {
       label: "Strong margin",
       detail: "50% or higher",
-      value: counts.green,
+      projects: groupedProjects.green,
       tone: "green",
     },
     {
       label: "Watch margin",
       detail: "Above 35% and below 50%",
-      value: counts.yellow,
+      projects: groupedProjects.yellow,
       tone: "amber",
     },
     {
       label: "Low margin",
       detail: "35% or lower",
-      value: counts.red,
+      projects: groupedProjects.red,
       tone: "red",
     },
     {
       label: "N/A",
       detail: "No margin",
-      value: counts.neutral,
+      projects: groupedProjects.neutral,
       tone: "gray",
     },
   ] as const;
 
-  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+  const total = projects.length;
 
   if (!total) {
     return <div className="chart-empty">No calculated projects are available.</div>;
@@ -192,16 +204,16 @@ export function MarginSummaryDonut({
   const circumference = 2 * Math.PI * radius;
 
   return (
-    <div
-      className="donut-chart"
-      role="img"
-      aria-label={`Forecast margin distribution across ${total} projects`}
-    >
-      <div className="donut-chart__graphic">
+    <div className="donut-chart">
+      <div
+        className="donut-chart__graphic"
+        role="img"
+        aria-label={`Forecast margin distribution across ${total} projects`}
+      >
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle className="donut-chart__base" cx="60" cy="60" r={radius} />
           {segments.map((segment) => {
-            const length = (segment.value / total) * circumference;
+            const length = (segment.projects.length / total) * circumference;
             const currentOffset = offset;
             offset += length;
 
@@ -226,16 +238,53 @@ export function MarginSummaryDonut({
       </div>
 
       <div className="donut-chart__legend">
-        {segments.map((segment) => (
-          <div key={segment.label}>
-            <span>
-              <i className={`chart-swatch chart-tone--${segment.tone}`} />
-              {segment.label}
-            </span>
-            <strong>{segment.value}</strong>
-            <small>{segment.detail}</small>
-          </div>
-        ))}
+        {segments.map((segment) => {
+          const count = segment.projects.length;
+          const search = new URLSearchParams();
+          search.set("mode", "combine");
+          segment.projects.forEach((project) => search.append("project", project.id));
+          const href = `/projects?${search.toString()}`;
+
+          const summary = (
+            <>
+              <span className="donut-chart__legend-label">
+                <i className={`chart-swatch chart-tone--${segment.tone}`} />
+                {segment.label}
+              </span>
+              <strong>{count}</strong>
+              <small>{segment.detail}</small>
+            </>
+          );
+
+          return (
+            <div className="donut-chart__legend-row" key={segment.label}>
+              {count > 0 ? (
+                <Link
+                  className="donut-chart__legend-link"
+                  href={href}
+                  aria-label={`Open Combined Project Report for ${count} ${segment.label.toLowerCase()} project${count === 1 ? "" : "s"}`}
+                >
+                  {summary}
+                </Link>
+              ) : (
+                <div className="donut-chart__legend-summary">{summary}</div>
+              )}
+
+              {count > 0 ? (
+                <div className="donut-chart__projects" role="tooltip">
+                  <strong>Projects in this margin band</strong>
+                  {segment.projects.map((project) => (
+                    <span key={project.id}>
+                      {project.projectNumber
+                        ? `${project.projectNumber} \u00b7 ${project.name}`
+                        : project.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -245,15 +294,29 @@ export type { ProfitabilityRow } from "@/components/profitability-chart-types";
 
 export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
   const availableRows = rows.filter((row) => finite(row.profit));
-  const maximum = Math.max(...availableRows.map((row) => Math.abs(row.profit ?? 0)), 1);
   if (!availableRows.length)
     return <div className="chart-empty">No profit or loss positions are available.</div>;
+
+  const maximumProfit = Math.max(...availableRows.map((row) => Math.max(row.profit ?? 0, 0)), 0);
+  const maximumLoss = Math.max(...availableRows.map((row) => Math.max(-(row.profit ?? 0), 0)), 0);
+
+  const lossLanePercent =
+    maximumLoss > 0
+      ? Math.min(30, Math.max(10, (maximumLoss / Math.max(maximumLoss + maximumProfit, 1)) * 100))
+      : 7;
+
+  const profitLanePercent = 100 - lossLanePercent;
+
+  const chartStyle = {
+    "--diverging-loss-lane": `${lossLanePercent}%`,
+  } as CSSProperties;
 
   return (
     <div
       className="diverging-profit"
       role="img"
       aria-label="Forecast profit and loss by operational group"
+      style={chartStyle}
     >
       <div className="diverging-profit__axis" aria-hidden="true">
         <span>Loss</span>
@@ -263,7 +326,14 @@ export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
       <div className="diverging-profit__rows">
         {availableRows.map((row) => {
           const profit = row.profit ?? 0;
-          const width = Math.max((Math.abs(profit) / maximum) * 50, profit === 0 ? 0 : 2);
+          const width =
+            profit < 0
+              ? maximumLoss > 0
+                ? Math.max((Math.abs(profit) / maximumLoss) * lossLanePercent, 2)
+                : 0
+              : maximumProfit > 0
+                ? Math.max((profit / maximumProfit) * profitLanePercent, profit === 0 ? 0 : 2)
+                : 0;
           return (
             <div className="diverging-profit__row" key={row.label}>
               <div className="diverging-profit__label">
@@ -341,7 +411,7 @@ export function OperationalBreakdown({ rows }: { rows: ProfitabilityRow[] }) {
                 <td>
                   <strong>{row.label}</strong>
                 </td>
-                <td>{row.projectCount ?? "Ã¢â‚¬â€"}</td>
+                <td>{row.projectCount ?? "\u2014"}</td>
                 <td>{finite(row.revenue) ? compactCurrency(row.revenue) : "Missing"}</td>
                 <td>{finite(row.cost) ? compactCurrency(row.cost) : "Missing"}</td>
                 <td
@@ -425,7 +495,7 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
             <th>Logged hours</th>
             <th>vs. estimate</th>
             <th>Task completion</th>
-            <th>Quality</th>
+            <th>Data Issues</th>
           </tr>
         </thead>
         <tbody>
@@ -438,12 +508,12 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
                 <td>
                   <Link className="project-link" href={`/projects/${project.id}`}>
                     <strong>
-                      {project.projectNumber ? `${project.projectNumber} Ã‚Â· ` : ""}
+                      {project.projectNumber ? `${project.projectNumber} \u00b7 ` : ""}
                       {project.name.replace(`${project.projectNumber} - `, "")}
                     </strong>
                   </Link>
                 </td>
-                <td>{project.companyName ?? "Ã¢â‚¬â€"}</td>
+                <td>{project.companyName ?? "\u2014"}</td>
                 <td>
                   <MarginBadge value={project.forecastMarginPercent} />
                   {project.isProvisional ? (
@@ -466,15 +536,17 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
                 <td>{effortPercent === null ? "N/A" : `${effortPercent.toFixed(0)}%`}</td>
                 <td>{percent(project.progressPercent)}</td>
                 <td>
-                  <span
-                    className={
-                      project.dataQualityIssueCount
-                        ? "issue-count issue-count--warning"
-                        : "issue-count"
-                    }
-                  >
-                    {project.dataQualityIssueCount}
-                  </span>
+                  {project.dataQualityIssueCount ? (
+                    <Link
+                      className="issue-count issue-count--warning issue-count--link"
+                      href={`/help/teamwork-issues?project=${project.id}&scope=DATA_ISSUES`}
+                      aria-label={`View ${project.dataQualityIssueCount} data issues for ${project.name}`}
+                    >
+                      {project.dataQualityIssueCount}
+                    </Link>
+                  ) : (
+                    <span className="issue-count">0</span>
+                  )}
                 </td>
               </tr>
             );

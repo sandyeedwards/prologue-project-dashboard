@@ -32,6 +32,7 @@ const base: ProjectReportRow = {
   forecastProfit: "96475.00",
   forecastMarginPercent: "96.475",
   canonicalEstimatedMinutes: 100,
+  plannedLoggedMinutes: 200,
   loggedMinutes: 200,
   unplannedLoggedMinutes: 0,
   completedTaskCount: 5,
@@ -66,6 +67,12 @@ describe("reporting filters", () => {
     expect(filterAndSortProjects([base], { health: "RED" })).toHaveLength(0);
     expect(filterAndSortProjects([base], { status: "active" })).toHaveLength(1);
     expect(filterAndSortProjects([base], { type: "Scanning" })).toHaveLength(1);
+
+    expect(filterAndSortProjects([base], { clients: ["Other", "Client"] })).toHaveLength(1);
+    expect(filterAndSortProjects([base], { healths: ["RED", "GREEN"] })).toHaveLength(1);
+    expect(filterAndSortProjects([base], { statuses: ["complete", "active"] })).toHaveLength(1);
+    expect(filterAndSortProjects([base], { types: ["Modeling", "Scanning"] })).toHaveLength(1);
+    expect(filterAndSortProjects([base], { healths: ["RED", "AMBER"] })).toHaveLength(0);
   });
 
   it("supports client scope and explicit multi-project selection", () => {
@@ -108,6 +115,30 @@ describe("reporting filters", () => {
       "Scanning",
       "Ready Set",
       "DataHall",
+    ]);
+  });
+
+  it("adds Scanning & Modeling only from both explicit Teamwork source tags", () => {
+    const combined = {
+      ...base,
+      id: "combined",
+      projectType: "Scanning",
+      tags: ["Scanning", "Modeling"],
+    };
+    const projectTypeOnly = {
+      ...base,
+      id: "project-type-only",
+      projectType: "Scanning & Modeling",
+      tags: ["Scanning"],
+    };
+
+    expect(getProjectTypeFacets(combined)).toEqual(["Scanning & Modeling", "Scanning", "Modeling"]);
+    expect(getProjectTypeFacets(projectTypeOnly)).not.toContain("Scanning & Modeling");
+    expect(filterAndSortProjects([combined], { types: ["Scanning & Modeling"] })).toHaveLength(1);
+    expect(getAvailableProjectTypes([combined])).toEqual([
+      "Scanning & Modeling",
+      "Scanning",
+      "Modeling",
     ]);
   });
 

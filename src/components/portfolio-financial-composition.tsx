@@ -90,8 +90,7 @@ function CompositionRow({
   const plotRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
   const values = resolveRow(row);
-  const revenueBoundary =
-    maximumOverrunRatio > 0 ? Math.max(62, 100 / (1 + Math.min(maximumOverrunRatio, 0.6))) : 100;
+  const revenueBoundary = maximumOverrunRatio > 0 ? 94 : 100;
   const revenue = values.revenue;
   const actualRatio = revenue > 0 ? values.actual / revenue : 0;
   const remainingRatio = revenue > 0 ? values.remaining / revenue : 0;

@@ -3,6 +3,7 @@ export const REPORTING_RULES = {
   excludedProjectTags: ["NoReport"],
   dataHallProjectTag: "DataHall",
   readySetProjectTag: "Ready Set",
+  timeReportingProjectName: "Internal Operations",
 
   projectTypeTags: {
     scanning: "Scanning",
@@ -34,6 +35,7 @@ export const REPORTING_RULES = {
     "teamwork setup",
     "project management",
     "general project management",
+    "offboarding",
   ],
 
   modelingTaskPatterns: ["model", "modeling", "modelling"],

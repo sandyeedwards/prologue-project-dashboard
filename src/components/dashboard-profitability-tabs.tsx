@@ -56,6 +56,7 @@ export function DashboardProfitabilityTabs({
 }) {
   const id = useId();
   const [activeView, setActiveView] = useState<ProfitabilityView>("total");
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const configuredViews = [
     {
       ...forecastView,
@@ -118,7 +119,25 @@ export function DashboardProfitabilityTabs({
       </div>
 
       {filterControls ? (
-        <div className="dashboard-profitability-tabs__filters">{filterControls}</div>
+        <div className="dashboard-profitability-tabs__filters">
+          <button
+            className="dashboard-profitability-tabs__filters-toggle"
+            type="button"
+            aria-expanded={filtersOpen}
+            aria-controls={`${id}-filters`}
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            <span>Filters</span>
+            <span className="dashboard-profitability-tabs__filters-chevron" aria-hidden="true" />
+          </button>
+          <div
+            id={`${id}-filters`}
+            className="dashboard-profitability-tabs__filters-body"
+            hidden={!filtersOpen}
+          >
+            {filterControls}
+          </div>
+        </div>
       ) : null}
 
       <p className="dashboard-profitability-tabs__description">{active.description}</p>

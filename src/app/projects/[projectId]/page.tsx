@@ -84,6 +84,14 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
     clientFee === null || clientFee === 0 || actualProfit === null
       ? null
       : (actualProfit / clientFee) * 100;
+  const plannedEstimateConsumptionPercent =
+    project.plannedLoggedMinutes !== null && project.canonicalEstimatedMinutes > 0
+      ? (project.plannedLoggedMinutes / project.canonicalEstimatedMinutes) * 100
+      : null;
+  const plannedOverEstimateMinutes =
+    project.plannedLoggedMinutes !== null && project.canonicalEstimatedMinutes > 0
+      ? Math.max(project.plannedLoggedMinutes - project.canonicalEstimatedMinutes, 0)
+      : null;
   const taskQuery = one(query.task)?.trim().toLowerCase() ?? "";
   const groupFilter = one(query.group) ?? "ALL";
   const coverageFilter = one(query.coverage) ?? "ALL";
@@ -241,7 +249,9 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <MetricCard
             label="Logged Hours"
             value={hours(project.loggedMinutes)}
-            detail={`${percent(project.canonicalEstimatedMinutes ? ((project.loggedMinutes - project.unplannedLoggedMinutes) / project.canonicalEstimatedMinutes) * 100 : null)} planned estimate consumed${project.unplannedLoggedMinutes > 0 ? ` · ${hours(project.unplannedLoggedMinutes)} unplanned` : ""}`}
+            detail={`${percent(plannedEstimateConsumptionPercent)} planned estimate consumed \u00b7 ${
+              plannedOverEstimateMinutes === null ? "N/A" : hours(plannedOverEstimateMinutes)
+            } over estimate \u00b7 ${hours(project.unplannedLoggedMinutes)} unplanned`}
           />
           <MetricCard
             label="Estimated Hours"
@@ -696,9 +706,10 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                 <p className="eyebrow">Unplanned work review</p>
                 <h2>Logged work without a top-level estimate</h2>
                 <p className="section-description">
-                  These hours and their historical labor cost are already included. Add an estimate
-                  in Teamwork to resolve the item, or an Admin can mark it reviewed and leave it
-                  unplanned. Subtasks are intentionally exempt.
+                  These hours and their historical labor cost are already included. Current
+                  unplanned work remains visible for review. An Admin can mark an item reviewed and
+                  leave it unplanned; reviewed items remain available below for reference and can be
+                  reopened. Subtasks are intentionally exempt.
                 </p>
               </div>
               <span className="section-meta">
@@ -709,7 +720,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
               <form action={dismissAllUnplannedWork} className="inline-action-form">
                 <input type="hidden" name="projectId" value={project.id} />
                 <button className="button button--secondary" type="submit">
-                  Dismiss all current unplanned-work flags
+                  Mark all current unplanned work reviewed
                 </button>
               </form>
             ) : null}
@@ -747,38 +758,53 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                   ) : null}
                 </article>
               ))}
-              {dismissedUnplannedWork.map((item) => (
-                <article
-                  className="unplanned-work-card unplanned-work-card--dismissed"
-                  key={item.issueId}
-                >
-                  <div>
-                    <strong>{item.taskName}</strong>
+              {dismissedUnplannedWork.length ? (
+                <details className="unplanned-work-reviewed">
+                  <summary>
+                    <span>Reviewed unplanned work</span>
                     <small>
-                      {item.taskListName} · Reviewed by {item.dismissedByName ?? "Admin"}
+                      {dismissedUnplannedWork.length} reviewed item
+                      {dismissedUnplannedWork.length === 1 ? "" : "s"} retained for reference
                     </small>
+                  </summary>
+
+                  <div className="unplanned-work-reviewed__list">
+                    {dismissedUnplannedWork.map((item) => (
+                      <article
+                        className="unplanned-work-card unplanned-work-card--dismissed"
+                        key={item.issueId}
+                      >
+                        <div>
+                          <strong>{item.taskName}</strong>
+                          <small>
+                            {item.taskListName} {"\u00b7"} Reviewed by{" "}
+                            {item.dismissedByName ?? "Admin"}
+                          </small>
+                        </div>
+                        <dl>
+                          <div>
+                            <dt>Reviewed hours</dt>
+                            <dd>{hours(item.loggedMinutes)}</dd>
+                          </div>
+                          <div>
+                            <dt>Historical labor</dt>
+                            <dd>{money(item.laborCost)}</dd>
+                          </div>
+                        </dl>
+                        {isAdmin ? (
+                          <form action={reopenUnplannedWork}>
+                            <input type="hidden" name="projectId" value={project.id} />
+                            <input type="hidden" name="taskId" value={item.taskId} />
+                            <button className="button button--secondary" type="submit">
+                              Reopen
+                            </button>
+                          </form>
+                        ) : null}
+                      </article>
+                    ))}
                   </div>
-                  <dl>
-                    <div>
-                      <dt>Reviewed hours</dt>
-                      <dd>{hours(item.loggedMinutes)}</dd>
-                    </div>
-                    <div>
-                      <dt>Historical labor</dt>
-                      <dd>{money(item.laborCost)}</dd>
-                    </div>
-                  </dl>
-                  {isAdmin ? (
-                    <form action={reopenUnplannedWork}>
-                      <input type="hidden" name="projectId" value={project.id} />
-                      <input type="hidden" name="taskId" value={item.taskId} />
-                      <button className="button button--secondary" type="submit">
-                        Reopen
-                      </button>
-                    </form>
-                  ) : null}
-                </article>
-              ))}
+                </details>
+              ) : null}
             </div>
           </section>
         ) : null}

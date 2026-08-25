@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isDataHallProjectTag,
   isExcludedProjectTag,
+  isTimeReportingProjectName,
   projectReportingPolicy,
   shouldIncludeProject,
 } from "./project-inclusion";
@@ -17,6 +18,29 @@ describe("project reporting policy", () => {
   it("excludes a project when any tag is NoReport", () => {
     expect(shouldIncludeProject(["Scanning", "NoReport", "Ready Set"])).toBe(false);
     expect(projectReportingPolicy(["DataHall", "NoReport"]).exclusionReason).toBe("NoReport tag");
+  });
+
+  it.each(["Internal Operations", "internal operations", " INTERNAL OPERATIONS "])(
+    "recognizes the configured Time Reporting project name %s",
+    (projectName) => {
+      expect(isTimeReportingProjectName(projectName)).toBe(true);
+    },
+  );
+
+  it.each([
+    "Internal-Operations",
+    "Internal_Operations",
+    "Internal Operations 2",
+    "Operations Internal",
+    "Client Internal Operations",
+  ])("does not broaden the Time Reporting project exception to %s", (projectName) => {
+    expect(isTimeReportingProjectName(projectName)).toBe(false);
+  });
+
+  it("keeps the NoReport project-reporting policy intact for Time Reporting", () => {
+    expect(isTimeReportingProjectName("Internal Operations")).toBe(true);
+    expect(shouldIncludeProject(["NoReport"])).toBe(false);
+    expect(projectReportingPolicy(["NoReport"]).excluded).toBe(true);
   });
 
   it("includes Ready Set projects", () => {

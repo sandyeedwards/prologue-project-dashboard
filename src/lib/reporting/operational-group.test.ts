@@ -18,6 +18,7 @@ describe("classifyTaskList", () => {
     ["Modelling Revisions", "Modeling"],
     ["Admin", "Admin"],
     ["Project Setup", "Admin"],
+    ["OffBoarding", "Admin"],
     ["Unknown Work", "Unclassified"],
   ] as const)("maps %s to %s", (name, expected) => {
     expect(classifyTaskList(name)).toBe(expected);
@@ -103,12 +104,15 @@ describe("task-informed classification", () => {
 });
 
 describe("helpers", () => {
-  it.each(["Admin", "Project Setup", "Teamwork Setup", "General Project Management"])(
-    "recognizes administrative task-list names: %s",
-    (name) => {
-      expect(isClearlyAdministrativeTaskList(name)).toBe(true);
-    },
-  );
+  it.each([
+    "Admin",
+    "Project Setup",
+    "Teamwork Setup",
+    "General Project Management",
+    "OffBoarding",
+  ])("recognizes administrative task-list names: %s", (name) => {
+    expect(isClearlyAdministrativeTaskList(name)).toBe(true);
+  });
 
   it.each(["Mob 1", "Mob 2", "Mob 20"])("recognizes Ready Set mobilizations: %s", (name) => {
     expect(isReadySetMobilizationTaskList(name)).toBe(true);

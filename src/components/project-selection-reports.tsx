@@ -362,16 +362,16 @@ export function CombinedPortfolioReport({
             eyebrow="Portfolio margin"
             title="Margin Summary"
             description="Project counts use the same forecast-margin thresholds applied throughout reporting."
+            help="Forecast margin is calculated from project revenue and forecast cost. Strong margin is 50% or higher, Watch margin is above 35% and below 50%, Low margin is 35% or lower, and N/A means no usable forecast margin is available."
           >
-            <MarginSummaryDonut
-              margins={projects.map((project) => project.forecastMarginPercent)}
-            />
+            <MarginSummaryDonut projects={projects} />
           </ChartPanel>
           <ChartPanel
             className="executive-report-grid__effort executive-support-row__effort"
             eyebrow="Effort exposure"
             title="Logged vs Estimated Hours by Group"
             description="Estimate length shows relative workload across groups. Blue shows logged hours within the estimate; red shows work beyond the estimate."
+            help="Estimated hours come from the reporting estimate baseline for each operational group. Logged hours come from synced Teamwork time entries. Blue represents logged time within the estimate; red represents logged time beyond the estimate."
           >
             <HoursCompletionSummary rows={effortRows} />
           </ChartPanel>
