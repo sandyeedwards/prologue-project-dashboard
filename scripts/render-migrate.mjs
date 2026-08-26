@@ -5,10 +5,10 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
-const databaseUrl = process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL;
+const databaseUrl = process.env.DATABASE_URL ?? process.env.DIRECT_DATABASE_URL;
 
 if (!databaseUrl) {
-  throw new Error("DIRECT_DATABASE_URL or DATABASE_URL is required for database migrations.");
+  throw new Error("DATABASE_URL or DIRECT_DATABASE_URL is required for database migrations.");
 }
 
 const migrationsFolder = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle");
