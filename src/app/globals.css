@@ -10193,3 +10193,586 @@ body {
 .margin-text--neutral {
   color: #566071;
 }
+
+/* Hosting reporting */
+.hosting-page {
+  display: grid;
+  gap: 18px;
+}
+
+.hosting-page .report-titlebar,
+.hosting-page .metric-grid {
+  margin-bottom: 0;
+}
+
+.hosting-page .metric-grid--executive .metric-card--secondary::before {
+  display: none;
+}
+
+.hosting-flow-arrow {
+  color: #8798ad;
+}
+
+.hosting-status--failed {
+  border-color: #e9b2b2;
+  color: #8e2525;
+  background: #fff4f4;
+}
+
+.hosting-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid #cbd8e8;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.hosting-view-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #d2dce8;
+  border-radius: 8px;
+  background: #f5f8fc;
+}
+
+.hosting-view-tabs__item {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  padding: 7px 13px;
+  border-radius: 6px;
+  color: #52647e;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.hosting-view-tabs__item--active {
+  color: #fff;
+  background: var(--accent);
+}
+
+.hosting-grouping {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hosting-grouping label {
+  color: #52647e;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.hosting-grouping select {
+  min-height: 42px;
+  padding: 8px 34px 8px 11px;
+  border: 1px solid #c7d3e2;
+  border-radius: 7px;
+  color: var(--text);
+  background: #fff;
+  font-weight: 750;
+}
+
+.hosting-grouping input[type="date"] {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #c7d3e2;
+  border-radius: 7px;
+  color: var(--text);
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+
+.hosting-date-field {
+  display: grid;
+  gap: 3px;
+}
+
+.hosting-forecast-toggle {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  color: #344861;
+  font-size: 0.72rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.hosting-forecast-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.hosting-range-summary {
+  margin: -7px 4px 0;
+  color: #66758a;
+  font-size: 0.73rem;
+}
+
+.hosting-status-banner {
+  display: grid;
+  gap: 5px;
+  padding: 16px 18px;
+}
+
+.hosting-sync-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.hosting-report-section {
+  margin: 0;
+}
+
+.hosting-chart-section {
+  overflow: hidden;
+}
+
+.hosting-chart {
+  display: grid;
+  gap: 10px;
+  padding: 4px 16px 15px;
+}
+
+.hosting-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: #52647e;
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.hosting-chart__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hosting-chart-key {
+  width: 13px;
+  height: 9px;
+  border-radius: 2px;
+  background: #2878bd;
+}
+
+.hosting-chart-key--ivion {
+  background: #293e66;
+}
+
+.hosting-chart-key--overhead {
+  background: #e3a636;
+}
+
+.hosting-chart-key--pano {
+  background: #8a5fbd;
+}
+
+.hosting-chart-key--net {
+  height: 3px;
+  background: #17845a;
+}
+
+.hosting-chart-key--forecast {
+  border: 1px dashed #8392a5;
+  background: repeating-linear-gradient(135deg, #d7dee7 0 3px, #fff 3px 6px);
+}
+
+.hosting-chart__scroller {
+  overflow-x: auto;
+  border: 1px solid #d4dfea;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #fbfdff 0%, #fff 100%);
+}
+
+.hosting-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: inherit;
+}
+
+.hosting-chart__grid {
+  stroke: #e1e8f0;
+  stroke-width: 1;
+}
+
+.hosting-chart__zero {
+  stroke: #8fa1b6;
+  stroke-width: 1.4;
+}
+
+.hosting-chart__axis-label,
+.hosting-chart__period-label {
+  fill: #65758b;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.hosting-chart__bar--revenue {
+  fill: #2878bd;
+}
+
+.hosting-chart__bar--ivion {
+  fill: #293e66;
+}
+
+.hosting-chart__bar--overhead {
+  fill: #e3a636;
+}
+
+.hosting-chart__bar--pano {
+  fill: #8a5fbd;
+}
+
+.hosting-chart__net-line {
+  fill: none;
+  stroke: #17845a;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hosting-chart__net-point {
+  fill: #fff;
+  stroke: #17845a;
+  stroke-width: 2.2;
+}
+
+.hosting-chart__forecast-divider {
+  stroke: #718096;
+  stroke-width: 1.3;
+  stroke-dasharray: 5 5;
+}
+
+.hosting-chart__forecast-label {
+  fill: #65758b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.hosting-chart__note {
+  margin: 0;
+  color: #65758b;
+  font-size: 0.7rem;
+}
+
+.hosting-chart__tooltip rect {
+  fill: #102b4e;
+  filter: drop-shadow(0 4px 8px rgb(12 35 63 / 24%));
+  opacity: 0.96;
+}
+
+.hosting-chart__tooltip text {
+  fill: #e8f0fa;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.hosting-chart__tooltip .hosting-chart__tooltip-title,
+.hosting-chart__tooltip .hosting-chart__tooltip-net {
+  fill: #fff;
+  font-weight: 850;
+}
+
+.hosting-table-disclosure {
+  padding: 0;
+}
+
+.hosting-table-disclosure > summary,
+.hosting-deal-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.hosting-table-disclosure > summary::-webkit-details-marker,
+.hosting-deal-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.hosting-table-disclosure > summary span {
+  display: grid;
+  gap: 3px;
+}
+
+.hosting-table-disclosure > summary small,
+.hosting-deal-disclosure > summary small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.hosting-table-disclosure > summary i,
+.hosting-deal-disclosure > summary > i {
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid #62748a;
+  border-bottom: 2px solid #62748a;
+  transform: rotate(45deg);
+  transition: transform 150ms ease;
+}
+
+.hosting-table-disclosure[open] > summary i,
+.hosting-deal-disclosure[open] > summary > i {
+  transform: rotate(225deg);
+}
+
+.hosting-financial-table td:not(:first-child),
+.hosting-financial-table th:not(:first-child),
+.hosting-deal-table td:nth-last-child(-n + 2),
+.hosting-deal-table th:nth-last-child(-n + 2) {
+  text-align: right;
+}
+
+.hosting-value--profit {
+  color: #0f6340;
+}
+
+.hosting-value--loss {
+  color: #8e2525;
+}
+
+.hosting-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 18px;
+}
+
+.hosting-cost-model {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0 16px 16px;
+}
+
+.hosting-detail-item {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #dce4ee;
+  background: #f8fafc;
+}
+
+.hosting-detail-item dt {
+  margin-bottom: 4px;
+  color: #637389;
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hosting-detail-item dd {
+  margin: 0;
+  color: #20324a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.hosting-deal-list {
+  display: grid;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.hosting-deal-disclosure {
+  overflow: hidden;
+  border: 1px solid #d5e0eb;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.hosting-deal-disclosure > summary {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1.5fr) minmax(120px, 0.6fr) minmax(220px, 1fr) minmax(130px, 0.55fr)
+    16px;
+  min-height: 68px;
+}
+
+.hosting-deal-disclosure[open] > summary {
+  border-bottom: 1px solid #d5e0eb;
+  background: #f7fafe;
+}
+
+.hosting-deal-disclosure > summary > span:not(.tag-row) {
+  display: grid;
+  gap: 3px;
+}
+
+.hosting-deal-summary__site strong {
+  color: #12355d;
+}
+
+.hosting-deal-disclosure__content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(520px, 100%), 1fr));
+  gap: 12px;
+  padding: 16px;
+  background: #f5f8fc;
+}
+
+.hosting-deal-disclosure__content section {
+  min-width: 0;
+}
+
+.hosting-deal-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 2px 4px;
+}
+
+.hosting-deal-actions > div {
+  display: grid;
+  gap: 3px;
+}
+
+.hosting-deal-actions strong {
+  color: #12355d;
+  font-size: 0.9rem;
+}
+
+.hosting-deal-actions span {
+  color: #67768b;
+  font-size: 0.7rem;
+}
+
+.hosting-deal-panel {
+  padding: 14px;
+  border: 1px solid #d5e0eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.hosting-deal-disclosure__content h3 {
+  margin: 0 0 9px;
+  color: #16385f;
+  font-size: 0.86rem;
+}
+
+.hosting-deal-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.hosting-deal-notes {
+  grid-column: 1 / -1;
+}
+
+.hosting-basis {
+  display: inline-flex;
+  margin-left: 5px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #315375;
+  background: #e6eef7;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hosting-basis--estimated {
+  color: #7b4b05;
+  background: #fff0cc;
+}
+
+.hosting-basis--missing {
+  color: #7c2e2e;
+  background: #fde8e8;
+}
+
+.hosting-sync-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hosting-sync-list li {
+  display: grid;
+  gap: 4px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hosting-sync-list li:last-child {
+  border-bottom: 0;
+}
+
+.hosting-sync-list span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 900px) {
+  .hosting-controls,
+  .hosting-grouping,
+  .hosting-sync-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hosting-view-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .hosting-view-tabs__item {
+    justify-content: center;
+  }
+
+  .hosting-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hosting-date-field {
+    width: 100%;
+  }
+
+  .hosting-deal-disclosure > summary,
+  .hosting-deal-disclosure__content,
+  .hosting-deal-fields,
+  .hosting-cost-model {
+    grid-template-columns: 1fr;
+  }
+
+  .hosting-deal-disclosure > summary > i {
+    position: absolute;
+    right: 28px;
+  }
+
+  .hosting-deal-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

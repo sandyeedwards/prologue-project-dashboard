@@ -34,6 +34,7 @@ function many(value: string | string[] | undefined): string[] {
 }
 
 function knownFor(knownCount: number, projectCount: number): string {
+  if (!projectCount) return "No projects match the current filters.";
   return `Known for ${knownCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
 }
 
@@ -42,10 +43,15 @@ function actualCostCoverageDetail(
   partialCount: number,
   projectCount: number,
 ): string {
+  if (!projectCount) return "No projects match the current filters.";
   if (!partialCount) {
     return `Complete cost coverage for ${completeCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
   }
   return `Cost coverage: ${completeCount} complete · ${partialCount} partial/missing`;
+}
+
+function portfolioMoney(value: string | number | null, projectCount: number): string {
+  return projectCount ? money(value) : "No data";
 }
 
 function displayDate(value: Date | null): string {
@@ -99,19 +105,21 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const profitabilityRows = reconciliationRows.filter((row) => row.label !== "Unclassified");
   const totalRevenue = reconciliationRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
   const totalForecastCost = reconciliationRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
-  const totalRemainingCost = reconciliationRows.reduce((sum, row) => {
-    if (row.remainingCost !== null && row.remainingCost !== undefined)
-      return sum + row.remainingCost;
-    if (
-      row.cost !== null &&
-      row.cost !== undefined &&
-      row.actualCost !== null &&
-      row.actualCost !== undefined
-    ) {
-      return sum + Math.max(row.cost - row.actualCost, 0);
-    }
-    return sum;
-  }, 0);
+  const totalRemainingCost = reconciliationRows.length
+    ? reconciliationRows.reduce((sum, row) => {
+        if (row.remainingCost !== null && row.remainingCost !== undefined)
+          return sum + row.remainingCost;
+        if (
+          row.cost !== null &&
+          row.cost !== undefined &&
+          row.actualCost !== null &&
+          row.actualCost !== undefined
+        ) {
+          return sum + Math.max(row.cost - row.actualCost, 0);
+        }
+        return sum;
+      }, 0)
+    : null;
   const totalForecastProfit = totalRevenue - totalForecastCost;
   const actualCostCompositionComplete = reconciliationRows.every(
     (row) => row.actualCost !== null && row.actualCost !== undefined,
@@ -177,7 +185,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <MetricCard
               priority="primary"
               label="Actual Cost to Date"
-              value={money(summary.totalActualCost)}
+              value={portfolioMoney(summary.totalActualCost, summary.projectCount)}
               detail={actualCostCoverageDetail(
                 summary.actualCostKnownCount,
                 summary.actualCostPartialCount,
@@ -188,15 +196,21 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <MetricCard
               priority="primary"
               label="Costed Remaining Work"
-              value={money(totalRemainingCost)}
+              value={portfolioMoney(totalRemainingCost, summary.projectCount)}
               detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)}
               help={`Estimated remaining internal and outsourced cost from today to completion. This excludes actual cost already incurred and mirrors the costed remaining work shown in the profitability chart. ${summary.provisionalCount} project${summary.provisionalCount === 1 ? " is" : "s are"} provisional, so missing rates, assignments, or expenses can make this a known minimum.`}
-              tone={summary.provisionalCount ? "warning" : "success"}
+              tone={
+                summary.projectCount
+                  ? summary.provisionalCount
+                    ? "warning"
+                    : "success"
+                  : undefined
+              }
             />
             <MetricCard
               priority="primary"
               label="Forecasted Profit"
-              value={money(summary.totalForecastProfit)}
+              value={portfolioMoney(summary.totalForecastProfit, summary.projectCount)}
               detail={knownFor(summary.forecastProfitKnownCount, summary.projectCount)}
               help="Known client fees less known forecast cost. Provisional projects can cause this value to change when unresolved costs are priced."
             />
@@ -204,7 +218,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <div className="executive-kpis__secondary">
             <MetricCard
               label="Allocated Revenue"
-              value={money(summary.totalClientFee)}
+              value={portfolioMoney(summary.totalClientFee, summary.projectCount)}
               detail={knownFor(summary.clientFeeKnownCount, summary.projectCount)}
               help="Sum of fixed-fee project budgets returned by Teamwork. Missing fees remain missing and are not treated as $0."
             />

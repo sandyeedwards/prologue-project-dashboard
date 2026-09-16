@@ -17,6 +17,12 @@ import {
   type ProjectFilter,
   type ProjectReportRow,
 } from "@/lib/reporting/dashboard-data";
+import {
+  COMBINE_PROJECT_LIMIT,
+  COMPARE_PROJECT_LIMIT,
+  projectSelectionExceedsLimit,
+  type ProjectSelectionMode,
+} from "@/lib/reporting/project-selection";
 
 export const dynamic = "force-dynamic";
 
@@ -110,13 +116,16 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
     requestedAction === "compare" || requestedAction === "combine"
       ? requestedAction
       : one(params.mode);
-  const mode = requestedMode === "compare" || requestedMode === "combine" ? requestedMode : null;
+  const mode: ProjectSelectionMode | null =
+    requestedMode === "compare" || requestedMode === "combine" ? requestedMode : null;
   const selectedIds = [...new Set(many(params.project))];
   const selected = selectedIds
     .map((id) => allProjects.find((row) => row.id === id))
     .filter((row): row is ProjectReportRow => Boolean(row));
-  const compareOverLimit = mode === "compare" && selected.length > 6;
-  const reportProjects = compareOverLimit ? [] : selected;
+  const selectionOverLimit = mode ? projectSelectionExceedsLimit(mode, selectedIds) : false;
+  const compareOverLimit = mode === "compare" && selectionOverLimit;
+  const combineOverLimit = mode === "combine" && selectionOverLimit;
+  const reportProjects = selectionOverLimit ? [] : selected;
   const comparedProjectGroups =
     mode === "compare" && reportProjects.length
       ? await getComparedProjectOperationalGroups(reportProjects)
@@ -139,8 +148,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
     mode === "combine" && reportProjects.length
       ? `Combined view of ${reportProjects.length} selected projects. Operational groups are rolled up across the selection.`
       : mode === "compare" && reportProjects.length
-        ? `Side-by-side view of ${reportProjects.length} selected projects. Compare mode is limited to six projects.`
-        : "Filter the portfolio, compare up to six projects, or combine any number into one report.";
+        ? `Side-by-side view of ${reportProjects.length} selected projects. Compare mode is limited to ${COMPARE_PROJECT_LIMIT} projects.`
+        : `Filter the portfolio, compare up to ${COMPARE_PROJECT_LIMIT} projects, or combine up to ${COMBINE_PROJECT_LIMIT} into one report.`;
   const filterResetHref = resetHref(mode, selectedIds, pageSize);
 
   return (
@@ -171,11 +180,22 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
 
         {compareOverLimit ? (
           <div className="selection-alert selection-alert--error" role="alert">
-            <strong>Compare mode is limited to six projects.</strong>
+            <strong>Compare mode is limited to {COMPARE_PROJECT_LIMIT} projects.</strong>
             <span>
-              You selected {selected.length}. Remove {selected.length - 6} project
-              {selected.length - 6 === 1 ? "" : "s"}, or use Combine selected for an unlimited
-              aggregate report.
+              You selected {selectedIds.length}. Remove {selectedIds.length - COMPARE_PROJECT_LIMIT}{" "}
+              project{selectedIds.length - COMPARE_PROJECT_LIMIT === 1 ? "" : "s"} to compare them.
+              Combine accepts up to {COMBINE_PROJECT_LIMIT} projects.
+            </span>
+          </div>
+        ) : null}
+
+        {combineOverLimit ? (
+          <div className="selection-alert selection-alert--error" role="alert">
+            <strong>Combine mode is limited to {COMBINE_PROJECT_LIMIT} projects.</strong>
+            <span>
+              You selected {selectedIds.length}. Remove {selectedIds.length - COMBINE_PROJECT_LIMIT}{" "}
+              project{selectedIds.length - COMBINE_PROJECT_LIMIT === 1 ? "" : "s"} to keep the
+              report URL within the supported size.
             </span>
           </div>
         ) : null}
@@ -199,8 +219,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
                 : "Select projects below"}
             </strong>
             <span>
-              Compare is limited to six projects. Combine has no application limit and aggregates
-              the selected portfolio.
+              Compare is limited to {COMPARE_PROJECT_LIMIT} projects. Combine accepts up to{" "}
+              {COMBINE_PROJECT_LIMIT} and aggregates the selected portfolio.
             </span>
             <span className="selection-action-bar__count">
               <b>{projects.length}</b> of {allProjects.length} reporting projects
@@ -216,7 +236,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
                 value="compare"
               >
                 Compare selected
-                <small>Up to 6 projects</small>
+                <small>Up to {COMPARE_PROJECT_LIMIT} projects</small>
               </button>
               <button
                 className="button button--primary"
@@ -226,7 +246,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
                 value="combine"
               >
                 Combine selected
-                <small>Unlimited projects</small>
+                <small>Up to {COMBINE_PROJECT_LIMIT} projects</small>
               </button>
             </div>
             <span className="selection-action-bar__note">

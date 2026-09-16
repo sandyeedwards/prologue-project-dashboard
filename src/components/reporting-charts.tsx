@@ -6,6 +6,7 @@ import { PrologueMark } from "@/components/prologue-brand";
 import type { ProjectReportRow } from "@/lib/reporting/dashboard-data";
 import { hours, money, percent } from "@/lib/reporting/format";
 import { marginTone } from "@/lib/reporting/margin-status";
+import { COMBINE_PROJECT_LIMIT, combinedProjectsHref } from "@/lib/reporting/project-selection";
 
 export type ChartSeries = {
   key: string;
@@ -240,10 +241,8 @@ export function MarginSummaryDonut({ projects }: { projects: ProjectReportRow[] 
       <div className="donut-chart__legend">
         {segments.map((segment) => {
           const count = segment.projects.length;
-          const search = new URLSearchParams();
-          search.set("mode", "combine");
-          segment.projects.forEach((project) => search.append("project", project.id));
-          const href = `/projects?${search.toString()}`;
+          const href = combinedProjectsHref(segment.projects.map((project) => project.id));
+          const isOverCombineLimit = count > COMBINE_PROJECT_LIMIT;
 
           const summary = (
             <>
@@ -252,13 +251,18 @@ export function MarginSummaryDonut({ projects }: { projects: ProjectReportRow[] 
                 {segment.label}
               </span>
               <strong>{count}</strong>
-              <small>{segment.detail}</small>
+              <small>
+                {segment.detail}
+                {isOverCombineLimit
+                  ? ` · Select up to ${COMBINE_PROJECT_LIMIT} in Projects to combine`
+                  : ""}
+              </small>
             </>
           );
 
           return (
             <div className="donut-chart__legend-row" key={segment.label}>
-              {count > 0 ? (
+              {href ? (
                 <Link
                   className="donut-chart__legend-link"
                   href={href}

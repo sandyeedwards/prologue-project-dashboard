@@ -974,7 +974,7 @@ async function main() {
       primaryNavigationFocusesOnReporting: true,
       compareAndCombineLiveInProjectsWorkspace: true,
       compareLimitedToSixProjects: true,
-      combineSupportsUnlimitedProjectSelection: true,
+      combineLimitedToUrlSafeProjectSelection: true,
       combinedMarginRecalculatedFromCombinedTotals: true,
       forecastCostDisplayedBelowZeroAsComparisonMirror: true,
       forecastCostCompositionExplainedInTooltip: true,

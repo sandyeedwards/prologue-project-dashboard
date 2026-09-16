@@ -35,6 +35,7 @@
     "teamwork:verify": "tsx src/commands/verify-teamwork-import.ts",
     "step6:restart": "tsx src/commands/restart-step6.ts",
     "teamwork:sync-financials": "tsx src/commands/sync-teamwork-financials.ts",
+    "hosting:sync": "tsx src/commands/sync-hosting.ts",
     "step7:calculate": "tsx src/commands/calculate-projects.ts",
     "step7:verify": "tsx src/commands/verify-calculations.ts",
     "step7:run": "npm run db:migrate && tsx src/commands/run-step7.ts",

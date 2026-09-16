@@ -158,6 +158,16 @@ describe("reporting filters", () => {
     expect(summary.forecastMarginKnownCount).toBe(2);
     expect(summary.provisionalCount).toBe(2);
   });
+
+  it("keeps empty-view financial totals unavailable instead of converting them to zero", () => {
+    const summary = summarizeProjects([]);
+
+    expect(summary.projectCount).toBe(0);
+    expect(summary.totalClientFee).toBeNull();
+    expect(summary.totalActualCost).toBeNull();
+    expect(summary.totalForecastCost).toBeNull();
+    expect(summary.totalForecastProfit).toBeNull();
+  });
 });
 
 describe("database timestamp normalization", () => {

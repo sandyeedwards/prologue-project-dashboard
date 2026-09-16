@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { FlexibleDateRangeFields } from "@/components/flexible-date-range-fields";
 import type { ProjectFilter } from "@/lib/reporting/dashboard-data";
+import { dashboardFilterStateKey } from "@/lib/reporting/dashboard-filter-state";
 
 type CheckboxFilterOption = {
   value: string;
@@ -111,8 +112,10 @@ export function DashboardPortfolioFilters({
   types: string[];
   resetHref: string;
 }) {
+  const urlFilterStateKey = dashboardFilterStateKey(filter, { clients, statuses, types });
+
   return (
-    <form className="dashboard-inline-filters" method="get" action={action}>
+    <form key={urlFilterStateKey} className="dashboard-inline-filters" method="get" action={action}>
       <div className="dashboard-inline-filters__priority">
         <FlexibleDateRangeFields
           initialFrom={filter.dateFrom}

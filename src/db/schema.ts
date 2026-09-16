@@ -42,6 +42,7 @@ export const healthBand = pgEnum("health_band", ["GREEN", "AMBER", "RED", "GRAY"
 export const issueSeverity = pgEnum("issue_severity", ["INFO", "WARNING", "ERROR"]);
 export const snapshotKind = pgEnum("snapshot_kind", ["NIGHTLY", "MONTH_END", "RECONSTRUCTED"]);
 export const estimateSource = pgEnum("estimate_source", ["OWN", "CHILDREN", "NONE"]);
+export const hostingSyncKind = pgEnum("hosting_sync_kind", ["SCHEDULED", "MANUAL"]);
 
 const auditColumns = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -798,6 +799,174 @@ export const operationalGroupMetrics = pgTable(
   ],
 );
 
+export const hostingIvionSites = pgTable(
+  "hosting_ivion_sites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    label: text("label").notNull(),
+    url: text("url").notNull(),
+    startedOn: date("started_on"),
+    endedOn: date("ended_on"),
+    isActive: boolean("is_active").default(true).notNull(),
+    sortOrder: integer("sort_order").default(100).notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex("hosting_ivion_sites_url_unique").on(table.url),
+    index("hosting_ivion_sites_sort_idx").on(table.sortOrder),
+    index("hosting_ivion_sites_active_idx").on(table.isActive),
+    check(
+      "hosting_ivion_sites_dates_valid",
+      sql`${table.endedOn} is null or ${table.startedOn} is null or ${table.endedOn} >= ${table.startedOn}`,
+    ),
+  ],
+);
+
+export const hostingIvionSiteCostHistory = pgTable(
+  "hosting_ivion_site_cost_history",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => hostingIvionSites.id, { onDelete: "cascade" }),
+    effectiveOn: date("effective_on").notNull(),
+    annualCost: numeric("annual_cost", { precision: 16, scale: 2 }).notNull(),
+    currencyCode: text("currency_code").default("USD").notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => appUsers.id),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex("hosting_ivion_site_cost_history_site_date_unique").on(
+      table.siteId,
+      table.effectiveOn,
+    ),
+    index("hosting_ivion_site_cost_history_site_date_idx").on(table.siteId, table.effectiveOn),
+    check("hosting_ivion_site_cost_history_nonnegative", sql`${table.annualCost} >= 0`),
+  ],
+);
+
+export const hostingDeals = pgTable(
+  "hosting_deals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    hubspotDealId: text("hubspot_deal_id").notNull(),
+    dealName: text("deal_name"),
+    siteName: text("site_name"),
+    hubspotUrl: text("hubspot_url"),
+
+    isInAllHostingRecords: boolean("is_in_all_hosting_records").default(true).notNull(),
+    lastSeenInAllHostingRecordsAt: timestamp("last_seen_in_all_hosting_records_at", {
+      withTimezone: true,
+    }),
+    removedFromAllHostingRecordsAt: timestamp("removed_from_all_hosting_records_at", {
+      withTimezone: true,
+    }),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+
+    ivionSiteId: uuid("ivion_site_id").references(() => hostingIvionSites.id, {
+      onDelete: "set null",
+    }),
+    ivionInstance: text("ivion_instance"),
+    ivionHostingStart: date("ivion_hosting_start"),
+    ivionHostingEnd: date("ivion_hosting_end"),
+    ivionContractedFee: numeric("ivion_contracted_fee", {
+      precision: 16,
+      scale: 2,
+    }),
+    ivionTotalPanos: numeric("ivion_total_panos", {
+      precision: 18,
+      scale: 2,
+    }),
+    ivionActivePanos: numeric("ivion_active_panos", {
+      precision: 18,
+      scale: 2,
+    }),
+    ivionCompStart: date("ivion_comp_start"),
+    ivionCompEnd: date("ivion_comp_end"),
+    ivionCompContractedFee: numeric("ivion_comp_contracted_fee", {
+      precision: 16,
+      scale: 2,
+    }),
+    ivionCalculatedQuarterlyFee: numeric("ivion_calculated_quarterly_fee", {
+      precision: 16,
+      scale: 2,
+    }),
+    ivionContractedQuarterlyFee: numeric("ivion_contracted_quarterly_fee", {
+      precision: 16,
+      scale: 2,
+    }),
+    ivionDateAdded: date("ivion_date_added"),
+    ivionDateSentToClient: date("ivion_date_sent_to_client"),
+    ivionBundleArchiveDate: date("ivion_bundle_archive_date"),
+
+    benacoHostingStart: date("benaco_hosting_start"),
+    benacoHostingEnd: date("benaco_hosting_end"),
+    benacoContractedFee: numeric("benaco_contracted_fee", {
+      precision: 16,
+      scale: 2,
+    }),
+    benacoTotalPanos: numeric("benaco_total_panos", {
+      precision: 18,
+      scale: 2,
+    }),
+    benacoCompStart: date("benaco_comp_start"),
+    benacoCompEnd: date("benaco_comp_end"),
+    benacoCompContractedFee: numeric("benaco_comp_contracted_fee", {
+      precision: 16,
+      scale: 2,
+    }),
+    benacoUrl: text("benaco_url"),
+    benacoCalculatedCost: numeric("benaco_calculated_cost", {
+      precision: 16,
+      scale: 2,
+    }),
+    benacoAnnualFee: numeric("benaco_annual_fee", {
+      precision: 16,
+      scale: 2,
+    }),
+
+    hostingNotes: text("hosting_notes"),
+    hostingCommunicationsContact: text("hosting_communications_contact"),
+
+    raw: jsonb("raw").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex("hosting_deals_hubspot_id_unique").on(table.hubspotDealId),
+    index("hosting_deals_reporting_segment_idx").on(table.isInAllHostingRecords),
+    index("hosting_deals_ivion_site_idx").on(table.ivionSiteId),
+    index("hosting_deals_ivion_instance_idx").on(table.ivionInstance),
+    index("hosting_deals_ivion_dates_idx").on(table.ivionHostingStart, table.ivionHostingEnd),
+    index("hosting_deals_benaco_dates_idx").on(table.benacoHostingStart, table.benacoHostingEnd),
+  ],
+);
+
+export const hostingSyncRuns = pgTable(
+  "hosting_sync_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    kind: hostingSyncKind("kind").notNull(),
+    status: syncStatus("status").default("RUNNING").notNull(),
+    segmentName: text("segment_name").default("All Hosting Records").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    recordsRead: integer("records_read").default(0).notNull(),
+    recordsUpserted: integer("records_upserted").default(0).notNull(),
+    recordsRemovedFromSegment: integer("records_removed_from_segment").default(0).notNull(),
+    warnings: integer("warnings").default(0).notNull(),
+    errors: integer("errors").default(0).notNull(),
+    message: text("message"),
+    propertyMap: jsonb("property_map"),
+    summary: jsonb("summary"),
+    triggeredByUserId: uuid("triggered_by_user_id").references(() => appUsers.id),
+  },
+  (table) => [
+    index("hosting_sync_runs_started_at_idx").on(table.startedAt),
+    uniqueIndex("hosting_sync_runs_running_unique")
+      .on(table.status)
+      .where(sql`${table.status} = 'RUNNING'`),
+  ],
+);
 export const auditLog = pgTable(
   "audit_log",
   {
