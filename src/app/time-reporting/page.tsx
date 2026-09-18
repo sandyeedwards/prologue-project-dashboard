@@ -215,6 +215,16 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
           </div>
 
           <div className="report-titlebar__actions">
+            {session.user.role === "ADMIN" ? (
+              <>
+                <Link className="button button--secondary" href="/time-reporting/payroll">
+                  Export pay-period time
+                </Link>
+                <Link className="button button--secondary" href="/time-reporting/payroll?type=pto">
+                  Export pay-period PTO
+                </Link>
+              </>
+            ) : null}
             <span className="report-date-chip">
               Data current through {dataCurrentLabel(report.dataCurrentAt)}
             </span>

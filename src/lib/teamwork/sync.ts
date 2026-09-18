@@ -343,6 +343,8 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
 
     const previousSuccessfulSyncStartedAt = latestSuccessfulTeamworkSyncStartedAt(priorSyncRuns);
 
+    // Capture PTO before source names, relationships, or entries can change.
+    await getSqlClient()`select refresh_payroll_pto()`;
     console.log("[1/6] Importing companies, tags, and projects...");
     const projectPayload = await teamworkFetch<TeamworkRecord>(
       connection,
@@ -1173,6 +1175,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       existingTimeEntries.add(resolved.timeTeamworkId);
     }
 
+    await getSqlClient()`select refresh_payroll_pto()`;
     console.log("[6/6] Verifying import counts and saving diagnostics...");
     await issues.save(run.id);
     const totals = Object.values(stats).reduce(
