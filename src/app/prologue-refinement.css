@@ -7010,12 +7010,11 @@ textarea {
   }
 }
 
-/* Company Overview: richer executive stat hierarchy and financial color semantics. */
+/* Company Overview: restrained executive hierarchy and financial color semantics. */
 .executive-dashboard .report-titlebar--executive {
-  background:
-    radial-gradient(circle at 86% 18%, rgb(69 161 255 / 13%), transparent 28%),
-    linear-gradient(135deg, #fff 0%, #f8fbff 72%, #eef6ff 100%);
-  box-shadow: 0 12px 30px rgb(15 50 87 / 10%);
+  border-color: #c5d2df;
+  background: #fff;
+  box-shadow: 0 8px 22px rgb(15 50 87 / 7%);
 }
 
 .executive-dashboard .report-titlebar--executive h1 {
@@ -7024,16 +7023,14 @@ textarea {
 }
 
 .company-pulse {
-  border: 0;
-  box-shadow: 0 12px 28px rgb(15 50 87 / 12%);
+  border: 1px solid #c5d2df;
+  box-shadow: 0 8px 22px rgb(15 50 87 / 8%);
 }
 
 .company-pulse__summary {
   border-left: 0;
   color: #fff;
-  background:
-    radial-gradient(circle at 92% 15%, rgb(88 190 255 / 36%), transparent 34%),
-    linear-gradient(135deg, #08284c, #0d62b4);
+  background: linear-gradient(135deg, #092947, #12466f);
 }
 
 .company-pulse__summary .eyebrow,
@@ -7048,7 +7045,7 @@ textarea {
   padding: 6px 10px;
   border: 1px solid rgb(255 255 255 / 35%);
   border-radius: 999px;
-  background: rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 8%);
   text-decoration: none;
 }
 
@@ -7056,35 +7053,35 @@ textarea {
   position: relative;
   min-height: 130px;
   padding: 22px 20px;
-  border-top: 4px solid var(--pulse-accent, #2f80d8);
-  background: var(--pulse-wash, #f7fbff);
+  border-top: 3px solid #c5d2df;
+  background: #fff;
 }
 
 .company-pulse__stat:nth-child(2) {
-  --pulse-accent: #15966b;
-  --pulse-wash: linear-gradient(180deg, #f1fcf7, #fff);
+  border-top-color: #1b7d5a;
 }
 
 .company-pulse__stat:nth-child(3) {
-  --pulse-accent: #2478da;
-  --pulse-wash: linear-gradient(180deg, #f1f7ff, #fff);
+  border-top-color: #315f8b;
 }
 
 .company-pulse__stat:nth-child(4) {
-  --pulse-accent: #7559d8;
-  --pulse-wash: linear-gradient(180deg, #f6f3ff, #fff);
+  border-top-color: #315f8b;
 }
 
 .company-pulse__stat:nth-child(5) {
-  --pulse-accent: #168aa0;
-  --pulse-wash: linear-gradient(180deg, #effbfc, #fff);
+  border-top-color: #315f8b;
 }
 
 .company-pulse__stat strong {
   margin: 7px 0 5px;
-  color: var(--pulse-accent);
-  font-size: clamp(1.75rem, 2vw, 2.35rem);
+  color: #0b2d4d;
+  font-size: clamp(1.65rem, 1.8vw, 2.1rem);
   letter-spacing: -0.035em;
+}
+
+.company-pulse__stat:nth-child(2) strong {
+  color: #126846;
 }
 
 .company-pulse__stat > span {
@@ -7104,24 +7101,17 @@ textarea {
 }
 
 .executive-dashboard .executive-kpis .metric-card {
-  --metric-accent: #1d72cf;
-  --metric-wash: #f4f9ff;
+  --metric-accent: #426781;
   --metric-value: #0a284a;
   isolation: isolate;
   overflow: hidden;
   min-height: 142px;
   padding: 22px 22px 20px;
-  border: 1px solid color-mix(in srgb, var(--metric-accent) 32%, #d6e1ec);
-  border-top: 5px solid var(--metric-accent);
-  border-radius: 14px;
-  background:
-    radial-gradient(
-      circle at 94% 8%,
-      color-mix(in srgb, var(--metric-accent) 15%, transparent) 0 48px,
-      transparent 49px
-    ),
-    linear-gradient(145deg, #fff 40%, var(--metric-wash));
-  box-shadow: 0 9px 24px rgb(16 43 78 / 9%);
+  border: 1px solid #c5d2df;
+  border-top: 3px solid var(--metric-accent);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgb(16 43 78 / 7%);
 }
 
 .executive-dashboard .executive-kpis__primary .metric-card {
@@ -7129,34 +7119,24 @@ textarea {
   padding: 25px 24px 22px;
 }
 
-.executive-dashboard .executive-kpis .metric-card--accent-amber {
-  --metric-accent: #d67515;
-  --metric-wash: #fff6e9;
-  --metric-value: #9c4e08;
-}
-
-.executive-dashboard .executive-kpis .metric-card--accent-purple {
-  --metric-accent: #7356d8;
-  --metric-wash: #f5f2ff;
-  --metric-value: #5136ae;
+.executive-dashboard .executive-kpis .metric-card--accent-gray {
+  --metric-accent: #7d8d9e;
+  --metric-value: #183a59;
 }
 
 .executive-dashboard .executive-kpis .metric-card--accent-green {
-  --metric-accent: #159267;
-  --metric-wash: #edf9f4;
-  --metric-value: #08714d;
+  --metric-accent: #1b7d5a;
+  --metric-value: #126846;
 }
 
 .executive-dashboard .executive-kpis .metric-card--accent-blue {
-  --metric-accent: #2478da;
-  --metric-wash: #eef6ff;
-  --metric-value: #125cb4;
+  --metric-accent: #315f8b;
+  --metric-value: #153f66;
 }
 
 .executive-dashboard .executive-kpis .metric-card--accent-navy {
-  --metric-accent: #174b7d;
-  --metric-wash: #eef3f8;
-  --metric-value: #0a3158;
+  --metric-accent: #173d60;
+  --metric-value: #0b2d4d;
 }
 
 .executive-dashboard .executive-kpis .metric-card__indicator {
@@ -7167,7 +7147,7 @@ textarea {
 }
 
 .executive-dashboard .executive-kpis .metric-card__label {
-  color: color-mix(in srgb, var(--metric-accent) 78%, #17324e);
+  color: #49627a;
   font-size: 0.67rem;
   letter-spacing: 0.1em;
 }
@@ -7175,13 +7155,13 @@ textarea {
 .executive-dashboard .executive-kpis .metric-card__value {
   margin-top: 15px;
   color: var(--metric-value);
-  font-size: clamp(2rem, 2.65vw, 3rem);
-  letter-spacing: -0.05em;
+  font-size: clamp(1.9rem, 2.45vw, 2.7rem);
+  letter-spacing: -0.045em;
   line-height: 0.96;
 }
 
 .executive-dashboard .executive-kpis__primary .metric-card__value {
-  font-size: clamp(2.65rem, 3.6vw, 4rem);
+  font-size: clamp(2.45rem, 3.25vw, 3.55rem);
 }
 
 .executive-dashboard .executive-kpis .metric-card__detail {
@@ -7193,34 +7173,35 @@ textarea {
 }
 
 .executive-dashboard .executive-kpis .metric-card:hover {
-  border-color: var(--metric-accent);
-  background:
-    radial-gradient(
-      circle at 94% 8%,
-      color-mix(in srgb, var(--metric-accent) 15%, transparent) 0 48px,
-      transparent 49px
-    ),
-    linear-gradient(145deg, #fff 40%, var(--metric-wash));
-  box-shadow: 0 9px 24px rgb(16 43 78 / 9%);
+  border-color: #9fb2c4;
+  background: #fff;
+  box-shadow: 0 8px 22px rgb(16 43 78 / 9%);
 }
 
 .company-highlight-card {
-  background: linear-gradient(180deg, #fff, #f7fbff);
+  background: #fff;
 }
 
-.company-highlight-card:nth-child(3),
-.company-highlight-card:nth-child(4) {
-  background: linear-gradient(180deg, #f1fbf6, #fff);
+.company-highlights__intro {
+  background: linear-gradient(135deg, #092947, #12466f);
 }
 
-.company-highlight-card:nth-child(5) {
-  background: linear-gradient(180deg, #f6f3ff, #fff);
+.company-highlight-card__icon {
+  border: 1px solid #c8d5e1;
+  color: #17486f;
+  background: #edf3f8;
+  box-shadow: none;
 }
 
 .company-highlight-card strong {
-  color: #0b3863;
-  font-size: clamp(1.25rem, 1.55vw, 1.65rem);
+  color: #0b2d4d;
+  font-size: clamp(1.2rem, 1.45vw, 1.5rem);
   letter-spacing: -0.025em;
+}
+
+.executive-dashboard .report-launch-grid > a {
+  border-top-color: #315f8b;
+  box-shadow: 0 6px 18px rgb(16 43 78 / 6%);
 }
 
 @media (max-width: 1180px) {
