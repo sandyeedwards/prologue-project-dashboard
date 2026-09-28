@@ -7,14 +7,28 @@ export function payPeriod(date = currentTimeReportingDate()) {
     throw new Error("Invalid pay-period date");
   }
   const month = date.slice(0, 7);
-  const second = parsed.getUTCDate() >= 15;
+  const second = parsed.getUTCDate() >= 16;
   const last = new Date(
     Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth() + 1, 0),
   ).getUTCDate();
   return {
-    startDate: `${month}-${second ? "15" : "01"}`,
-    endDate: `${month}-${second ? last : "14"}`,
+    startDate: `${month}-${second ? "16" : "01"}`,
+    endDate: `${month}-${second ? last : "15"}`,
   };
+}
+
+export function mostRecentClosedPayPeriod(date = currentTimeReportingDate()) {
+  const current = new Date(`${date}T00:00:00Z`);
+  if (!Number.isFinite(current.valueOf()) || current.toISOString().slice(0, 10) !== date) {
+    throw new Error("Invalid pay-period date");
+  }
+  if (current.getUTCDate() >= 16) {
+    return payPeriod(`${date.slice(0, 7)}-15`);
+  }
+  const previousMonthLastDay = new Date(
+    Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), 0),
+  );
+  return payPeriod(previousMonthLastDay.toISOString().slice(0, 10));
 }
 
 export function ptoLockDate(workDate: string) {

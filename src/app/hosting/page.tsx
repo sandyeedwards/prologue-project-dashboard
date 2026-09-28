@@ -80,6 +80,10 @@ function number(value: number): string {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
 }
 
+function wholePercent(value: number): string {
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value * 100)}%`;
+}
+
 function optionalCurrency(value: string | number | null, digits = 0): string {
   if (value === null || value === "") return "Not available";
   return currency(Number(value), digits);
@@ -265,7 +269,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <h1>Hosting Reporting</h1>
             <p>
               Track paid IVION and Benaco hosting revenue, direct platform costs, pano usage, and
-              term coverage from the HubSpot hosting portfolio.
+              term coverage from the HubSpot hosting records.
             </p>
             <div className="report-titlebar__status" aria-label="Hosting data status">
               <span className="portfolio-status-dot portfolio-status-dot--green" />
@@ -313,8 +317,18 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               </Link>
             ))}
           </nav>
-          <form className="hosting-grouping" method="get">
-            <input type="hidden" name="view" value={view} />
+          <details className="filter-popover filter-popover--inline">
+            <summary className="filter-popover__trigger">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 5h16l-6.25 7.1v5.35l-3.5 1.75v-7.1L4 5Z" />
+                <circle cx="17.25" cy="16.75" r="3.25" />
+                <path d="m19.6 19.1 2.15 2.15" />
+              </svg>
+              <span>Report options</span>
+              <span className="filter-popover__chevron" aria-hidden="true" />
+            </summary>
+            <form className="hosting-grouping filter-popover__panel" method="get">
+              <input type="hidden" name="view" value={view} />
             <label htmlFor="hosting-range">Time range</label>
             <select id="hosting-range" name="range" defaultValue={range}>
               {ranges.map((option) => (
@@ -344,10 +358,11 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               Show forecast
             </label>
             <input type="hidden" name="forecast" value="hide" />
-            <button className="button button--secondary" type="submit">
-              Apply
-            </button>
-          </form>
+              <button className="button button--primary" type="submit">
+                Apply options
+              </button>
+            </form>
+          </details>
         </section>
 
         <p className="hosting-range-summary">
@@ -379,7 +394,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </strong>
             <span>
               Ivion Total Panos is missing, so counted panos are estimated at{" "}
-              {BENACO_GRID_ESTIMATE_RATE * 100}% of Benaco Total Panos. Approximately{" "}
+              {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos. Approximately{" "}
               {currency(estimatedCost, 2)} of displayed historical cost is estimated.
             </span>
           </section>
@@ -461,6 +476,12 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </p>
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
+          <p className="hosting-calculation-note">
+            <strong>Calculation check:</strong> complimentary hosting never creates a revenue
+            deduction. Net revenue is paid contracted hosting revenue minus IVION platform cost,
+            Benaco pano cost, and the Benaco subscription. A period can fall sharply when a paid
+            term ends while its site remains active and continues to incur direct hosting cost.
+          </p>
         </section>
 
         <details className="report-section hosting-report-section hosting-table-disclosure">
@@ -564,7 +585,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 Counted panos × $0.38 ÷ 365 × active days
               </DetailItem>
               <DetailItem label="Missing counted panos">
-                Estimate at {BENACO_GRID_ESTIMATE_RATE * 100}% of Benaco Total Panos and label it
+                Estimate at {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos and label it
               </DetailItem>
             </dl>
           </article>

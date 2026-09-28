@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 
 import type { HostingReportRow, HostingView } from "@/lib/hosting/reporting";
 
@@ -39,7 +39,7 @@ export function HostingFinancialChart({
   rows: HostingReportRow[];
   view: HostingView;
 }) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<{ index: number; x: number; y: number } | null>(null);
 
   if (!rows.length) {
     return <div className="chart-empty">No hosting periods are available for this range.</div>;
@@ -85,15 +85,30 @@ export function HostingFinancialChart({
     )
     .join(" ");
   const firstForecastIndex = points.findIndex((point) => point.forecast);
-  const hovered = hoveredIndex === null ? null : points[hoveredIndex];
-  const tooltipWidth = 230;
-  const tooltipX =
-    hoveredIndex === null
-      ? 0
-      : Math.min(
-          width - MARGIN.right - tooltipWidth,
-          Math.max(MARGIN.left, x(hoveredIndex) - tooltipWidth / 2),
-        );
+  const hoveredPoint = hovered === null ? null : points[hovered.index];
+  const tooltipWidth = 250;
+  const tooltipHeight = view === "combined" ? 126 : 106;
+  const tooltipX = hovered
+    ? hovered.x + 14 + tooltipWidth <= width - MARGIN.right
+      ? Math.max(MARGIN.left, hovered.x + 14)
+      : Math.max(MARGIN.left, hovered.x - tooltipWidth - 14)
+    : 0;
+  const tooltipY = hovered
+    ? Math.min(
+        HEIGHT - MARGIN.bottom - tooltipHeight,
+        Math.max(MARGIN.top, hovered.y - tooltipHeight / 2),
+      )
+    : 0;
+  const inspectAtPointer = (event: MouseEvent<SVGRectElement>, index: number) => {
+    const svg = event.currentTarget.ownerSVGElement;
+    if (!svg) return;
+    const bounds = svg.getBoundingClientRect();
+    setHovered({
+      index,
+      x: ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * width,
+      y: ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * HEIGHT,
+    });
+  };
 
   return (
     <div className="hosting-chart" role="region" aria-label="Hosting financial performance chart">
@@ -132,7 +147,7 @@ export function HostingFinancialChart({
           role="img"
           aria-labelledby="hosting-chart-title hosting-chart-description"
           style={{ minWidth: `${width}px` }}
-          onMouseLeave={() => setHoveredIndex(null)}
+          onMouseLeave={() => setHovered(null)}
         >
           <title id="hosting-chart-title">
             Hosting paid revenue, direct costs, and net revenue
@@ -231,9 +246,10 @@ export function HostingFinancialChart({
                   fill="transparent"
                   tabIndex={0}
                   aria-label={`${point.period}: paid revenue ${fullCurrency(point.displayedRevenue)}, direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net revenue ${fullCurrency(point.displayedNet)}`}
-                  onMouseEnter={() => setHoveredIndex(index)}
-                  onFocus={() => setHoveredIndex(index)}
-                  onBlur={() => setHoveredIndex(null)}
+                  onMouseEnter={(event) => inspectAtPointer(event, index)}
+                  onMouseMove={(event) => inspectAtPointer(event, index)}
+                  onFocus={() => setHovered({ index, x: center, y: y(point.displayedNet) })}
+                  onBlur={() => setHovered(null)}
                 />
               </g>
             );
@@ -249,48 +265,59 @@ export function HostingFinancialChart({
               opacity={point.forecast ? 0.55 : 1}
             />
           ))}
-          {hovered ? (
+          {hoveredPoint && hovered ? (
             <g className="hosting-chart__tooltip" pointerEvents="none">
-              <rect x={tooltipX} y={36} width={tooltipWidth} height={118} rx={8} />
-              <text x={tooltipX + 13} y={57} className="hosting-chart__tooltip-title">
-                {hovered.period} · {hovered.forecast ? "Forecast" : "Actual"}
+              <line
+                x1={hovered.x}
+                x2={hovered.x}
+                y1={MARGIN.top}
+                y2={HEIGHT - MARGIN.bottom}
+                className="hosting-chart__cursor-line"
+              />
+              <rect x={tooltipX} y={tooltipY} width={tooltipWidth} height={tooltipHeight} rx={8} />
+              <text x={tooltipX + 13} y={tooltipY + 21} className="hosting-chart__tooltip-title">
+                {hoveredPoint.period} · {hoveredPoint.forecast ? "Forecast" : "Actual"}
               </text>
-              <text x={tooltipX + 13} y={79}>
+              <circle cx={tooltipX + 17} cy={tooltipY + 42} r={4} className="hosting-chart__tooltip-key hosting-chart__tooltip-key--revenue" />
+              <text x={tooltipX + 29} y={tooltipY + 46}>
                 Paid revenue
               </text>
-              <text x={tooltipX + tooltipWidth - 13} y={79} textAnchor="end">
-                {fullCurrency(hovered.displayedRevenue)}
+              <text x={tooltipX + tooltipWidth - 13} y={tooltipY + 46} textAnchor="end">
+                {fullCurrency(hoveredPoint.displayedRevenue)}
               </text>
               {view !== "benaco" ? (
                 <>
-                  <text x={tooltipX + 13} y={99}>
+                  <circle cx={tooltipX + 17} cy={tooltipY + 62} r={4} className="hosting-chart__tooltip-key hosting-chart__tooltip-key--ivion" />
+                  <text x={tooltipX + 29} y={tooltipY + 66}>
                     IVION platform
                   </text>
-                  <text x={tooltipX + tooltipWidth - 13} y={99} textAnchor="end">
-                    {fullCurrency(hovered.displayedIvionCost)}
+                  <text x={tooltipX + tooltipWidth - 13} y={tooltipY + 66} textAnchor="end">
+                    {fullCurrency(hoveredPoint.displayedIvionCost)}
                   </text>
                 </>
               ) : null}
               {view !== "ivion" ? (
                 <>
-                  <text x={tooltipX + 13} y={119}>
+                  <circle cx={tooltipX + 17} cy={tooltipY + (view === "combined" ? 82 : 62)} r={4} className="hosting-chart__tooltip-key hosting-chart__tooltip-key--pano" />
+                  <text x={tooltipX + 29} y={tooltipY + (view === "combined" ? 86 : 66)}>
                     Benaco pano + subscription
                   </text>
-                  <text x={tooltipX + tooltipWidth - 13} y={119} textAnchor="end">
-                    {fullCurrency(hovered.displayedBenacoCost)}
+                  <text x={tooltipX + tooltipWidth - 13} y={tooltipY + (view === "combined" ? 86 : 66)} textAnchor="end">
+                    {fullCurrency(hoveredPoint.displayedBenacoCost)}
                   </text>
                 </>
               ) : null}
-              <text x={tooltipX + 13} y={141} className="hosting-chart__tooltip-net">
+              <circle cx={tooltipX + 17} cy={tooltipY + (view === "combined" ? 104 : 84)} r={4} className="hosting-chart__tooltip-key hosting-chart__tooltip-key--net" />
+              <text x={tooltipX + 29} y={tooltipY + (view === "combined" ? 108 : 88)} className="hosting-chart__tooltip-net">
                 Net revenue
               </text>
               <text
                 x={tooltipX + tooltipWidth - 13}
-                y={141}
+                y={tooltipY + (view === "combined" ? 108 : 88)}
                 textAnchor="end"
                 className="hosting-chart__tooltip-net"
               >
-                {fullCurrency(hovered.displayedNet)}
+                {fullCurrency(hoveredPoint.displayedNet)}
               </text>
             </g>
           ) : null}

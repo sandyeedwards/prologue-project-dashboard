@@ -16,6 +16,10 @@ function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function ageInDays(value: Date): number {
+  return Math.max(0, Math.floor((Date.now() - value.getTime()) / 86_400_000));
+}
+
 export default async function TeamworkIssuesPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireUser("/help/teamwork-issues");
   const isAdmin = session.user.role === "ADMIN";
@@ -26,7 +30,8 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
   ]);
 
   const query = one(params.q)?.trim() ?? "";
-  const status = one(params.status) ?? "OPEN";
+  const view = one(params.view) ?? "OPEN";
+  const status = one(params.status) ?? "ALL";
   const severity = one(params.severity) ?? "ALL";
   const code = one(params.code) ?? "ALL";
   const correctionPath = one(params.path) ?? "ALL";
@@ -68,10 +73,15 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
     return true;
   });
 
-  const issues =
-    status === "ALL"
-      ? statusScopedIssues
-      : statusScopedIssues.filter((issue) => issue.status === status);
+  const statusFilteredIssues = status === "ALL"
+    ? statusScopedIssues
+    : statusScopedIssues.filter((issue) => issue.status === status);
+  const issues = statusFilteredIssues.filter((issue) => {
+    if (view === "ALL") return true;
+    if (view === "REVIEWED") return issue.status === "REVIEWED";
+    if (view === "ATTENTION") return issue.status === "OPEN" && issue.severity !== "INFO";
+    return issue.status === "OPEN";
+  });
 
   const openIssues = statusScopedIssues.filter((issue) => issue.status === "OPEN");
   const reviewedIssues = statusScopedIssues.filter((issue) => issue.status === "REVIEWED");
@@ -98,7 +108,7 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
           <div className="section-heading">
             <div>
               <p className="eyebrow">Current issues</p>
-              <h2>Portfolio reporting issue register</h2>
+              <h2>Company reporting issue register</h2>
               <p className="section-description">
                 Open items require source correction or review. Once corrected in Teamwork, an item
                 disappears after the next sync and calculation run. Reviewed unplanned-work items
@@ -109,6 +119,21 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               {openIssues.length} open {"\u00b7"} {reviewedIssues.length} reviewed
             </span>
           </div>
+
+          <div className="issue-workflow" role="note">
+            <strong>Close the loop</strong>
+            <span>1. Open the source record in Teamwork.</span>
+            <span>2. Correct the estimate, assignment, budget, or rate there.</span>
+            <span>3. Run the next sync. Corrected items close automatically when the source is re-checked.</span>
+            <small>Teamwork remains the source of truth. The dashboard does not silently overwrite Teamwork records.</small>
+          </div>
+
+          <nav className="issue-view-tabs" aria-label="Issue work queues">
+            <Link className={view === "OPEN" ? "is-active" : ""} href="/help/teamwork-issues?view=OPEN">Open <b>{openIssues.length}</b></Link>
+            <Link className={view === "ATTENTION" ? "is-active" : ""} href="/help/teamwork-issues?view=ATTENTION">Needs Attention <b>{openIssues.filter((issue) => issue.severity !== "INFO").length}</b></Link>
+            <Link className={view === "REVIEWED" ? "is-active" : ""} href="/help/teamwork-issues?view=REVIEWED">Reviewed <b>{reviewedIssues.length}</b></Link>
+            <Link className={view === "ALL" ? "is-active" : ""} href="/help/teamwork-issues?view=ALL">All Issues <b>{statusScopedIssues.length}</b></Link>
+          </nav>
 
           <form
             className="filter-panel teamwork-issues-filter-panel"
@@ -148,6 +173,7 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                   <option value="REVIEWED">Reviewed</option>
                 </select>
               </label>
+              <input type="hidden" name="view" value={view} />
 
               <label className="filter-field">
                 <span>Severity</span>
@@ -234,8 +260,7 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                 </p>
 
                 <small>
-                  {issue.severity} {"\u00b7"} Project status {issue.projectStatus} {"\u00b7"} Last
-                  detected {dateLabel(issue.lastDetectedAt)}
+                  {issue.severity} {"\u00b7"} Project status {issue.projectStatus} {"\u00b7"} Age {ageInDays(issue.lastDetectedAt)} days {"\u00b7"} Last detected {dateLabel(issue.lastDetectedAt)}
                   {issue.reviewedAt
                     ? ` \u00b7 Reviewed ${dateLabel(issue.reviewedAt)} by ${issue.reviewedByName ?? "Admin"}`
                     : ""}

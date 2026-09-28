@@ -158,15 +158,15 @@ function CompositionRow({
         <div className="portfolio-composition__hero-metrics" aria-hidden="true">
           <span>
             <small>Actual Cost to Date</small>
-            <strong>{compactCurrency(values.actual)}</strong>
+            <strong>{fullCurrency(values.actual)}</strong>
           </span>
           <span>
             <small>Costed Remaining Work</small>
-            <strong>{compactCurrency(values.remaining)}</strong>
+            <strong>{fullCurrency(values.remaining)}</strong>
           </span>
           <span className={values.profit < 0 ? "is-loss" : "is-profit"}>
             <small>{values.profit < 0 ? "Forecast Loss" : "Forecasted Profit"}</small>
-            <strong>{compactCurrency(values.profit)}</strong>
+            <strong>{fullCurrency(values.profit)}</strong>
           </span>
           <span>
             <small>Forecast Margin</small>

@@ -18,14 +18,14 @@ const forecastView: ProfitabilityViewDefinition = {
   id: "total",
   label: "Forecasted Profitability",
   description:
-    "View the combined financial position of every operational group in the filtered portfolio with the same revenue, cost-to-date, remaining-cost, and profit structure.",
+    "View the combined financial position of every operational group in the filtered company view with the same revenue, cost-to-date, remaining-cost, and profit structure.",
 };
 
 const historicalView: ProfitabilityViewDefinition = {
   id: "history",
   label: "Historical Revenue & Net Profit",
   description:
-    "Track gross revenue, source-dated actual cost, anticipated cost, net profit to date, and forecasted net profit over time. Dashboard filters define the portfolio, and the calendar controls adjust the visible historical range.",
+    "Track gross revenue, source-dated actual cost, anticipated cost, net profit to date, and forecasted net profit over time. Dashboard filters define the projects, and the calendar controls adjust the visible historical range.",
 };
 
 const groupView: ProfitabilityViewDefinition = {
@@ -158,7 +158,7 @@ export function DashboardProfitabilityTabs({
               <PortfolioFinancialComposition rows={[totalRow]} variant="total" />
             ) : (
               <div className="chart-empty">
-                No complete portfolio financial position is available.
+                No complete combined financial position is available.
               </div>
             )
           ) : historicalSeries !== undefined ? (
@@ -167,7 +167,7 @@ export function DashboardProfitabilityTabs({
               initialDateRange={historicalInitialRange}
             />
           ) : (
-            <div className="chart-empty">No historical portfolio data is available.</div>
+            <div className="chart-empty">No historical project data is available.</div>
           )}
         </div>
       ))}

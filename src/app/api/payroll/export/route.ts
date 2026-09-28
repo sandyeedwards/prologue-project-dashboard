@@ -13,12 +13,18 @@ export async function GET(request: Request) {
     return Response.json({ error: "Choose a valid pay-period date." }, { status: 400 });
   }
   const report = await getPayrollReport(params);
+  if (!report.rows.length) {
+    return Response.json(
+      { error: `There is no ${report.ptoOnly ? "PTO " : ""}time to export for this pay period.` },
+      { status: 404 },
+    );
+  }
   if (params.get("format") === "pdf") {
     const bytes = await payrollPdf(report.rows, report.today, report.period, report.ptoOnly);
     return new Response(Buffer.from(bytes), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${report.ptoOnly ? "pto" : "time"}-${report.period.startDate}.pdf"`,
+        "Content-Disposition": `attachment; filename="Prologue_${report.ptoOnly ? "PTO" : "Time"}_Export_${report.today}.pdf"`,
         "Cache-Control": "private, no-store",
       },
     });
@@ -26,7 +32,7 @@ export async function GET(request: Request) {
   return new Response(payrollCsv(report.rows, report.today, report.period), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${report.ptoOnly ? "pto" : "time"}-${report.period.startDate}-${report.period.endDate}.csv"`,
+      "Content-Disposition": `attachment; filename="Prologue_${report.ptoOnly ? "PTO" : "Time"}_Export_${report.today}.csv"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

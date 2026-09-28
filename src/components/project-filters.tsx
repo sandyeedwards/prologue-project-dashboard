@@ -27,18 +27,39 @@ export function ProjectFilterBar({
   preservedProjectIds?: string[];
   preservedPageSize?: number;
 }) {
+  const activeFilterCount = [
+    filter.query,
+    filter.client && filter.client !== "ALL" ? filter.client : undefined,
+    filter.health && filter.health !== "ALL" ? filter.health : undefined,
+    filter.status && filter.status !== "ALL" ? filter.status : undefined,
+    filter.type && filter.type !== "ALL" ? filter.type : undefined,
+    filter.dateFrom,
+    filter.dateTo,
+  ].filter(Boolean).length;
+
   return (
-    <form
-      className="filter-panel filter-panel--projects filter-panel--visible"
-      method="get"
-      action={action}
-    >
+    <details className="filter-popover filter-popover--workspace">
+      <summary className="filter-popover__trigger">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5h16l-6.25 7.1v5.35l-3.5 1.75v-7.1L4 5Z" />
+          <circle cx="17.25" cy="16.75" r="3.25" />
+          <path d="m19.6 19.1 2.15 2.15" />
+        </svg>
+        <span>Search &amp; filter</span>
+        {activeFilterCount ? <span className="filter-popover__count">{activeFilterCount}</span> : null}
+        <span className="filter-popover__chevron" aria-hidden="true" />
+      </summary>
+      <form
+        className="filter-panel filter-panel--projects filter-panel--visible filter-popover__panel"
+        method="get"
+        action={action}
+      >
       <div className="filter-panel__heading">
         <div>
           <p className="eyebrow">Project workspace filters</p>
           <h2>Find the projects you want to compare or combine</h2>
           <p>
-            Search directly, then narrow the reporting portfolio by type, planned dates, client,
+            Search directly, then narrow the reporting projects by type, planned dates, client,
             health, or status.
           </p>
         </div>
@@ -134,6 +155,7 @@ export function ProjectFilterBar({
         overlapping project dates. Search and filters do not change the selected projects in an open
         comparison or combined report.
       </p>
-    </form>
+      </form>
+    </details>
   );
 }

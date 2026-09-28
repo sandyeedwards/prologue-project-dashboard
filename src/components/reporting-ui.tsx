@@ -174,10 +174,10 @@ export function ProjectTable({
           <tr>
             {selectable ? <th aria-label="Select project">Select</th> : null}
             <th>Project</th>
-            <th>Margin</th>
-            <th>Actual Cost</th>
-            <th>Remaining Work</th>
             <th>Forecasted Profit</th>
+            <th>Current Margin</th>
+            <th>Remaining Work</th>
+            <th>Actual Costs</th>
             <th>Hours</th>
             <th>Data Issues</th>
           </tr>
@@ -227,27 +227,27 @@ export function ProjectTable({
                     ) : null}
                   </div>
                 </td>
-                <td>
-                  <MarginBadge value={row.forecastMarginPercent} />
-                  {row.isProvisional ? (
-                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
-                  ) : (
-                    <small className="table-subvalue">Forecast</small>
-                  )}
-                </td>
-                <td className="project-table__money">
-                  <strong>{money(row.actualTotalCost)}</strong>
-                  <small className="table-subvalue">Cost to date</small>
-                </td>
-                <td className="project-table__money">
-                  <strong>{money(remaining)}</strong>
-                  <small className="table-subvalue">Costed work</small>
-                </td>
                 <td className={`project-table__money project-table__money--${profitTone}`}>
                   <strong>{money(row.forecastProfit)}</strong>
                   <small className="table-subvalue">
                     {profitTone === "loss" ? "Forecast loss" : "Unspent revenue"}
                   </small>
+                </td>
+                <td>
+                  <MarginBadge value={row.forecastMarginPercent} />
+                  {row.isProvisional ? (
+                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
+                  ) : (
+                    <small className="table-subvalue">Current forecast</small>
+                  )}
+                </td>
+                <td className="project-table__money">
+                  <strong>{money(remaining)}</strong>
+                  <small className="table-subvalue">Costed work</small>
+                </td>
+                <td className="project-table__money">
+                  <strong>{money(row.actualTotalCost)}</strong>
+                  <small className="table-subvalue">Cost to date</small>
                 </td>
                 <td>
                   {hours(row.loggedMinutes)}

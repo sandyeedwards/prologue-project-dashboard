@@ -345,7 +345,7 @@ export function CombinedPortfolioReport({
 
       <section
         className="executive-report-stack"
-        aria-label="Combined portfolio profitability, margin, and effort"
+        aria-label="Combined project profitability, margin, and effort"
       >
         <DashboardProfitabilityTabs
           groupRows={profitabilityRows}
@@ -359,7 +359,7 @@ export function CombinedPortfolioReport({
         <div className="executive-support-row">
           <ChartPanel
             className="executive-report-grid__health executive-support-row__health"
-            eyebrow="Portfolio margin"
+            eyebrow="Combined margin"
             title="Margin Summary"
             description="Project counts use the same forecast-margin thresholds applied throughout reporting."
             help="Forecast margin is calculated from project revenue and forecast cost. Strong margin is 50% or higher, Watch margin is above 35% and below 50%, Low margin is 35% or lower, and N/A means no usable forecast margin is available."

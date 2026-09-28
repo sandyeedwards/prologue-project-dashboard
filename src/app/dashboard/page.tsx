@@ -1,18 +1,11 @@
 import { AppShell } from "@/components/app-shell";
-import {
-  ChartPanel,
-  MarginSummaryDonut,
-  PortfolioAnalysisDisclosure,
-} from "@/components/reporting-charts";
-import { DashboardProfitabilityTabs } from "@/components/dashboard-profitability-tabs";
+import Link from "next/link";
 import { DashboardPortfolioFilters } from "@/components/dashboard-portfolio-filters";
-import { HoursCompletionSummary } from "@/components/hours-completion-summary";
 import { MetricCard } from "@/components/reporting-ui";
 import { requireUser } from "@/lib/auth/session";
 import {
   filterAndSortProjects,
   getAvailableProjectTypes,
-  getPortfolioHistoricalProfitSeries,
   getPortfolioOperationalGroups,
   getProjectRows,
   summarizeProjects,
@@ -63,6 +56,16 @@ function displayDate(value: Date | null): string {
   }).format(value);
 }
 
+function numberValue(value: string | number | null): number | null {
+  if (value === null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function percent(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? "No data" : `${value.toFixed(1)}%`;
+}
+
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireUser("/dashboard");
   const params = await searchParams;
@@ -77,10 +80,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   };
   const projects = filterAndSortProjects(allProjects, filter);
   const summary = summarizeProjects(projects);
-  const [operationalGroups, historicalProfitSeries] = await Promise.all([
-    getPortfolioOperationalGroups(projects),
-    getPortfolioHistoricalProfitSeries(projects),
-  ]);
+  const operationalGroups = await getPortfolioOperationalGroups(projects);
   const statuses = [...new Set(allProjects.map((row) => row.status).filter(Boolean))].sort();
   const clients = [
     ...new Set(
@@ -88,9 +88,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     ),
   ].sort();
   const types = getAvailableProjectTypes(allProjects);
-  const visibleOperationalGroups = operationalGroups.filter(
-    (group) => group.groupName !== "Unclassified",
-  );
   const reconciliationRows = operationalGroups.map((group) => ({
     label: group.groupName,
     detail: `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`,
@@ -102,9 +99,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     margin: group.marginPercent,
     projectCount: group.projectCount,
   }));
-  const profitabilityRows = reconciliationRows.filter((row) => row.label !== "Unclassified");
-  const totalRevenue = reconciliationRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
-  const totalForecastCost = reconciliationRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
   const totalRemainingCost = reconciliationRows.length
     ? reconciliationRows.reduce((sum, row) => {
         if (row.remainingCost !== null && row.remainingCost !== undefined)
@@ -120,51 +114,58 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         return sum;
       }, 0)
     : null;
-  const totalForecastProfit = totalRevenue - totalForecastCost;
-  const actualCostCompositionComplete = reconciliationRows.every(
-    (row) => row.actualCost !== null && row.actualCost !== undefined,
-  );
-  const remainingCostCompositionComplete = reconciliationRows.every(
-    (row) => row.remainingCost !== null && row.remainingCost !== undefined,
-  );
-  const totalProfitabilityRow = reconciliationRows.length
-    ? {
-        label: "All groups combined",
-        detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"} · ${profitabilityRows.length} operational group${profitabilityRows.length === 1 ? "" : "s"}`,
-        revenue: totalRevenue,
-        cost: totalForecastCost,
-        actualCost: actualCostCompositionComplete
-          ? reconciliationRows.reduce((sum, row) => sum + (row.actualCost ?? 0), 0)
-          : null,
-        remainingCost: remainingCostCompositionComplete
-          ? reconciliationRows.reduce((sum, row) => sum + (row.remainingCost ?? 0), 0)
-          : null,
-        profit: totalForecastProfit,
-        margin: totalRevenue > 0 ? (totalForecastProfit / totalRevenue) * 100 : null,
-        projectCount: summary.projectCount,
-      }
+  const forecastMargin =
+    summary.totalClientFee && summary.totalForecastProfit !== null
+      ? (summary.totalForecastProfit / summary.totalClientFee) * 100
+      : null;
+  const hoursProgress = summary.totalEstimatedMinutes
+    ? (summary.totalLoggedMinutes / summary.totalEstimatedMinutes) * 100
     : null;
-  const effortRows = visibleOperationalGroups.map((group) => ({
-    label: group.groupName,
-    detail: `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`,
-    values: {
-      estimated: group.estimatedMinutes / 60,
-      logged: group.loggedMinutes / 60,
-    },
-  }));
+  const attentionCount = summary.amberCount + summary.redCount;
+  const companyPulse = !summary.projectCount
+    ? "No projects match this view. Adjust the filters to restore the company snapshot."
+    : summary.redCount
+      ? `${summary.redCount} project${summary.redCount === 1 ? " needs" : "s need"} immediate attention; review delivery risk before relying on the forecast.`
+      : summary.amberCount
+        ? `The portfolio is generally healthy, with ${summary.amberCount} project${summary.amberCount === 1 ? "" : "s"} to watch.`
+        : "The current portfolio is healthy with no projects flagged at risk or unhealthy.";
+  const today = new Date();
+  const completedThisYear = projects.filter(
+    (project) => project.completedAt?.getUTCFullYear() === today.getUTCFullYear(),
+  ).length;
+  const largestProject = projects
+    .map((project) => ({ project, fee: numberValue(project.clientFee) }))
+    .filter((item): item is { project: (typeof projects)[number]; fee: number } => item.fee !== null)
+    .sort((left, right) => right.fee - left.fee)[0];
+  const highestForecastProfit = projects
+    .map((project) => ({ project, profit: numberValue(project.forecastProfit) }))
+    .filter(
+      (item): item is { project: (typeof projects)[number]; profit: number } =>
+        item.profit !== null,
+    )
+    .sort((left, right) => right.profit - left.profit)[0];
+  const strongestForecastMargin = projects
+    .map((project) => ({ project, margin: numberValue(project.forecastMarginPercent) }))
+    .filter(
+      (item): item is { project: (typeof projects)[number]; margin: number } =>
+        item.margin !== null,
+    )
+    .sort((left, right) => right.margin - left.margin)[0];
+  const mostWorkedProject = [...projects].sort(
+    (left, right) => right.loggedMinutes - left.loggedMinutes,
+  )[0];
 
   return (
     <AppShell user={session.user} contentTone="portfolio">
       <main className="shell shell--wide executive-dashboard">
         <section className="report-titlebar report-titlebar--executive">
           <div className="report-titlebar__copy">
-            <p className="eyebrow">Executive portfolio intelligence</p>
-            <h1>Project Financial Performance</h1>
+            <p className="eyebrow">Company reporting</p>
+            <h1>Company Overview</h1>
             <p>
-              Understand cost exposure, remaining work, and forecasted profit across the active
-              reporting portfolio.
+              A quick read of company profitability, delivery health, workload, and data confidence.
             </p>
-            <div className="report-titlebar__status" aria-label="Portfolio health summary">
+            <div className="report-titlebar__status" aria-label="Company project health summary">
               <span className="portfolio-status-dot portfolio-status-dot--green" />
               {summary.greenCount} healthy
               <span className="portfolio-status-dot portfolio-status-dot--amber" />
@@ -177,13 +178,52 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <span className="report-date-chip">
               Data as of {displayDate(summary.latestCalculatedAt)}
             </span>
+            <DashboardPortfolioFilters
+              action="/dashboard"
+              filter={filter}
+              clients={clients}
+              statuses={statuses}
+              types={types}
+              resetHref="/dashboard"
+            />
           </div>
         </section>
 
-        <section className="executive-kpis" aria-label="Portfolio financial summary">
+        <section className="company-pulse" aria-label="Company performance at a glance">
+          <div className="company-pulse__summary">
+            <p className="eyebrow">Company pulse</p>
+            <h2>{companyPulse}</h2>
+            <Link href={attentionCount ? "/projects?health=AMBER&health=RED" : "/projects"}>
+              {attentionCount ? `Review ${attentionCount} flagged project${attentionCount === 1 ? "" : "s"}` : "View all projects"}
+            </Link>
+          </div>
+          <div className="company-pulse__stat">
+            <span>Forecast margin</span>
+            <strong>{percent(forecastMargin)}</strong>
+            <small>{summary.totalForecastProfit === null ? "Profit unavailable" : `${money(summary.totalForecastProfit)} expected profit`}</small>
+          </div>
+          <div className="company-pulse__stat">
+            <span>Delivery health</span>
+            <strong>{summary.projectCount ? `${summary.greenCount} of ${summary.projectCount}` : "No data"}</strong>
+            <small>projects currently healthy</small>
+          </div>
+          <div className="company-pulse__stat">
+            <span>Hours used</span>
+            <strong>{percent(hoursProgress)}</strong>
+            <small>{hours(summary.totalLoggedMinutes)} of {hours(summary.totalEstimatedMinutes)}</small>
+          </div>
+          <div className="company-pulse__stat">
+            <span>Forecast confidence</span>
+            <strong>{summary.projectCount ? `${summary.projectCount - summary.provisionalCount} of ${summary.projectCount}` : "No data"}</strong>
+            <small>{summary.provisionalCount ? `${summary.provisionalCount} provisional` : "all projects fully costed"}</small>
+          </div>
+        </section>
+
+        <section className="executive-kpis" aria-label="Company financial summary">
           <div className="executive-kpis__primary">
             <MetricCard
               priority="primary"
+              accent="amber"
               label="Actual Cost to Date"
               value={portfolioMoney(summary.totalActualCost, summary.projectCount)}
               detail={actualCostCoverageDetail(
@@ -195,6 +235,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             />
             <MetricCard
               priority="primary"
+              accent="purple"
               label="Costed Remaining Work"
               value={portfolioMoney(totalRemainingCost, summary.projectCount)}
               detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)}
@@ -209,6 +250,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             />
             <MetricCard
               priority="primary"
+              accent="green"
               label="Forecasted Profit"
               value={portfolioMoney(summary.totalForecastProfit, summary.projectCount)}
               detail={knownFor(summary.forecastProfitKnownCount, summary.projectCount)}
@@ -217,17 +259,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </div>
           <div className="executive-kpis__secondary">
             <MetricCard
+              accent="blue"
               label="Allocated Revenue"
               value={portfolioMoney(summary.totalClientFee, summary.projectCount)}
               detail={knownFor(summary.clientFeeKnownCount, summary.projectCount)}
               help="Sum of fixed-fee project budgets returned by Teamwork. Missing fees remain missing and are not treated as $0."
             />
             <MetricCard
+              accent="navy"
               label="Projects in View"
               value={summary.projectCount}
               detail={`${summary.greenCount} healthy · ${summary.amberCount} at risk · ${summary.redCount} unhealthy`}
             />
             <MetricCard
+              accent="purple"
               label="Logged Hours"
               value={hours(summary.totalLoggedMinutes)}
               detail={`${hours(summary.totalLoggedMinutes)} of ${hours(summary.totalEstimatedMinutes)} estimated`}
@@ -235,51 +280,49 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </div>
         </section>
 
-        <section
-          className="executive-report-stack"
-          aria-label="Portfolio profitability, margin, and effort"
-        >
-          <DashboardProfitabilityTabs
-            groupRows={profitabilityRows}
-            groupDescription="Compare allocated revenue, actual cost, remaining work, and forecast outcome across classified operational groups. Unclassified reconciliation remains included in combined portfolio totals but is not presented as an operational group."
-            totalRow={totalProfitabilityRow}
-            historicalSeries={historicalProfitSeries}
-            historicalInitialRange={{ from: filter.dateFrom, to: filter.dateTo }}
-            filterControls={
-              <DashboardPortfolioFilters
-                action="/dashboard"
-                filter={filter}
-                clients={clients}
-                statuses={statuses}
-                types={types}
-                resetHref="/dashboard"
-              />
-            }
-          />
-
-          <div className="executive-support-row">
-            <ChartPanel
-              className="executive-report-grid__health executive-support-row__health"
-              eyebrow="Portfolio margin"
-              title="Margin Summary"
-              description="Project counts use the same forecast-margin thresholds applied throughout reporting."
-              help="Forecast margin is calculated from project revenue and forecast cost. Strong margin is 50% or higher, Watch margin is above 35% and below 50%, Low margin is 35% or lower, and N/A means no usable forecast margin is available."
-            >
-              <MarginSummaryDonut projects={projects} />
-            </ChartPanel>
-            <ChartPanel
-              className="executive-report-grid__effort executive-support-row__effort"
-              eyebrow="Effort exposure"
-              title="Logged vs Estimated Hours by Group"
-              description="Estimate length shows relative workload across groups. Blue shows logged hours within the estimate; red shows work beyond the estimate."
-              help="Estimated hours come from the reporting estimate baseline for each operational group. Logged hours come from synced Teamwork time entries. Blue represents logged time within the estimate; red represents logged time beyond the estimate."
-            >
-              <HoursCompletionSummary rows={effortRows} />
-            </ChartPanel>
+        <section className="company-highlights" aria-label="Company highlights">
+          <div className="company-highlights__intro">
+            <p className="eyebrow">Around the company</p>
+            <h2>Portfolio highlights</h2>
+            <p>Useful milestones and standouts from the projects currently in view.</p>
           </div>
+          <article className="company-highlight-card">
+            <span className="company-highlight-card__icon" aria-hidden="true">✓</span>
+            <small>Completed this year</small>
+            <strong>{completedThisYear}</strong>
+            <p>projects reached completion in {today.getUTCFullYear()}</p>
+          </article>
+          <article className="company-highlight-card">
+            <span className="company-highlight-card__icon" aria-hidden="true">◆</span>
+            <small>Largest project</small>
+            <strong>{largestProject ? money(largestProject.fee) : "No data"}</strong>
+            <p>{largestProject?.project.name ?? "No project revenue available"}</p>
+          </article>
+          <article className="company-highlight-card">
+            <span className="company-highlight-card__icon" aria-hidden="true">$</span>
+            <small>Highest forecast profit</small>
+            <strong>{highestForecastProfit ? money(highestForecastProfit.profit) : "No data"}</strong>
+            <p>{highestForecastProfit?.project.name ?? "No project forecast available"}</p>
+          </article>
+          <article className="company-highlight-card">
+            <span className="company-highlight-card__icon" aria-hidden="true">%</span>
+            <small>Strongest forecast margin</small>
+            <strong>{strongestForecastMargin ? percent(strongestForecastMargin.margin) : "No data"}</strong>
+            <p>{strongestForecastMargin?.project.name ?? "No project margin available"}</p>
+          </article>
+          <article className="company-highlight-card">
+            <span className="company-highlight-card__icon" aria-hidden="true">⚡</span>
+            <small>Most project hours</small>
+            <strong>{mostWorkedProject ? hours(mostWorkedProject.loggedMinutes) : "No data"}</strong>
+            <p>{mostWorkedProject?.name ?? "No logged project time"}</p>
+          </article>
         </section>
 
-        <PortfolioAnalysisDisclosure rows={profitabilityRows} projects={projects} />
+        <nav className="report-launch-grid" aria-label="Detailed company reports">
+          <Link href="/profit-forecast"><span>Expected outcome</span><strong>Go to Profit Forecast <b aria-hidden="true">→</b></strong><small>Revenue, costs, remaining work, margin, and expected profit.</small></Link>
+          <Link href="/revenue-trends"><span>History over time</span><strong>Go to Revenue Trends <b aria-hidden="true">→</b></strong><small>Revenue, actual cost, and net profit from January 2025 onward.</small></Link>
+          <Link href="/operational-performance"><span>Delivery groups</span><strong>Go to Operational Performance <b aria-hidden="true">→</b></strong><small>Compare financial performance across each kind of work.</small></Link>
+        </nav>
 
         <footer className="report-footer">
           <span>Currency: USD</span>
