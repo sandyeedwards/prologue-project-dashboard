@@ -1741,6 +1741,24 @@ export async function getTeamworkIssueCenterRows(): Promise<TeamworkIssueCenterR
     );
 }
 
+export async function getOpenTeamworkIssueCount(): Promise<number> {
+  const sql = getSqlClient();
+  const [row] = await sql<Array<{ count: number }>>`
+    select count(*)::int as count
+    from data_quality_issues dqi
+    inner join projects p on p.id = dqi.project_id
+    left join unplanned_work_reviews uwr on uwr.task_id = dqi.task_id
+    where dqi.resolved_at is null
+      and p.excluded_from_reporting = false
+      and (
+        dqi.code <> 'UNPLANNED_ACTUAL_WORK'
+        or uwr.task_id is null
+        or coalesce((dqi.details ->> 'minutes')::int, 0) > uwr.dismissed_logged_minutes
+      )
+  `;
+  return row?.count ?? 0;
+}
+
 export async function getLatestTeamworkSyncDiagnostics(): Promise<TeamworkSyncDiagnostics | null> {
   const sql = getSqlClient();
   const [run] = await sql<

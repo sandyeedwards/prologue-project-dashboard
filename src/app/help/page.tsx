@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth/session";
+import { getOpenTeamworkIssueCount } from "@/lib/reporting/dashboard-data";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,7 @@ export default async function HelpPage() {
   const session = await requireUser("/help");
   const canManageLabor = session.user.role === "MANAGER" || session.user.role === "ADMIN";
   const isAdmin = session.user.role === "ADMIN";
+  const openIssueCount = isAdmin ? await getOpenTeamworkIssueCount() : 0;
 
   return (
     <AppShell user={session.user}>
@@ -17,8 +19,8 @@ export default async function HelpPage() {
             <p className="eyebrow">Help &amp; administration</p>
             <h1>Using project reporting</h1>
             <p className="lede">
-              A practical guide to reading portfolio health, understanding provisional financials,
-              correcting Teamwork data, and accessing role-specific tools.
+              A practical guide to reading company project health, understanding provisional
+              financials, correcting Teamwork data, and accessing role-specific tools.
             </p>
           </div>
           <Link className="button button--primary" href="/dashboard">
@@ -29,7 +31,7 @@ export default async function HelpPage() {
         <section className="help-grid" aria-label="Dashboard help topics">
           <article className="help-card help-card--featured">
             <p className="eyebrow">Start here</p>
-            <h2>Read the portfolio from broad to specific</h2>
+            <h2>Read company reporting from broad to specific</h2>
             <ol className="help-steps">
               <li>
                 <strong>Filter the Dashboard</strong>
@@ -114,8 +116,16 @@ export default async function HelpPage() {
               the Teamwork record rather than editing calculated dashboard values. The NoReport tag
               is the sole reporting-exclusion tag; Ready Set and DataHall projects remain eligible.
             </p>
-            <a className="button button--secondary button--small" href="/help/teamwork-issues">
+            <a
+              className="button button--secondary button--small teamwork-issues-link"
+              href="/help/teamwork-issues"
+            >
               Open Teamwork Issues
+              {isAdmin && openIssueCount > 0 ? (
+                <span className="guide-issue-badge" aria-label={`${openIssueCount} open issues`}>
+                  {openIssueCount > 99 ? "99+" : openIssueCount}
+                </span>
+              ) : null}
             </a>
           </article>
         </section>

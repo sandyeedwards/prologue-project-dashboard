@@ -571,16 +571,18 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
 export function PortfolioAnalysisDisclosure({
   rows,
   projects = [],
+  showProjectAttention = true,
 }: {
   rows: ProfitabilityRow[];
   projects?: ProjectReportRow[];
+  showProjectAttention?: boolean;
 }) {
   return (
     <section className="additional-data-views" aria-labelledby="additional-data-title">
       <div className="additional-data-views__heading">
         <div>
           <p className="eyebrow">Decision support</p>
-          <h3 id="additional-data-title">Portfolio Insights & Attention</h3>
+          <h3 id="additional-data-title">Company Insights & Attention</h3>
         </div>
         <span>
           Open a focused view to investigate profit drivers, risk, and project-level performance.
@@ -620,22 +622,24 @@ export function PortfolioAnalysisDisclosure({
         </div>
       </details>
 
-      <details className="analysis-disclosure analysis-disclosure--single">
-        <summary>
-          <span>
-            <strong>Project Attention Register</strong>
-            <small>
-              Review project-level profitability, effort consumption, health, and data quality.
-            </small>
-          </span>
-          <i aria-hidden="true" />
-        </summary>
-        <div className="analysis-disclosure__content analysis-disclosure__content--single">
-          <section className="analysis-card analysis-card--table">
-            <ProjectPerformanceDetails projects={projects} />
-          </section>
-        </div>
-      </details>
+      {showProjectAttention ? (
+        <details className="analysis-disclosure analysis-disclosure--single">
+          <summary>
+            <span>
+              <strong>Project Attention Register</strong>
+              <small>
+                Review project-level profitability, effort consumption, health, and data quality.
+              </small>
+            </span>
+            <i aria-hidden="true" />
+          </summary>
+          <div className="analysis-disclosure__content analysis-disclosure__content--single">
+            <section className="analysis-card analysis-card--table">
+              <ProjectPerformanceDetails projects={projects} />
+            </section>
+          </div>
+        </details>
+      ) : null}
     </section>
   );
 }

@@ -64,6 +64,7 @@ function hiddenFilterFields(filter: ProjectFilter) {
 }
 
 function resetHref(
+  basePath: string,
   mode: "compare" | "combine" | null,
   selectedIds: string[],
   pageSize: number,
@@ -72,7 +73,7 @@ function resetHref(
   if (mode) search.set("mode", mode);
   selectedIds.forEach((projectId) => search.append("project", projectId));
   search.set("pageSize", String(pageSize));
-  return `/projects?${search.toString()}`;
+  return `${basePath}?${search.toString()}`;
 }
 
 function pageButtons(currentPage: number, pageCount: number): number[] {
@@ -80,8 +81,16 @@ function pageButtons(currentPage: number, pageCount: number): number[] {
   return [...pages].filter((page) => page >= 1 && page <= pageCount).sort((a, b) => a - b);
 }
 
-export default async function ProjectsPage({ searchParams }: { searchParams: SearchParams }) {
-  const session = await requireUser("/projects");
+export async function ProjectsWorkspace({
+  searchParams,
+  basePath = "/projects",
+  directoryOnly = false,
+}: {
+  searchParams: SearchParams;
+  basePath?: string;
+  directoryOnly?: boolean;
+}) {
+  const session = await requireUser(basePath);
   const params = await searchParams;
   const allProjects = await getProjectRows();
   const filter: ProjectFilter = {
@@ -116,9 +125,12 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
     requestedAction === "compare" || requestedAction === "combine"
       ? requestedAction
       : one(params.mode);
-  const mode: ProjectSelectionMode | null =
-    requestedMode === "compare" || requestedMode === "combine" ? requestedMode : null;
-  const selectedIds = [...new Set(many(params.project))];
+  const mode: ProjectSelectionMode | null = directoryOnly
+    ? null
+    : requestedMode === "compare" || requestedMode === "combine"
+      ? requestedMode
+      : null;
+  const selectedIds = directoryOnly ? [] : [...new Set(many(params.project))];
   const selected = selectedIds
     .map((id) => allProjects.find((row) => row.id === id))
     .filter((row): row is ProjectReportRow => Boolean(row));
@@ -139,18 +151,23 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
       ? await getPortfolioHistoricalProfitSeries(reportProjects)
       : [];
   const pageTitle =
-    mode === "combine" && reportProjects.length
-      ? "Combined Project Report"
-      : mode === "compare" && reportProjects.length
-        ? "Compared Project Report"
-        : "Compare or Combine Projects";
-  const pageDescription =
-    mode === "combine" && reportProjects.length
+    !directoryOnly && basePath === "/projects" && !mode
+      ? "All Projects"
+      : directoryOnly
+        ? "All Projects"
+        : mode === "combine" && reportProjects.length
+          ? "Combined Project Report"
+          : mode === "compare" && reportProjects.length
+            ? "Compared Project Report"
+            : "Compare or Combine Projects";
+  const pageDescription = directoryOnly
+    ? "Search and filter every reporting project, then open a project to see its full financial and delivery detail."
+    : mode === "combine" && reportProjects.length
       ? `Combined view of ${reportProjects.length} selected projects. Operational groups are rolled up across the selection.`
       : mode === "compare" && reportProjects.length
         ? `Side-by-side view of ${reportProjects.length} selected projects. Compare mode is limited to ${COMPARE_PROJECT_LIMIT} projects.`
-        : `Filter the portfolio, compare up to ${COMPARE_PROJECT_LIMIT} projects, or combine up to ${COMBINE_PROJECT_LIMIT} into one report.`;
-  const filterResetHref = resetHref(mode, selectedIds, pageSize);
+        : `Compare up to ${COMPARE_PROJECT_LIMIT} projects, or build one combined report from up to ${COMBINE_PROJECT_LIMIT}.`;
+  const filterResetHref = resetHref(basePath, mode, selectedIds, pageSize);
 
   return (
     <AppShell user={session.user} contentTone={mode === "combine" ? "portfolio" : "default"}>
@@ -160,9 +177,22 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
             <h1>{pageTitle}</h1>
             <p>{pageDescription}</p>
           </div>
+          <div className="report-titlebar__actions">
+            <ProjectFilterBar
+              action={basePath}
+              filter={filter}
+              clients={clients}
+              statuses={statuses}
+              types={types}
+              resetHref={filterResetHref}
+              preservedMode={mode}
+              preservedProjectIds={selectedIds}
+              preservedPageSize={pageSize}
+            />
+          </div>
         </section>
 
-        {mode && reportProjects.length ? (
+        {!directoryOnly && mode && reportProjects.length ? (
           mode === "compare" ? (
             <ProjectComparisonReport
               projects={reportProjects}
@@ -178,7 +208,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
           )
         ) : null}
 
-        {compareOverLimit ? (
+        {!directoryOnly && compareOverLimit ? (
           <div className="selection-alert selection-alert--error" role="alert">
             <strong>Compare mode is limited to {COMPARE_PROJECT_LIMIT} projects.</strong>
             <span>
@@ -189,7 +219,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
           </div>
         ) : null}
 
-        {combineOverLimit ? (
+        {!directoryOnly && combineOverLimit ? (
           <div className="selection-alert selection-alert--error" role="alert">
             <strong>Combine mode is limited to {COMBINE_PROJECT_LIMIT} projects.</strong>
             <span>
@@ -200,82 +230,67 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
           </div>
         ) : null}
 
-        {mode && !selected.length ? (
+        {!directoryOnly && mode && !selected.length ? (
           <div className="selection-alert" role="status">
             <strong>Select at least one project.</strong>
             <span>Use the checkboxes below, then choose Compare selected or Combine selected.</span>
           </div>
         ) : null}
 
-        <section
-          className="selection-action-bar selection-action-bar--top"
-          aria-label="Project selection workspace"
-        >
-          <div className="selection-action-bar__copy">
-            <p className="eyebrow">Selection workspace</p>
-            <strong>
-              {selectedIds.length
-                ? `${selectedIds.length} project${selectedIds.length === 1 ? "" : "s"} selected`
-                : "Select projects below"}
-            </strong>
-            <span>
-              Compare is limited to {COMPARE_PROJECT_LIMIT} projects. Combine accepts up to{" "}
-              {COMBINE_PROJECT_LIMIT} and aggregates the selected portfolio.
-            </span>
-            <span className="selection-action-bar__count">
-              <b>{projects.length}</b> of {allProjects.length} reporting projects
-            </span>
-          </div>
-          <div className="selection-action-bar__controls">
-            <div className="selection-action-bar__buttons">
-              <button
-                className="button button--secondary"
-                type="submit"
-                form="project-selection"
-                name="action"
-                value="compare"
-              >
-                Compare selected
-                <small>Up to {COMPARE_PROJECT_LIMIT} projects</small>
-              </button>
-              <button
-                className="button button--primary"
-                type="submit"
-                form="project-selection"
-                name="action"
-                value="combine"
-              >
-                Combine selected
-                <small>Up to {COMBINE_PROJECT_LIMIT} projects</small>
-              </button>
+        {!directoryOnly ? (
+          <section
+            className="selection-action-bar selection-action-bar--top"
+            aria-label="Project selection workspace"
+          >
+            <div className="selection-action-bar__copy">
+              <p className="eyebrow">Selection workspace</p>
+              <strong>
+                {selectedIds.length
+                  ? `${selectedIds.length} project${selectedIds.length === 1 ? "" : "s"} selected`
+                  : "Select projects below"}
+              </strong>
+              <span>
+                Compare is limited to {COMPARE_PROJECT_LIMIT} projects. Combine accepts up to{" "}
+                {COMBINE_PROJECT_LIMIT} and aggregates the selected projects.
+              </span>
+              <span className="selection-action-bar__count">
+                <b>{projects.length}</b> of {allProjects.length} reporting projects
+              </span>
             </div>
-            <span className="selection-action-bar__note">
-              Filtered results remain available while comparison or combination reports are open.
-            </span>
-          </div>
-        </section>
-
-        <section
-          className="projects-filter-region projects-filter-region--list"
-          aria-label="Project search and filters"
-        >
-          <ProjectFilterBar
-            action="/projects"
-            filter={filter}
-            clients={clients}
-            statuses={statuses}
-            types={types}
-            resetHref={filterResetHref}
-            preservedMode={mode}
-            preservedProjectIds={selectedIds}
-            preservedPageSize={pageSize}
-          />
-        </section>
+            <div className="selection-action-bar__controls">
+              <div className="selection-action-bar__buttons">
+                <button
+                  className="button button--secondary"
+                  type="submit"
+                  form="project-selection"
+                  name="action"
+                  value="compare"
+                >
+                  Compare selected
+                  <small>Up to {COMPARE_PROJECT_LIMIT} projects</small>
+                </button>
+                <button
+                  className="button button--primary"
+                  type="submit"
+                  form="project-selection"
+                  name="action"
+                  value="combine"
+                >
+                  Build combined report
+                  <small>Up to {COMBINE_PROJECT_LIMIT} projects</small>
+                </button>
+              </div>
+              <span className="selection-action-bar__note">
+                Filtered results remain available while comparison or combination reports are open.
+              </span>
+            </div>
+          </section>
+        ) : null}
 
         <form
           id="project-selection"
           className="project-selection-form"
-          action="/projects"
+          action={basePath}
           method="get"
         >
           {hiddenFilterFields(filter).map(([name, value]) => (
@@ -288,7 +303,11 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
               <input key={projectId} type="hidden" name="project" value={projectId} />
             ))}
 
-          <ProjectTable rows={visibleProjects} selectable selectedProjectIds={selectedIds} />
+          <ProjectTable
+            rows={visibleProjects}
+            selectable={!directoryOnly}
+            selectedProjectIds={selectedIds}
+          />
 
           <div className="project-list-pagination" aria-label="Project list pagination">
             <div className="project-list-pagination__summary">
@@ -342,35 +361,41 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
             <ProjectPageSizeSelect formId="project-selection" value={pageSize} />
           </div>
 
-          <div className="selection-action-bar selection-action-bar--bottom">
-            <div>
-              <strong>Ready to analyze the selected projects?</strong>
-              <span>
-                Compare keeps each project separate. Combine produces one aggregate financial and
-                performance view.
-              </span>
+          {!directoryOnly ? (
+            <div className="selection-action-bar selection-action-bar--bottom">
+              <div>
+                <strong>Ready to analyze the selected projects?</strong>
+                <span>
+                  Compare keeps each project separate. Combine produces one aggregate financial and
+                  performance view.
+                </span>
+              </div>
+              <div className="selection-action-bar__buttons">
+                <button
+                  className="button button--secondary"
+                  type="submit"
+                  name="action"
+                  value="compare"
+                >
+                  Compare selected
+                </button>
+                <button
+                  className="button button--primary"
+                  type="submit"
+                  name="action"
+                  value="combine"
+                >
+                  Build combined report
+                </button>
+              </div>
             </div>
-            <div className="selection-action-bar__buttons">
-              <button
-                className="button button--secondary"
-                type="submit"
-                name="action"
-                value="compare"
-              >
-                Compare selected
-              </button>
-              <button
-                className="button button--primary"
-                type="submit"
-                name="action"
-                value="combine"
-              >
-                Combine selected
-              </button>
-            </div>
-          </div>
+          ) : null}
         </form>
       </main>
     </AppShell>
   );
+}
+
+export default async function ProjectsPage({ searchParams }: { searchParams: SearchParams }) {
+  return <ProjectsWorkspace searchParams={searchParams} />;
 }

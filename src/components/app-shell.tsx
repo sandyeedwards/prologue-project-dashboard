@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { SessionUser } from "@/lib/auth/session";
 import { PrimaryNavigation } from "@/components/primary-navigation";
-import { PrologueMark } from "@/components/prologue-brand";
+import { EasterEggBrand } from "@/components/easter-egg-brand";
+import { getOpenTeamworkIssueCount } from "@/lib/reporting/dashboard-data";
 
 function initials(displayName: string): string {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
@@ -13,7 +14,7 @@ function initials(displayName: string): string {
     .join("");
 }
 
-export function AppShell({
+export async function AppShell({
   user,
   children,
   contentTone = "default",
@@ -22,6 +23,7 @@ export function AppShell({
   children: ReactNode;
   contentTone?: "default" | "portfolio";
 }) {
+  const issueCount = user.role === "ADMIN" ? await getOpenTeamworkIssueCount() : 0;
   return (
     <div className="app-frame">
       <header className="app-header">
@@ -29,17 +31,13 @@ export function AppShell({
           <Link
             className="app-header__brand"
             href="/dashboard"
-            aria-label="Open Prologue Portfolio Dashboard"
+            aria-label="Open Prologue Reporting Dashboard"
           >
-            <PrologueMark height={48} />
-            <span className="app-header__brand-copy">
-              <strong>PROLOGUE</strong>
-              <small>Project Intelligence</small>
-            </span>
+            <EasterEggBrand />
           </Link>
 
           <div className="app-header__navigation">
-            <PrimaryNavigation />
+            <PrimaryNavigation issueCount={issueCount} />
           </div>
 
           <div className="user-menu">

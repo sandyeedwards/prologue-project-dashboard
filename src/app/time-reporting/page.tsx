@@ -167,6 +167,8 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
 
   const selectedEmployeeIds = report.filters.employeeIds;
   const selectedProjectIds = report.filters.projectIds;
+  const selectedPresetLabel =
+    presets.find((preset) => preset.value === report.range.preset)?.label ?? "Custom range";
 
   const billablePercent = percentage(report.totals.billableMinutes, report.totals.totalMinutes);
 
@@ -257,79 +259,98 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
           className="time-reporting-controls time-reporting-controls--filters"
           aria-label="Time reporting filters"
         >
-          <div className="time-reporting-controls__quick">
-            <span className="time-reporting-controls__label">Filters</span>
+          <details className="filter-popover filter-popover--time">
+            <summary className="filter-popover__trigger">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 5h16l-6.25 7.1v5.35l-3.5 1.75v-7.1L4 5Z" />
+                <circle cx="17.25" cy="16.75" r="3.25" />
+                <path d="m19.6 19.1 2.15 2.15" />
+              </svg>
+              <span>Time filters</span>
+              {selectedEmployeeIds.length || selectedProjectIds.length ? (
+                <span className="filter-popover__count">
+                  {selectedEmployeeIds.length + selectedProjectIds.length}
+                </span>
+              ) : null}
+              <span className="filter-popover__state">{selectedPresetLabel}</span>
+              <span className="filter-popover__chevron" aria-hidden="true" />
+            </summary>
+            <div className="filter-popover__panel">
+              <div className="time-reporting-controls__quick">
+                <span className="time-reporting-controls__label">Date range</span>
 
-            <div className="time-reporting-presets">
-              {presets.map((preset) => (
-                <Link
-                  key={preset.value}
-                  href={presetHref(preset.value, selectedEmployeeIds, selectedProjectIds)}
-                  className={`time-reporting-preset${
-                    report.range.preset === preset.value ? " time-reporting-preset--active" : ""
-                  }`}
-                >
-                  {preset.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <form className="time-reporting-filter-form" action="/time-reporting" method="get">
-            <input type="hidden" name="preset" value="custom" />
-
-            <div className="time-reporting-filter-field">
-              <span>Employees</span>
-
-              <details className="time-reporting-filter-menu">
-                <summary>
-                  {selectedEmployeeIds.length
-                    ? `${selectedEmployeeIds.length} selected`
-                    : "All employees"}
-                </summary>
-
-                <div className="time-reporting-filter-menu__options">
-                  {report.filterOptions.employees.map((employee) => (
-                    <label key={employee.personId}>
-                      <input
-                        type="checkbox"
-                        name="employee"
-                        value={employee.personId}
-                        defaultChecked={selectedEmployeeIds.includes(employee.personId)}
-                      />
-
-                      <span>{employee.name}</span>
-                    </label>
+                <div className="time-reporting-presets">
+                  {presets.map((preset) => (
+                    <Link
+                      key={preset.value}
+                      href={presetHref(preset.value, selectedEmployeeIds, selectedProjectIds)}
+                      className={`time-reporting-preset${
+                        report.range.preset === preset.value ? " time-reporting-preset--active" : ""
+                      }`}
+                    >
+                      {preset.label}
+                    </Link>
                   ))}
                 </div>
-              </details>
+              </div>
+
+              <form className="time-reporting-filter-form" action="/time-reporting" method="get">
+                <input type="hidden" name="preset" value="custom" />
+
+                <div className="time-reporting-filter-field">
+                  <span>Employees</span>
+
+                  <details className="time-reporting-filter-menu">
+                    <summary>
+                      {selectedEmployeeIds.length
+                        ? `${selectedEmployeeIds.length} selected`
+                        : "All employees"}
+                    </summary>
+
+                    <div className="time-reporting-filter-menu__options">
+                      {report.filterOptions.employees.map((employee) => (
+                        <label key={employee.personId}>
+                          <input
+                            type="checkbox"
+                            name="employee"
+                            value={employee.personId}
+                            defaultChecked={selectedEmployeeIds.includes(employee.personId)}
+                          />
+
+                          <span>{employee.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+
+                <TimeReportingProjectFilter
+                  projects={report.filterOptions.projects}
+                  selected={selectedProjectIds}
+                />
+
+                <FlexibleDateRangeFields
+                  initialFrom={report.range.startDate}
+                  initialTo={report.range.endDate}
+                  fromName="startDate"
+                  toName="endDate"
+                  fromLabel="From"
+                  toLabel="Through"
+                  className="time-reporting-flexible-dates"
+                />
+
+                <div className="time-reporting-filter-actions">
+                  <button className="button button--primary button--compact" type="submit">
+                    Apply Filters
+                  </button>
+
+                  <Link className="button button--secondary button--compact" href="/time-reporting">
+                    Reset
+                  </Link>
+                </div>
+              </form>
             </div>
-
-            <TimeReportingProjectFilter
-              projects={report.filterOptions.projects}
-              selected={selectedProjectIds}
-            />
-
-            <FlexibleDateRangeFields
-              initialFrom={report.range.startDate}
-              initialTo={report.range.endDate}
-              fromName="startDate"
-              toName="endDate"
-              fromLabel="From"
-              toLabel="Through"
-              className="time-reporting-flexible-dates"
-            />
-
-            <div className="time-reporting-filter-actions">
-              <button className="button button--primary button--compact" type="submit">
-                Apply Filters
-              </button>
-
-              <Link className="button button--secondary button--compact" href="/time-reporting">
-                Reset
-              </Link>
-            </div>
-          </form>
+          </details>
         </section>
 
         <section className="time-reporting-kpis" aria-label="Time reporting summary">

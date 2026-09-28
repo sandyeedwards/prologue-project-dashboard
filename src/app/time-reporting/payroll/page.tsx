@@ -41,7 +41,7 @@ export default async function PayrollPage({
             <p className="eyebrow">Payroll administration</p>
             <h1>Pay-period time exports</h1>
             <p>
-              {report.period.startDate} through {report.period.endDate} · 1st–14th / 15th–month end
+              {report.period.startDate} through {report.period.endDate} · 1st–15th / 16th–month end
             </p>
           </div>
           <Link href="/time-reporting" className="button button--secondary">
@@ -108,12 +108,20 @@ export default async function PayrollPage({
             ADP import mapping still requires your administrator’s template.
           </p>
           <div className="payroll-actions">
-            <a className="button" href={pdf}>
-              Download PDF
-            </a>
-            <a className="button button--secondary" href={csv}>
-              Download CSV
-            </a>
+            {report.rows.length ? (
+              <>
+                <a className="button" href={pdf}>
+                  Download PDF
+                </a>
+                <a className="button button--secondary" href={csv}>
+                  Download CSV
+                </a>
+              </>
+            ) : (
+              <span className="payroll-export-empty" role="status">
+                There is no {report.ptoOnly ? "PTO " : ""}time to export for this pay period.
+              </span>
+            )}
           </div>
         </section>
         <div className="table-wrap">

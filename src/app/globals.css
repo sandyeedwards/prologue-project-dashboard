@@ -10504,6 +10504,16 @@ body {
   font-size: 0.7rem;
 }
 
+.hosting-calculation-note {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid #2f7fc1;
+  color: #53667e;
+  background: #f4f8fd;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
 .hosting-chart__tooltip rect {
   fill: #102b4e;
   filter: drop-shadow(0 4px 8px rgb(12 35 63 / 24%));
@@ -10520,6 +10530,22 @@ body {
 .hosting-chart__tooltip .hosting-chart__tooltip-net {
   fill: #fff;
   font-weight: 850;
+}
+
+.hosting-chart__tooltip .hosting-chart__tooltip-key--revenue {
+  fill: #2f7fc1;
+}
+
+.hosting-chart__tooltip .hosting-chart__tooltip-key--ivion {
+  fill: #234779;
+}
+
+.hosting-chart__tooltip .hosting-chart__tooltip-key--pano {
+  fill: #8a5fbd;
+}
+
+.hosting-chart__tooltip .hosting-chart__tooltip-key--net {
+  fill: #2bc082;
 }
 
 .hosting-table-disclosure {

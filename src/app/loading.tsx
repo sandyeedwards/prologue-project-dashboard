@@ -8,7 +8,7 @@ export default function Loading() {
       <div className="app-state__heading">
         <span className="app-state__pulse" />
         <div>
-          <strong>Preparing portfolio intelligence</strong>
+          <strong>Preparing company reporting</strong>
           <span>Loading project financials, effort, and reporting coverage.</span>
         </div>
       </div>

@@ -6,6 +6,16 @@ import { FlexibleDateRangeFields } from "@/components/flexible-date-range-fields
 import type { ProjectFilter } from "@/lib/reporting/dashboard-data";
 import { dashboardFilterStateKey } from "@/lib/reporting/dashboard-filter-state";
 
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 5h16l-6.25 7.1v5.35l-3.5 1.75v-7.1L4 5Z" />
+      <circle cx="17.25" cy="16.75" r="3.25" />
+      <path d="m19.6 19.1 2.15 2.15" />
+    </svg>
+  );
+}
+
 type CheckboxFilterOption = {
   value: string;
   label?: string;
@@ -113,66 +123,100 @@ export function DashboardPortfolioFilters({
   resetHref: string;
 }) {
   const urlFilterStateKey = dashboardFilterStateKey(filter, { clients, statuses, types });
+  const activeFilterCount = [
+    ...(filter.clients ?? []),
+    ...(filter.healths ?? []),
+    ...(filter.statuses ?? []),
+    ...(filter.types ?? []),
+    filter.dateFrom,
+    filter.dateTo,
+  ].filter(Boolean).length;
 
   return (
-    <form key={urlFilterStateKey} className="dashboard-inline-filters" method="get" action={action}>
-      <div className="dashboard-inline-filters__priority">
-        <FlexibleDateRangeFields
-          initialFrom={filter.dateFrom}
-          initialTo={filter.dateTo}
-          className="dashboard-inline-filters__dates"
-        />
-
-        <DashboardCheckboxFilter
-          label="Project type"
-          name="type"
-          selected={filter.types ?? []}
-          options={types.map((value) => ({ value }))}
-          allLabel="All project types"
-          help="Ready Set and DataHall also count as Scanning."
-          className="dashboard-inline-filters__type"
-        />
-      </div>
-
-      <div className="dashboard-inline-filters__secondary">
-        <DashboardCheckboxFilter
-          label="Client"
-          name="client"
-          selected={filter.clients ?? []}
-          options={clients.map((value) => ({ value }))}
-          allLabel="All clients"
-        />
-
-        <DashboardCheckboxFilter
-          label="Health"
-          name="health"
-          selected={filter.healths ?? []}
-          options={[
-            { value: "GREEN", label: "Healthy" },
-            { value: "AMBER", label: "At risk" },
-            { value: "RED", label: "Unhealthy" },
-            { value: "GRAY", label: "N/A" },
-          ]}
-          allLabel="All health"
-        />
-
-        <DashboardCheckboxFilter
-          label="Status"
-          name="status"
-          selected={filter.statuses ?? []}
-          options={statuses.map((value) => ({ value }))}
-          allLabel="All statuses"
-        />
-
-        <div className="dashboard-inline-filters__actions">
-          <button className="button button--primary" type="submit">
-            Update dashboard
-          </button>
-          <Link className="button button--secondary" href={resetHref}>
-            Reset
-          </Link>
+    <details className="filter-popover">
+      <summary className="filter-popover__trigger">
+        <FilterIcon />
+        <span>Filters</span>
+        {activeFilterCount ? (
+          <span className="filter-popover__count">{activeFilterCount}</span>
+        ) : (
+          <span className="filter-popover__state">All projects</span>
+        )}
+        <span className="filter-popover__chevron" aria-hidden="true" />
+      </summary>
+      <div className="filter-popover__panel">
+        <div className="filter-popover__heading">
+          <div>
+            <p className="eyebrow">Company view</p>
+            <strong>Filter reporting projects</strong>
+          </div>
+          <span>{activeFilterCount ? `${activeFilterCount} active` : "No filters applied"}</span>
         </div>
+        <form
+          key={urlFilterStateKey}
+          className="dashboard-inline-filters"
+          method="get"
+          action={action}
+        >
+          <div className="dashboard-inline-filters__priority">
+            <FlexibleDateRangeFields
+              initialFrom={filter.dateFrom}
+              initialTo={filter.dateTo}
+              className="dashboard-inline-filters__dates"
+            />
+
+            <DashboardCheckboxFilter
+              label="Project type"
+              name="type"
+              selected={filter.types ?? []}
+              options={types.map((value) => ({ value }))}
+              allLabel="All project types"
+              help="Ready Set and DataHall also count as Scanning."
+              className="dashboard-inline-filters__type"
+            />
+          </div>
+
+          <div className="dashboard-inline-filters__secondary">
+            <DashboardCheckboxFilter
+              label="Client"
+              name="client"
+              selected={filter.clients ?? []}
+              options={clients.map((value) => ({ value }))}
+              allLabel="All clients"
+            />
+
+            <DashboardCheckboxFilter
+              label="Health"
+              name="health"
+              selected={filter.healths ?? []}
+              options={[
+                { value: "GREEN", label: "Healthy" },
+                { value: "AMBER", label: "At risk" },
+                { value: "RED", label: "Unhealthy" },
+                { value: "GRAY", label: "N/A" },
+              ]}
+              allLabel="All health"
+            />
+
+            <DashboardCheckboxFilter
+              label="Status"
+              name="status"
+              selected={filter.statuses ?? []}
+              options={statuses.map((value) => ({ value }))}
+              allLabel="All statuses"
+            />
+
+            <div className="dashboard-inline-filters__actions">
+              <button className="button button--primary" type="submit">
+                Apply filters
+              </button>
+              <Link className="button button--secondary" href={resetHref}>
+                Reset
+              </Link>
+            </div>
+          </div>
+        </form>
       </div>
-    </form>
+    </details>
   );
 }

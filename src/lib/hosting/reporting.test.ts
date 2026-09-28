@@ -182,4 +182,29 @@ describe("buildHostingReport", () => {
     expect(isHostingDealActiveOn(complimentary, new Date("2026-06-15T12:00:00.000Z"))).toBe(true);
     expect(report.find((row) => row.period === "2026-06")?.revenue).toBe(0);
   });
+
+  it("never subtracts complimentary hosting from paid hosting revenue", () => {
+    const report = buildHostingReport(
+      [
+        deal({
+          id: "paid",
+          ivion_hosting_start: "2026-06-01",
+          ivion_hosting_end: "2026-07-01",
+          ivion_contracted_fee: 600,
+        }),
+        deal({
+          id: "complimentary",
+          ivion_comp_start: "2026-06-01",
+          ivion_comp_end: "2026-06-30",
+        }),
+      ],
+      "month",
+      [],
+      new Date("2026-06-15T12:00:00.000Z"),
+    );
+    const june = report.find((row) => row.period === "2026-06");
+
+    expect(june?.revenue).toBe(600);
+    expect(june?.netProfit).toBeCloseTo((june?.revenue ?? 0) - (june?.costs ?? 0), 8);
+  });
 });
