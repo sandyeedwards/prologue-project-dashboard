@@ -13,9 +13,21 @@ export default async function RevenueTrendsPage({ searchParams }: { searchParams
   return (
     <AppShell user={session.user} contentTone="portfolio">
       <main className="shell shell--wide focused-report">
-        <section className="report-titlebar"><div><p className="eyebrow">Company history</p><h1>Revenue Trends</h1><p>Track recognized revenue, actual cost, expected cost, and net profit over time.</p></div><div className="report-titlebar__actions"><FinancialReportFilters action="/revenue-trends" {...data} /></div></section>
+        <section className="report-titlebar">
+          <div>
+            <p className="eyebrow">Company history</p>
+            <h1>Revenue Trends</h1>
+            <p>Track recognized revenue, actual cost, expected cost, and net profit over time.</p>
+          </div>
+          <div className="report-titlebar__actions">
+            <FinancialReportFilters action="/revenue-trends" {...data} />
+          </div>
+        </section>
         <section className="report-section focused-report__primary">
-          <HistoricalRevenueProfitChart series={data.historicalProfitSeries ?? []} initialDateRange={{ from: data.filter.dateFrom, to: data.filter.dateTo }} />
+          <HistoricalRevenueProfitChart
+            series={data.historicalProfitSeries ?? []}
+            initialDateRange={{ from: data.filter.dateFrom, to: data.filter.dateTo }}
+          />
         </section>
       </main>
     </AppShell>

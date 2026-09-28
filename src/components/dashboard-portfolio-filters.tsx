@@ -152,7 +152,12 @@ export function DashboardPortfolioFilters({
           </div>
           <span>{activeFilterCount ? `${activeFilterCount} active` : "No filters applied"}</span>
         </div>
-        <form key={urlFilterStateKey} className="dashboard-inline-filters" method="get" action={action}>
+        <form
+          key={urlFilterStateKey}
+          className="dashboard-inline-filters"
+          method="get"
+          action={action}
+        >
           <div className="dashboard-inline-filters__priority">
             <FlexibleDateRangeFields
               initialFrom={filter.dateFrom}

@@ -19,8 +19,8 @@ export default async function HelpPage() {
             <p className="eyebrow">Help &amp; administration</p>
             <h1>Using project reporting</h1>
             <p className="lede">
-              A practical guide to reading company project health, understanding provisional financials,
-              correcting Teamwork data, and accessing role-specific tools.
+              A practical guide to reading company project health, understanding provisional
+              financials, correcting Teamwork data, and accessing role-specific tools.
             </p>
           </div>
           <Link className="button button--primary" href="/dashboard">
@@ -116,7 +116,10 @@ export default async function HelpPage() {
               the Teamwork record rather than editing calculated dashboard values. The NoReport tag
               is the sole reporting-exclusion tag; Ready Set and DataHall projects remain eligible.
             </p>
-            <a className="button button--secondary button--small teamwork-issues-link" href="/help/teamwork-issues">
+            <a
+              className="button button--secondary button--small teamwork-issues-link"
+              href="/help/teamwork-issues"
+            >
               Open Teamwork Issues
               {isAdmin && openIssueCount > 0 ? (
                 <span className="guide-issue-badge" aria-label={`${openIssueCount} open issues`}>

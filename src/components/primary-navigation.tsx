@@ -7,7 +7,11 @@ const items = [
   { href: "/dashboard", label: "Company Overview", shortLabel: "At a glance" },
   { href: "/profit-forecast", label: "Profit Forecast", shortLabel: "Expected outcome" },
   { href: "/revenue-trends", label: "Revenue Trends", shortLabel: "History over time" },
-  { href: "/operational-performance", label: "Operational Performance", shortLabel: "By work group" },
+  {
+    href: "/operational-performance",
+    label: "Operational Performance",
+    shortLabel: "By work group",
+  },
   { href: "/projects", label: "All Projects", shortLabel: "Search, compare & combine" },
   { href: "/time-reporting", label: "Time & Payroll", shortLabel: "Utilization & PTO" },
   { href: "/hosting", label: "Hosting", shortLabel: "Revenue & costs" },

@@ -135,7 +135,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   ).length;
   const largestProject = projects
     .map((project) => ({ project, fee: numberValue(project.clientFee) }))
-    .filter((item): item is { project: (typeof projects)[number]; fee: number } => item.fee !== null)
+    .filter(
+      (item): item is { project: (typeof projects)[number]; fee: number } => item.fee !== null,
+    )
     .sort((left, right) => right.fee - left.fee)[0];
   const highestForecastProfit = projects
     .map((project) => ({ project, profit: numberValue(project.forecastProfit) }))
@@ -194,28 +196,48 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <p className="eyebrow">Company pulse</p>
             <h2>{companyPulse}</h2>
             <Link href={attentionCount ? "/projects?health=AMBER&health=RED" : "/projects"}>
-              {attentionCount ? `Review ${attentionCount} flagged project${attentionCount === 1 ? "" : "s"}` : "View all projects"}
+              {attentionCount
+                ? `Review ${attentionCount} flagged project${attentionCount === 1 ? "" : "s"}`
+                : "View all projects"}
             </Link>
           </div>
           <div className="company-pulse__stat">
             <span>Forecast margin</span>
             <strong>{percent(forecastMargin)}</strong>
-            <small>{summary.totalForecastProfit === null ? "Profit unavailable" : `${money(summary.totalForecastProfit)} expected profit`}</small>
+            <small>
+              {summary.totalForecastProfit === null
+                ? "Profit unavailable"
+                : `${money(summary.totalForecastProfit)} expected profit`}
+            </small>
           </div>
           <div className="company-pulse__stat">
             <span>Delivery health</span>
-            <strong>{summary.projectCount ? `${summary.greenCount} of ${summary.projectCount}` : "No data"}</strong>
+            <strong>
+              {summary.projectCount
+                ? `${summary.greenCount} of ${summary.projectCount}`
+                : "No data"}
+            </strong>
             <small>projects currently healthy</small>
           </div>
           <div className="company-pulse__stat">
             <span>Hours used</span>
             <strong>{percent(hoursProgress)}</strong>
-            <small>{hours(summary.totalLoggedMinutes)} of {hours(summary.totalEstimatedMinutes)}</small>
+            <small>
+              {hours(summary.totalLoggedMinutes)} of {hours(summary.totalEstimatedMinutes)}
+            </small>
           </div>
           <div className="company-pulse__stat">
             <span>Forecast confidence</span>
-            <strong>{summary.projectCount ? `${summary.projectCount - summary.provisionalCount} of ${summary.projectCount}` : "No data"}</strong>
-            <small>{summary.provisionalCount ? `${summary.provisionalCount} provisional` : "all projects fully costed"}</small>
+            <strong>
+              {summary.projectCount
+                ? `${summary.projectCount - summary.provisionalCount} of ${summary.projectCount}`
+                : "No data"}
+            </strong>
+            <small>
+              {summary.provisionalCount
+                ? `${summary.provisionalCount} provisional`
+                : "all projects fully costed"}
+            </small>
           </div>
         </section>
 
@@ -287,41 +309,75 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <p>Useful milestones and standouts from the projects currently in view.</p>
           </div>
           <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">✓</span>
+            <span className="company-highlight-card__icon" aria-hidden="true">
+              ✓
+            </span>
             <small>Completed this year</small>
             <strong>{completedThisYear}</strong>
             <p>projects reached completion in {today.getUTCFullYear()}</p>
           </article>
           <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">◆</span>
+            <span className="company-highlight-card__icon" aria-hidden="true">
+              ◆
+            </span>
             <small>Largest project</small>
             <strong>{largestProject ? money(largestProject.fee) : "No data"}</strong>
             <p>{largestProject?.project.name ?? "No project revenue available"}</p>
           </article>
           <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">$</span>
+            <span className="company-highlight-card__icon" aria-hidden="true">
+              $
+            </span>
             <small>Highest forecast profit</small>
-            <strong>{highestForecastProfit ? money(highestForecastProfit.profit) : "No data"}</strong>
+            <strong>
+              {highestForecastProfit ? money(highestForecastProfit.profit) : "No data"}
+            </strong>
             <p>{highestForecastProfit?.project.name ?? "No project forecast available"}</p>
           </article>
           <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">%</span>
+            <span className="company-highlight-card__icon" aria-hidden="true">
+              %
+            </span>
             <small>Strongest forecast margin</small>
-            <strong>{strongestForecastMargin ? percent(strongestForecastMargin.margin) : "No data"}</strong>
+            <strong>
+              {strongestForecastMargin ? percent(strongestForecastMargin.margin) : "No data"}
+            </strong>
             <p>{strongestForecastMargin?.project.name ?? "No project margin available"}</p>
           </article>
           <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">⚡</span>
+            <span className="company-highlight-card__icon" aria-hidden="true">
+              ⚡
+            </span>
             <small>Most project hours</small>
-            <strong>{mostWorkedProject ? hours(mostWorkedProject.loggedMinutes) : "No data"}</strong>
+            <strong>
+              {mostWorkedProject ? hours(mostWorkedProject.loggedMinutes) : "No data"}
+            </strong>
             <p>{mostWorkedProject?.name ?? "No logged project time"}</p>
           </article>
         </section>
 
         <nav className="report-launch-grid" aria-label="Detailed company reports">
-          <Link href="/profit-forecast"><span>Expected outcome</span><strong>Go to Profit Forecast <b aria-hidden="true">→</b></strong><small>Revenue, costs, remaining work, margin, and expected profit.</small></Link>
-          <Link href="/revenue-trends"><span>History over time</span><strong>Go to Revenue Trends <b aria-hidden="true">→</b></strong><small>Revenue, actual cost, and net profit from January 2025 onward.</small></Link>
-          <Link href="/operational-performance"><span>Delivery groups</span><strong>Go to Operational Performance <b aria-hidden="true">→</b></strong><small>Compare financial performance across each kind of work.</small></Link>
+          <Link href="/profit-forecast">
+            <span>Expected outcome</span>
+            <strong>
+              Go to Profit Forecast <b aria-hidden="true">→</b>
+            </strong>
+            <small>Revenue, costs, remaining work, margin, and expected profit.</small>
+          </Link>
+          <Link href="/revenue-trends">
+            <span>History over time</span>
+            <strong>
+              Go to Revenue Trends <b aria-hidden="true">→</b>
+            </strong>
+            <small>Revenue, actual cost, and net profit from January 2025 onward.</small>
+          </Link>
+          <Link href="/operational-performance">
+            <span>Delivery groups</span>
+            <strong>
+              Go to Operational Performance <b aria-hidden="true">→</b>
+            </strong>
+            <small>Compare financial performance across each kind of work.</small>
+          </Link>
         </nav>
 
         <footer className="report-footer">

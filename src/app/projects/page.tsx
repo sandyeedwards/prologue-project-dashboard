@@ -150,15 +150,16 @@ export async function ProjectsWorkspace({
     mode === "combine" && reportProjects.length
       ? await getPortfolioHistoricalProfitSeries(reportProjects)
       : [];
-  const pageTitle = !directoryOnly && basePath === "/projects" && !mode
-    ? "All Projects"
-    : directoryOnly
-    ? "All Projects"
-    : mode === "combine" && reportProjects.length
-      ? "Combined Project Report"
-      : mode === "compare" && reportProjects.length
-        ? "Compared Project Report"
-        : "Compare or Combine Projects";
+  const pageTitle =
+    !directoryOnly && basePath === "/projects" && !mode
+      ? "All Projects"
+      : directoryOnly
+        ? "All Projects"
+        : mode === "combine" && reportProjects.length
+          ? "Combined Project Report"
+          : mode === "compare" && reportProjects.length
+            ? "Compared Project Report"
+            : "Compare or Combine Projects";
   const pageDescription = directoryOnly
     ? "Search and filter every reporting project, then open a project to see its full financial and delivery detail."
     : mode === "combine" && reportProjects.length
@@ -236,53 +237,55 @@ export async function ProjectsWorkspace({
           </div>
         ) : null}
 
-        {!directoryOnly ? <section
-          className="selection-action-bar selection-action-bar--top"
-          aria-label="Project selection workspace"
-        >
-          <div className="selection-action-bar__copy">
-            <p className="eyebrow">Selection workspace</p>
-            <strong>
-              {selectedIds.length
-                ? `${selectedIds.length} project${selectedIds.length === 1 ? "" : "s"} selected`
-                : "Select projects below"}
-            </strong>
-            <span>
-              Compare is limited to {COMPARE_PROJECT_LIMIT} projects. Combine accepts up to{" "}
-              {COMBINE_PROJECT_LIMIT} and aggregates the selected projects.
-            </span>
-            <span className="selection-action-bar__count">
-              <b>{projects.length}</b> of {allProjects.length} reporting projects
-            </span>
-          </div>
-          <div className="selection-action-bar__controls">
-            <div className="selection-action-bar__buttons">
-              <button
-                className="button button--secondary"
-                type="submit"
-                form="project-selection"
-                name="action"
-                value="compare"
-              >
-                Compare selected
-                <small>Up to {COMPARE_PROJECT_LIMIT} projects</small>
-              </button>
-              <button
-                className="button button--primary"
-                type="submit"
-                form="project-selection"
-                name="action"
-                value="combine"
-              >
-                Build combined report
-                <small>Up to {COMBINE_PROJECT_LIMIT} projects</small>
-              </button>
+        {!directoryOnly ? (
+          <section
+            className="selection-action-bar selection-action-bar--top"
+            aria-label="Project selection workspace"
+          >
+            <div className="selection-action-bar__copy">
+              <p className="eyebrow">Selection workspace</p>
+              <strong>
+                {selectedIds.length
+                  ? `${selectedIds.length} project${selectedIds.length === 1 ? "" : "s"} selected`
+                  : "Select projects below"}
+              </strong>
+              <span>
+                Compare is limited to {COMPARE_PROJECT_LIMIT} projects. Combine accepts up to{" "}
+                {COMBINE_PROJECT_LIMIT} and aggregates the selected projects.
+              </span>
+              <span className="selection-action-bar__count">
+                <b>{projects.length}</b> of {allProjects.length} reporting projects
+              </span>
             </div>
-            <span className="selection-action-bar__note">
-              Filtered results remain available while comparison or combination reports are open.
-            </span>
-          </div>
-        </section> : null}
+            <div className="selection-action-bar__controls">
+              <div className="selection-action-bar__buttons">
+                <button
+                  className="button button--secondary"
+                  type="submit"
+                  form="project-selection"
+                  name="action"
+                  value="compare"
+                >
+                  Compare selected
+                  <small>Up to {COMPARE_PROJECT_LIMIT} projects</small>
+                </button>
+                <button
+                  className="button button--primary"
+                  type="submit"
+                  form="project-selection"
+                  name="action"
+                  value="combine"
+                >
+                  Build combined report
+                  <small>Up to {COMBINE_PROJECT_LIMIT} projects</small>
+                </button>
+              </div>
+              <span className="selection-action-bar__note">
+                Filtered results remain available while comparison or combination reports are open.
+              </span>
+            </div>
+          </section>
+        ) : null}
 
         <form
           id="project-selection"
@@ -300,7 +303,11 @@ export async function ProjectsWorkspace({
               <input key={projectId} type="hidden" name="project" value={projectId} />
             ))}
 
-          <ProjectTable rows={visibleProjects} selectable={!directoryOnly} selectedProjectIds={selectedIds} />
+          <ProjectTable
+            rows={visibleProjects}
+            selectable={!directoryOnly}
+            selectedProjectIds={selectedIds}
+          />
 
           <div className="project-list-pagination" aria-label="Project list pagination">
             <div className="project-list-pagination__summary">
@@ -354,33 +361,35 @@ export async function ProjectsWorkspace({
             <ProjectPageSizeSelect formId="project-selection" value={pageSize} />
           </div>
 
-          {!directoryOnly ? <div className="selection-action-bar selection-action-bar--bottom">
-            <div>
-              <strong>Ready to analyze the selected projects?</strong>
-              <span>
-                Compare keeps each project separate. Combine produces one aggregate financial and
-                performance view.
-              </span>
+          {!directoryOnly ? (
+            <div className="selection-action-bar selection-action-bar--bottom">
+              <div>
+                <strong>Ready to analyze the selected projects?</strong>
+                <span>
+                  Compare keeps each project separate. Combine produces one aggregate financial and
+                  performance view.
+                </span>
+              </div>
+              <div className="selection-action-bar__buttons">
+                <button
+                  className="button button--secondary"
+                  type="submit"
+                  name="action"
+                  value="compare"
+                >
+                  Compare selected
+                </button>
+                <button
+                  className="button button--primary"
+                  type="submit"
+                  name="action"
+                  value="combine"
+                >
+                  Build combined report
+                </button>
+              </div>
             </div>
-            <div className="selection-action-bar__buttons">
-              <button
-                className="button button--secondary"
-                type="submit"
-                name="action"
-                value="compare"
-              >
-                Compare selected
-              </button>
-              <button
-                className="button button--primary"
-                type="submit"
-                name="action"
-                value="combine"
-              >
-                Build combined report
-              </button>
-            </div>
-          </div> : null}
+          ) : null}
         </form>
       </main>
     </AppShell>

@@ -14,12 +14,31 @@ export default async function ProfitForecastPage({ searchParams }: { searchParam
     <AppShell user={session.user} contentTone="portfolio">
       <main className="shell shell--wide focused-report">
         <section className="report-titlebar">
-          <div><p className="eyebrow">Company financial outlook</p><h1>Profit Forecast</h1><p>See the exact expected profit, current cost, remaining work, and margin for the filtered company view.</p></div>
-          <div className="report-titlebar__actions"><FinancialReportFilters action="/profit-forecast" {...data} /></div>
+          <div>
+            <p className="eyebrow">Company financial outlook</p>
+            <h1>Profit Forecast</h1>
+            <p>
+              See the exact expected profit, current cost, remaining work, and margin for the
+              filtered company view.
+            </p>
+          </div>
+          <div className="report-titlebar__actions">
+            <FinancialReportFilters action="/profit-forecast" {...data} />
+          </div>
         </section>
         <section className="report-section focused-report__primary">
-          <div className="section-heading"><div><p className="eyebrow">Current forecast</p><h2>Where company revenue is expected to go</h2></div><p>Every figure below reflects the active filters.</p></div>
-          {data.totalProfitabilityRow ? <PortfolioFinancialComposition rows={[data.totalProfitabilityRow]} variant="total" /> : <div className="chart-empty">No financial data matches these filters.</div>}
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Current forecast</p>
+              <h2>Where company revenue is expected to go</h2>
+            </div>
+            <p>Every figure below reflects the active filters.</p>
+          </div>
+          {data.totalProfitabilityRow ? (
+            <PortfolioFinancialComposition rows={[data.totalProfitabilityRow]} variant="total" />
+          ) : (
+            <div className="chart-empty">No financial data matches these filters.</div>
+          )}
         </section>
       </main>
     </AppShell>

@@ -329,35 +329,35 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </summary>
             <form className="hosting-grouping filter-popover__panel" method="get">
               <input type="hidden" name="view" value={view} />
-            <label htmlFor="hosting-range">Time range</label>
-            <select id="hosting-range" name="range" defaultValue={range}>
-              {ranges.map((option) => (
-                <option value={option.value} key={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="hosting-grouping">Periods</label>
-            <select id="hosting-grouping" name="grouping" defaultValue={grouping}>
-              {groupings.map((option) => (
-                <option value={option.value} key={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <label className="hosting-date-field">
-              From
-              <input type="date" name="dateFrom" defaultValue={dateFrom ?? ""} />
-            </label>
-            <label className="hosting-date-field">
-              Through
-              <input type="date" name="dateTo" defaultValue={dateTo ?? ""} />
-            </label>
-            <label className="hosting-forecast-toggle">
-              <input type="checkbox" name="forecast" value="show" defaultChecked={showForecast} />
-              Show forecast
-            </label>
-            <input type="hidden" name="forecast" value="hide" />
+              <label htmlFor="hosting-range">Time range</label>
+              <select id="hosting-range" name="range" defaultValue={range}>
+                {ranges.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="hosting-grouping">Periods</label>
+              <select id="hosting-grouping" name="grouping" defaultValue={grouping}>
+                {groupings.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <label className="hosting-date-field">
+                From
+                <input type="date" name="dateFrom" defaultValue={dateFrom ?? ""} />
+              </label>
+              <label className="hosting-date-field">
+                Through
+                <input type="date" name="dateTo" defaultValue={dateTo ?? ""} />
+              </label>
+              <label className="hosting-forecast-toggle">
+                <input type="checkbox" name="forecast" value="show" defaultChecked={showForecast} />
+                Show forecast
+              </label>
+              <input type="hidden" name="forecast" value="hide" />
               <button className="button button--primary" type="submit">
                 Apply options
               </button>
@@ -585,7 +585,8 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 Counted panos × $0.38 ÷ 365 × active days
               </DetailItem>
               <DetailItem label="Missing counted panos">
-                Estimate at {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos and label it
+                Estimate at {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos and
+                label it
               </DetailItem>
             </dl>
           </article>

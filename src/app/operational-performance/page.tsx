@@ -9,15 +9,35 @@ import { getFinancialPageData } from "@/lib/reporting/financial-page-data";
 export const dynamic = "force-dynamic";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-export default async function OperationalPerformancePage({ searchParams }: { searchParams: SearchParams }) {
+export default async function OperationalPerformancePage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await requireUser("/operational-performance");
   const data = await getFinancialPageData(await searchParams);
   return (
     <AppShell user={session.user} contentTone="portfolio">
       <main className="shell shell--wide focused-report">
-        <section className="report-titlebar"><div><p className="eyebrow">Company delivery view</p><h1>Operational Performance</h1><p>Compare revenue, cost, remaining work, and forecasted profit across operational groups.</p></div><div className="report-titlebar__actions"><FinancialReportFilters action="/operational-performance" {...data} /></div></section>
+        <section className="report-titlebar">
+          <div>
+            <p className="eyebrow">Company delivery view</p>
+            <h1>Operational Performance</h1>
+            <p>
+              Compare revenue, cost, remaining work, and forecasted profit across operational
+              groups.
+            </p>
+          </div>
+          <div className="report-titlebar__actions">
+            <FinancialReportFilters action="/operational-performance" {...data} />
+          </div>
+        </section>
         <section className="report-section focused-report__primary">
-          <PortfolioFinancialComposition rows={data.profitabilityRows} variant="groups" emptyMessage="No operational-group data matches these filters." />
+          <PortfolioFinancialComposition
+            rows={data.profitabilityRows}
+            variant="groups"
+            emptyMessage="No operational-group data matches these filters."
+          />
         </section>
         <ChartPanel
           eyebrow="Effort exposure"

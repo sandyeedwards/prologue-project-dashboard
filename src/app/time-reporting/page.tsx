@@ -267,7 +267,7 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
                 <path d="m19.6 19.1 2.15 2.15" />
               </svg>
               <span>Time filters</span>
-              {(selectedEmployeeIds.length || selectedProjectIds.length) ? (
+              {selectedEmployeeIds.length || selectedProjectIds.length ? (
                 <span className="filter-popover__count">
                   {selectedEmployeeIds.length + selectedProjectIds.length}
                 </span>
@@ -279,75 +279,75 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
               <div className="time-reporting-controls__quick">
                 <span className="time-reporting-controls__label">Date range</span>
 
-            <div className="time-reporting-presets">
-              {presets.map((preset) => (
-                <Link
-                  key={preset.value}
-                  href={presetHref(preset.value, selectedEmployeeIds, selectedProjectIds)}
-                  className={`time-reporting-preset${
-                    report.range.preset === preset.value ? " time-reporting-preset--active" : ""
-                  }`}
-                >
-                  {preset.label}
-                </Link>
-              ))}
-            </div>
+                <div className="time-reporting-presets">
+                  {presets.map((preset) => (
+                    <Link
+                      key={preset.value}
+                      href={presetHref(preset.value, selectedEmployeeIds, selectedProjectIds)}
+                      className={`time-reporting-preset${
+                        report.range.preset === preset.value ? " time-reporting-preset--active" : ""
+                      }`}
+                    >
+                      {preset.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
 
               <form className="time-reporting-filter-form" action="/time-reporting" method="get">
-            <input type="hidden" name="preset" value="custom" />
+                <input type="hidden" name="preset" value="custom" />
 
-            <div className="time-reporting-filter-field">
-              <span>Employees</span>
+                <div className="time-reporting-filter-field">
+                  <span>Employees</span>
 
-              <details className="time-reporting-filter-menu">
-                <summary>
-                  {selectedEmployeeIds.length
-                    ? `${selectedEmployeeIds.length} selected`
-                    : "All employees"}
-                </summary>
+                  <details className="time-reporting-filter-menu">
+                    <summary>
+                      {selectedEmployeeIds.length
+                        ? `${selectedEmployeeIds.length} selected`
+                        : "All employees"}
+                    </summary>
 
-                <div className="time-reporting-filter-menu__options">
-                  {report.filterOptions.employees.map((employee) => (
-                    <label key={employee.personId}>
-                      <input
-                        type="checkbox"
-                        name="employee"
-                        value={employee.personId}
-                        defaultChecked={selectedEmployeeIds.includes(employee.personId)}
-                      />
+                    <div className="time-reporting-filter-menu__options">
+                      {report.filterOptions.employees.map((employee) => (
+                        <label key={employee.personId}>
+                          <input
+                            type="checkbox"
+                            name="employee"
+                            value={employee.personId}
+                            defaultChecked={selectedEmployeeIds.includes(employee.personId)}
+                          />
 
-                      <span>{employee.name}</span>
-                    </label>
-                  ))}
+                          <span>{employee.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
                 </div>
-              </details>
-            </div>
 
-            <TimeReportingProjectFilter
-              projects={report.filterOptions.projects}
-              selected={selectedProjectIds}
-            />
+                <TimeReportingProjectFilter
+                  projects={report.filterOptions.projects}
+                  selected={selectedProjectIds}
+                />
 
-            <FlexibleDateRangeFields
-              initialFrom={report.range.startDate}
-              initialTo={report.range.endDate}
-              fromName="startDate"
-              toName="endDate"
-              fromLabel="From"
-              toLabel="Through"
-              className="time-reporting-flexible-dates"
-            />
+                <FlexibleDateRangeFields
+                  initialFrom={report.range.startDate}
+                  initialTo={report.range.endDate}
+                  fromName="startDate"
+                  toName="endDate"
+                  fromLabel="From"
+                  toLabel="Through"
+                  className="time-reporting-flexible-dates"
+                />
 
-            <div className="time-reporting-filter-actions">
-              <button className="button button--primary button--compact" type="submit">
-                Apply Filters
-              </button>
+                <div className="time-reporting-filter-actions">
+                  <button className="button button--primary button--compact" type="submit">
+                    Apply Filters
+                  </button>
 
-              <Link className="button button--secondary button--compact" href="/time-reporting">
-                Reset
-              </Link>
-            </div>
+                  <Link className="button button--secondary button--compact" href="/time-reporting">
+                    Reset
+                  </Link>
+                </div>
               </form>
             </div>
           </details>

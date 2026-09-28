@@ -90,7 +90,13 @@ export async function getFinancialPageData(
     effortRows,
     totalProfitabilityRow,
     historicalProfitSeries,
-    clients: [...new Set(allProjects.map((row) => row.companyName).filter((value): value is string => Boolean(value)))].sort(),
+    clients: [
+      ...new Set(
+        allProjects
+          .map((row) => row.companyName)
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ].sort(),
     statuses: [...new Set(allProjects.map((row) => row.status).filter(Boolean))].sort(),
     types: getAvailableProjectTypes(allProjects),
   };

@@ -278,7 +278,12 @@ export function HostingFinancialChart({
               <text x={tooltipX + 13} y={tooltipY + 21} className="hosting-chart__tooltip-title">
                 {hoveredPoint.period} · {hoveredPoint.forecast ? "Forecast" : "Actual"}
               </text>
-              <circle cx={tooltipX + 17} cy={tooltipY + 42} r={4} className="hosting-chart__tooltip-key hosting-chart__tooltip-key--revenue" />
+              <circle
+                cx={tooltipX + 17}
+                cy={tooltipY + 42}
+                r={4}
+                className="hosting-chart__tooltip-key hosting-chart__tooltip-key--revenue"
+              />
               <text x={tooltipX + 29} y={tooltipY + 46}>
                 Paid revenue
               </text>
@@ -287,7 +292,12 @@ export function HostingFinancialChart({
               </text>
               {view !== "benaco" ? (
                 <>
-                  <circle cx={tooltipX + 17} cy={tooltipY + 62} r={4} className="hosting-chart__tooltip-key hosting-chart__tooltip-key--ivion" />
+                  <circle
+                    cx={tooltipX + 17}
+                    cy={tooltipY + 62}
+                    r={4}
+                    className="hosting-chart__tooltip-key hosting-chart__tooltip-key--ivion"
+                  />
                   <text x={tooltipX + 29} y={tooltipY + 66}>
                     IVION platform
                   </text>
@@ -298,17 +308,35 @@ export function HostingFinancialChart({
               ) : null}
               {view !== "ivion" ? (
                 <>
-                  <circle cx={tooltipX + 17} cy={tooltipY + (view === "combined" ? 82 : 62)} r={4} className="hosting-chart__tooltip-key hosting-chart__tooltip-key--pano" />
+                  <circle
+                    cx={tooltipX + 17}
+                    cy={tooltipY + (view === "combined" ? 82 : 62)}
+                    r={4}
+                    className="hosting-chart__tooltip-key hosting-chart__tooltip-key--pano"
+                  />
                   <text x={tooltipX + 29} y={tooltipY + (view === "combined" ? 86 : 66)}>
                     Benaco pano + subscription
                   </text>
-                  <text x={tooltipX + tooltipWidth - 13} y={tooltipY + (view === "combined" ? 86 : 66)} textAnchor="end">
+                  <text
+                    x={tooltipX + tooltipWidth - 13}
+                    y={tooltipY + (view === "combined" ? 86 : 66)}
+                    textAnchor="end"
+                  >
                     {fullCurrency(hoveredPoint.displayedBenacoCost)}
                   </text>
                 </>
               ) : null}
-              <circle cx={tooltipX + 17} cy={tooltipY + (view === "combined" ? 104 : 84)} r={4} className="hosting-chart__tooltip-key hosting-chart__tooltip-key--net" />
-              <text x={tooltipX + 29} y={tooltipY + (view === "combined" ? 108 : 88)} className="hosting-chart__tooltip-net">
+              <circle
+                cx={tooltipX + 17}
+                cy={tooltipY + (view === "combined" ? 104 : 84)}
+                r={4}
+                className="hosting-chart__tooltip-key hosting-chart__tooltip-key--net"
+              />
+              <text
+                x={tooltipX + 29}
+                y={tooltipY + (view === "combined" ? 108 : 88)}
+                className="hosting-chart__tooltip-net"
+              >
                 Net revenue
               </text>
               <text

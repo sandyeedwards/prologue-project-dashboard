@@ -622,22 +622,24 @@ export function PortfolioAnalysisDisclosure({
         </div>
       </details>
 
-      {showProjectAttention ? <details className="analysis-disclosure analysis-disclosure--single">
-        <summary>
-          <span>
-            <strong>Project Attention Register</strong>
-            <small>
-              Review project-level profitability, effort consumption, health, and data quality.
-            </small>
-          </span>
-          <i aria-hidden="true" />
-        </summary>
-        <div className="analysis-disclosure__content analysis-disclosure__content--single">
-          <section className="analysis-card analysis-card--table">
-            <ProjectPerformanceDetails projects={projects} />
-          </section>
-        </div>
-      </details> : null}
+      {showProjectAttention ? (
+        <details className="analysis-disclosure analysis-disclosure--single">
+          <summary>
+            <span>
+              <strong>Project Attention Register</strong>
+              <small>
+                Review project-level profitability, effort consumption, health, and data quality.
+              </small>
+            </span>
+            <i aria-hidden="true" />
+          </summary>
+          <div className="analysis-disclosure__content analysis-disclosure__content--single">
+            <section className="analysis-card analysis-card--table">
+              <ProjectPerformanceDetails projects={projects} />
+            </section>
+          </div>
+        </details>
+      ) : null}
     </section>
   );
 }

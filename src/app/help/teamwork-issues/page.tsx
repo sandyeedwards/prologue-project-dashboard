@@ -73,9 +73,10 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
     return true;
   });
 
-  const statusFilteredIssues = status === "ALL"
-    ? statusScopedIssues
-    : statusScopedIssues.filter((issue) => issue.status === status);
+  const statusFilteredIssues =
+    status === "ALL"
+      ? statusScopedIssues
+      : statusScopedIssues.filter((issue) => issue.status === status);
   const issues = statusFilteredIssues.filter((issue) => {
     if (view === "ALL") return true;
     if (view === "REVIEWED") return issue.status === "REVIEWED";
@@ -124,15 +125,42 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
             <strong>Close the loop</strong>
             <span>1. Open the source record in Teamwork.</span>
             <span>2. Correct the estimate, assignment, budget, or rate there.</span>
-            <span>3. Run the next sync. Corrected items close automatically when the source is re-checked.</span>
-            <small>Teamwork remains the source of truth. The dashboard does not silently overwrite Teamwork records.</small>
+            <span>
+              3. Run the next sync. Corrected items close automatically when the source is
+              re-checked.
+            </span>
+            <small>
+              Teamwork remains the source of truth. The dashboard does not silently overwrite
+              Teamwork records.
+            </small>
           </div>
 
           <nav className="issue-view-tabs" aria-label="Issue work queues">
-            <Link className={view === "OPEN" ? "is-active" : ""} href="/help/teamwork-issues?view=OPEN">Open <b>{openIssues.length}</b></Link>
-            <Link className={view === "ATTENTION" ? "is-active" : ""} href="/help/teamwork-issues?view=ATTENTION">Needs Attention <b>{openIssues.filter((issue) => issue.severity !== "INFO").length}</b></Link>
-            <Link className={view === "REVIEWED" ? "is-active" : ""} href="/help/teamwork-issues?view=REVIEWED">Reviewed <b>{reviewedIssues.length}</b></Link>
-            <Link className={view === "ALL" ? "is-active" : ""} href="/help/teamwork-issues?view=ALL">All Issues <b>{statusScopedIssues.length}</b></Link>
+            <Link
+              className={view === "OPEN" ? "is-active" : ""}
+              href="/help/teamwork-issues?view=OPEN"
+            >
+              Open <b>{openIssues.length}</b>
+            </Link>
+            <Link
+              className={view === "ATTENTION" ? "is-active" : ""}
+              href="/help/teamwork-issues?view=ATTENTION"
+            >
+              Needs Attention{" "}
+              <b>{openIssues.filter((issue) => issue.severity !== "INFO").length}</b>
+            </Link>
+            <Link
+              className={view === "REVIEWED" ? "is-active" : ""}
+              href="/help/teamwork-issues?view=REVIEWED"
+            >
+              Reviewed <b>{reviewedIssues.length}</b>
+            </Link>
+            <Link
+              className={view === "ALL" ? "is-active" : ""}
+              href="/help/teamwork-issues?view=ALL"
+            >
+              All Issues <b>{statusScopedIssues.length}</b>
+            </Link>
           </nav>
 
           <form
@@ -260,7 +288,9 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                 </p>
 
                 <small>
-                  {issue.severity} {"\u00b7"} Project status {issue.projectStatus} {"\u00b7"} Age {ageInDays(issue.lastDetectedAt)} days {"\u00b7"} Last detected {dateLabel(issue.lastDetectedAt)}
+                  {issue.severity} {"\u00b7"} Project status {issue.projectStatus} {"\u00b7"} Age{" "}
+                  {ageInDays(issue.lastDetectedAt)} days {"\u00b7"} Last detected{" "}
+                  {dateLabel(issue.lastDetectedAt)}
                   {issue.reviewedAt
                     ? ` \u00b7 Reviewed ${dateLabel(issue.reviewedAt)} by ${issue.reviewedByName ?? "Admin"}`
                     : ""}

@@ -176,11 +176,11 @@ function rangeBounds(
         ? earliestMeaningfulDate
         : option.id === "CUSTOM"
           ? shiftDays(earliestEventDate, -1)
-        : option.months
-          ? subtractCalendarMonths(to, option.months)
-          : option.years
-            ? subtractCalendarYears(to, option.years)
-            : shiftDays(to, -(option.days ?? 30));
+          : option.months
+            ? subtractCalendarMonths(to, option.months)
+            : option.years
+              ? subtractCalendarYears(to, option.years)
+              : shiftDays(to, -(option.days ?? 30));
   return { from, to };
 }
 

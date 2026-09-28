@@ -110,8 +110,12 @@ export default async function PayrollPage({
           <div className="payroll-actions">
             {report.rows.length ? (
               <>
-                <a className="button" href={pdf}>Download PDF</a>
-                <a className="button button--secondary" href={csv}>Download CSV</a>
+                <a className="button" href={pdf}>
+                  Download PDF
+                </a>
+                <a className="button button--secondary" href={csv}>
+                  Download CSV
+                </a>
               </>
             ) : (
               <span className="payroll-export-empty" role="status">
