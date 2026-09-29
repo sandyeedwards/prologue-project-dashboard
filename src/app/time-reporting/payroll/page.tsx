@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { PayrollFilters } from "@/components/payroll-filters";
+import { PayrollExportButton } from "@/components/payroll-export-button";
 import { requireRole } from "@/lib/auth/session";
-import { getPayrollReport, payrollStatus } from "@/lib/reporting/payroll-data";
-import { payPeriod, PTO_LOCK_DAYS } from "@/lib/reporting/pay-period";
+import { getPayrollReport } from "@/lib/reporting/payroll-data";
+import { payPeriod } from "@/lib/reporting/pay-period";
 
 export const dynamic = "force-dynamic";
 
@@ -64,28 +65,20 @@ export default async function PayrollPage({
             {hours.toFixed(2)} hours · {report.rows.length} entries
           </strong>
           <p>
-            PTO locks {PTO_LOCK_DAYS} days after its work date. Locked hours are preserved when
-            Teamwork changes. Other time remains live. Old entries first captured by this feature
-            are labeled “initial baseline”.
+            Review the selected pay period, then export an ADP preparation file and a branded
+            payroll summary together.
           </p>
           <p>
             {changes} locked entries have source changes requiring review. Deletions can only be
             flagged once received by the sync.
           </p>
           <p>
-            CSV contains exact minutes and Teamwork employee IDs. It is a general payroll export;
-            ADP import mapping still requires your administrator’s template.
+            The CSV includes exact hours, earning type, and source employee IDs. Your ADP
+            administrator can finalize its account-specific field mapping from the ADP template.
           </p>
           <div className="payroll-actions">
             {report.rows.length ? (
-              <>
-                <a className="button" href={pdf}>
-                  Download PDF
-                </a>
-                <a className="button button--secondary" href={csv}>
-                  Download CSV
-                </a>
-              </>
+              <PayrollExportButton csvUrl={csv} pdfUrl={pdf} />
             ) : (
               <span className="payroll-export-empty" role="status">
                 There is no {report.ptoOnly ? "PTO " : ""}time to export for this pay period.
@@ -102,7 +95,6 @@ export default async function PayrollPage({
                 <th>Project / task</th>
                 <th>Type</th>
                 <th>Hours</th>
-                <th>Payroll status</th>
               </tr>
             </thead>
             <tbody>
@@ -117,7 +109,6 @@ export default async function PayrollPage({
                   </td>
                   <td>{row.is_pto ? "PTO" : "Time"}</td>
                   <td>{(row.minutes / 60).toFixed(2)}</td>
-                  <td>{payrollStatus(row, report.today)}</td>
                 </tr>
               ))}
             </tbody>

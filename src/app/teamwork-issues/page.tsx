@@ -47,6 +47,38 @@ function issueLocation(code: string): string {
   return "The affected Teamwork task or project record";
 }
 
+function conciseIssueMessage(code: string, fallback: string): string {
+  const messages: Record<string, string> = {
+    UNPLANNED_ACTUAL_WORK: "Logged time is above plan or the task has no estimate.",
+    OUTSOURCED_EXPENSE_MISSING: "An outsourced task has no matching Finance expense.",
+    PROJECT_BUDGET_MISSING: "No current fixed-fee project budget was found.",
+    TASK_LIST_BUDGET_COVERAGE_INCOMPLETE: "Active delivery task lists are missing budget targets.",
+    MISSING_TASK_ASSIGNMENT: "Remaining work has no assigned person or role.",
+    NON_COSTED_ASSIGNMENT_UNRESOLVED: "An assignment has no usable cost rate.",
+    MISSING_JOB_ROLE_COST_RATE: "The assigned job role has no cost rate.",
+    MISSING_EMPLOYEE_COST_RATE: "The assigned employee has no cost rate.",
+    UNALLOCATED_PROJECT_TIME: "Logged time is not attached to a task.",
+    ACTUAL_LABOR_COST_INCOMPLETE: "Some logged time is missing labor cost.",
+  };
+  return messages[code] ?? fallback;
+}
+
+function conciseIssueAction(code: string, fallback: string): string {
+  const actions: Record<string, string> = {
+    UNPLANNED_ACTUAL_WORK: "Confirm the work or correct the task estimate.",
+    OUTSOURCED_EXPENSE_MISSING: "Add the matching outsourced expense.",
+    PROJECT_BUDGET_MISSING: "Create or correct the current project budget.",
+    TASK_LIST_BUDGET_COVERAGE_INCOMPLETE: "Add a target cost to each active delivery task list.",
+    MISSING_TASK_ASSIGNMENT: "Assign the remaining work to a person or role.",
+    NON_COSTED_ASSIGNMENT_UNRESOLVED: "Add a valid cost rate to the assignment.",
+    MISSING_JOB_ROLE_COST_RATE: "Add the missing job-role cost rate.",
+    MISSING_EMPLOYEE_COST_RATE: "Add the employee's cost rate.",
+    UNALLOCATED_PROJECT_TIME: "Move the time entry to the correct task.",
+    ACTUAL_LABOR_COST_INCOMPLETE: "Complete the missing employee or role cost rate.",
+  };
+  return actions[code] ?? fallback;
+}
+
 function diagnosticContext(details: Record<string, unknown> | null): string | null {
   const taskListName = details?.taskListName;
   if (typeof taskListName === "string" && taskListName.trim()) {
@@ -360,11 +392,11 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                       <div className="issue-card__explanation">
                         <p>
                           <strong>What’s wrong</strong>
-                          <span>{issue.message}</span>
+                          <span>{conciseIssueMessage(issue.code, issue.message)}</span>
                         </p>
                         <p>
                           <strong>How to fix it</strong>
-                          <span>{issue.recommendedAction}</span>
+                          <span>{conciseIssueAction(issue.code, issue.recommendedAction)}</span>
                         </p>
                         <p>
                           <strong>Where to fix it</strong>

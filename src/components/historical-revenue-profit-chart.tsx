@@ -253,9 +253,11 @@ function evenlySpacedDates(startDate: string, endDate: string, count: number): s
 export function HistoricalRevenueProfitChart({
   series,
   initialDateRange,
+  defaultRange = "LIFE",
 }: {
   series: HistoricalProfitSeries[];
   initialDateRange?: { from?: string; to?: string };
+  defaultRange?: Exclude<RangeId, "CUSTOM">;
 }) {
   const initialCustomRange =
     initialDateRange?.from && initialDateRange?.to
@@ -267,7 +269,7 @@ export function HistoricalRevenueProfitChart({
   const pointerDownDateRef = useRef<string | null>(null);
   const pointerDraggedRef = useRef(false);
   const anchorExistedOnPointerDownRef = useRef(false);
-  const [range, setRange] = useState<RangeId>(initialCustomRange ? "CUSTOM" : "LIFE");
+  const [range, setRange] = useState<RangeId>(initialCustomRange ? "CUSTOM" : defaultRange);
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(
     initialCustomRange,
   );

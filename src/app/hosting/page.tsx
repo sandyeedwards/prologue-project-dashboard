@@ -268,8 +268,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <p className="eyebrow">Hosting revenue &amp; platform economics</p>
             <h1>Hosting Reporting</h1>
             <p>
-              Track paid IVION and Benaco hosting revenue, direct platform costs, pano usage, and
-              term coverage from the HubSpot hosting records.
+              A focused view of hosting revenue, direct costs, net contribution, and platform scale.
             </p>
             <div className="report-titlebar__status" aria-label="Hosting data status">
               <span className="portfolio-status-dot portfolio-status-dot--green" />
@@ -388,13 +387,12 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               ) : null}
             </div>
           </details>
+          <p className="hosting-range-summary">
+            <strong>{rangeLabel}</strong> · {dateLabel(data.range.from)} through{" "}
+            {dateLabel(data.range.to)}
+            {showForecast ? " · Forecast visible" : " · Actual periods"}
+          </p>
         </section>
-
-        <p className="hosting-range-summary">
-          <strong>{rangeLabel}</strong> · {dateLabel(data.range.from)} through{" "}
-          {dateLabel(data.range.to)}
-          {showForecast ? " · Forecast is visible" : " · Actual periods only"}
-        </p>
 
         {!latestSync ? (
           <section className="notice hosting-status-banner" aria-live="polite">
@@ -425,7 +423,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </section>
         ) : null}
 
-        <section className="metric-grid metric-grid--executive" aria-label="Hosting summary">
+        <section
+          className="metric-grid metric-grid--executive hosting-metrics"
+          aria-label="Hosting summary"
+        >
           <MetricCard
             label={`${viewLabel} Paid Revenue`}
             value={hasSourceData ? currency(totals.revenue) : "No data"}
@@ -497,12 +498,15 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </p>
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
-          <p className="hosting-calculation-note">
-            <strong>Calculation check:</strong> complimentary hosting never creates a revenue
-            deduction. Net revenue is paid contracted hosting revenue minus IVION platform cost,
-            Benaco pano cost, and the Benaco subscription. A period can fall sharply when a paid
-            term ends while its site remains active and continues to incur direct hosting cost.
-          </p>
+          <details className="hosting-methodology">
+            <summary>How net revenue is calculated</summary>
+            <p>
+              Net revenue is paid contracted hosting revenue less IVION platform cost, Benaco pano
+              cost, and the Benaco subscription. Complimentary hosting never reduces paid revenue. A
+              period can fall when a paid term ends while its site continues to incur direct hosting
+              cost.
+            </p>
+          </details>
         </section>
 
         <details className="report-section hosting-report-section hosting-table-disclosure">
