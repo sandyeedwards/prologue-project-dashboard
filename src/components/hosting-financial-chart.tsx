@@ -93,25 +93,6 @@ export function HostingFinancialChart({
   const labelEvery = Math.max(1, Math.ceil(points.length / 10));
   const firstForecastIndex = points.findIndex((point) => point.forecast);
   const hoveredPoint = hovered === null ? null : points[hovered.index];
-  const highestNetIndex = points.reduce(
-    (best, point, index) => (point.displayedNet > points[best].displayedNet ? index : best),
-    0,
-  );
-  const lowestNetIndex = points.reduce(
-    (worst, point, index) => (point.displayedNet < points[worst].displayedNet ? index : worst),
-    0,
-  );
-  const firstNegativeIndex = points.findIndex((point) => point.displayedNet < 0);
-  const annotationLabels = new Map<number, string[]>();
-  const addAnnotation = (index: number, label: string) => {
-    if (index < 0) return;
-    annotationLabels.set(index, [...(annotationLabels.get(index) ?? []), label]);
-  };
-  addAnnotation(highestNetIndex, "Highest net");
-  if (firstNegativeIndex >= 0) addAnnotation(firstNegativeIndex, "First negative");
-  if (lowestNetIndex !== highestNetIndex) addAnnotation(lowestNetIndex, "Lowest net");
-  addAnnotation(points.length - 1, "Latest");
-
   const tooltipRows = hoveredPoint
     ? [
         {
@@ -391,25 +372,6 @@ export function HostingFinancialChart({
               opacity={point.forecast ? 0.55 : 1}
             />
           ))}
-          {[...annotationLabels.entries()].map(([index, labels]) => {
-            const point = points[index];
-            const isNegative = point.displayedNet < 0;
-            const labelY = Math.min(
-              HEIGHT - MARGIN.bottom - 7,
-              Math.max(MARGIN.top + 10, y(point.displayedNet) + (isNegative ? 18 : -11)),
-            );
-            return (
-              <text
-                key={`${point.period}-annotation`}
-                x={x(index)}
-                y={labelY}
-                textAnchor={index >= points.length - 2 ? "end" : "middle"}
-                className={`hosting-chart__annotation${isNegative ? " hosting-chart__annotation--negative" : ""}`}
-              >
-                {labels.join(" · ")}
-              </text>
-            );
-          })}
           {hoveredPoint && hovered ? (
             <g className="hosting-chart__tooltip" pointerEvents="none">
               <line
