@@ -8533,6 +8533,102 @@ textarea {
   stroke: #c53f37;
 }
 
+/* Financial chart hierarchy: revenue, grouped direct costs, then net result. */
+.hosting-chart-section .section-heading {
+  align-items: end;
+}
+
+.hosting-chart__legend {
+  align-items: center;
+  border-bottom: 1px solid #e6edf3;
+  padding-bottom: 10px;
+}
+
+.hosting-chart__legend span:nth-child(2),
+.hosting-chart__legend span:nth-child(3) {
+  position: relative;
+}
+
+.hosting-chart__legend span:nth-child(2) {
+  margin-left: 8px;
+  padding-left: 17px;
+}
+
+.hosting-chart__legend span:nth-child(2)::before {
+  color: #738397;
+  content: "Direct costs";
+  font-size: 0.59rem;
+  font-weight: 800;
+  left: 0;
+  letter-spacing: 0.06em;
+  position: absolute;
+  text-transform: uppercase;
+  top: -16px;
+  white-space: nowrap;
+}
+
+.hosting-chart__scroller {
+  border-color: transparent;
+  border-radius: 5px;
+}
+
+.hosting-chart__grid {
+  stroke: #e8edf2;
+  stroke-width: 0.7;
+}
+
+.hosting-chart__zero {
+  stroke: #71859a;
+  stroke-width: 1.45;
+}
+
+.hosting-chart__net-line {
+  stroke-width: 2.8;
+}
+
+.hosting-chart__net-point {
+  fill: #fff;
+  stroke-width: 2.25;
+}
+
+.hosting-chart__net-line,
+.hosting-chart__net-point,
+.hosting-chart__annotation {
+  pointer-events: none;
+}
+
+.hosting-chart__annotation {
+  fill: #147657;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-linejoin: round;
+  stroke-width: 3px;
+}
+
+.hosting-chart__annotation--negative {
+  fill: #b43731;
+}
+
+.hosting-chart__tooltip .hosting-chart__tooltip-key--cost,
+.hosting-chart__tooltip .hosting-chart__tooltip-key--margin {
+  fill: #91a2b3;
+}
+
+.hosting-chart__tooltip .hosting-chart__tooltip-key--negative-net {
+  fill: #e0574f;
+}
+
+.hosting-chart__tooltip .hosting-chart__tooltip-key--net {
+  fill: #38bd88;
+}
+
+.hosting-chart__tooltip .hosting-chart__tooltip-net {
+  font-weight: 800;
+}
+
 @media (max-width: 980px) {
   .focused-report--revenue-trends {
     display: block;

@@ -500,18 +500,17 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <p className="eyebrow">Company hosting timeline</p>
               <h2>{viewLabel} financial performance</h2>
             </div>
-            <p>
-              Paid revenue, direct cost composition, and net revenue across the selected history.
-            </p>
+            <p>Monthly paid revenue, direct platform costs, and resulting net hosting revenue.</p>
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
           <details className="hosting-methodology">
             <summary>How net revenue is calculated</summary>
             <p>
-              Net revenue is paid contracted hosting revenue less IVION platform cost, Benaco pano
-              cost, and the Benaco subscription. Complimentary hosting never reduces paid revenue. A
-              period can fall when a paid term ends while its site continues to incur direct hosting
-              cost.
+              <strong>
+                Paid revenue – IVION costs – Benaco pano and subscription costs = Net revenue.
+              </strong>{" "}
+              Complimentary hosting never reduces paid revenue. A period can fall when a paid term
+              ends while its site continues to incur direct hosting cost.
             </p>
           </details>
         </section>
