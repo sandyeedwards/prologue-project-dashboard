@@ -200,6 +200,7 @@ export function ProjectTable({
                       type="checkbox"
                       name="project"
                       value={row.id}
+                      data-project-label={row.name}
                       defaultChecked={selectedProjectIds.includes(row.id)}
                       aria-label={`Select ${row.name}`}
                     />

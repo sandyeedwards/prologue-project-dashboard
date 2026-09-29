@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import Link from "next/link";
 import { DashboardPortfolioFilters } from "@/components/dashboard-portfolio-filters";
+import { PortfolioFinancialComposition } from "@/components/portfolio-financial-composition";
 import { MetricCard } from "@/components/reporting-ui";
 import { requireUser } from "@/lib/auth/session";
 import {
@@ -156,6 +157,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const mostWorkedProject = [...projects].sort(
     (left, right) => right.loggedMinutes - left.loggedMinutes,
   )[0];
+  const companyProfitabilityRow = summary.projectCount
+    ? {
+        label: "Company forecast",
+        detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"}`,
+        revenue: summary.totalClientFee,
+        cost: summary.totalForecastCost,
+        actualCost: summary.totalActualCost,
+        remainingCost: totalRemainingCost,
+        profit: summary.totalForecastProfit,
+        margin: forecastMargin,
+        projectCount: summary.projectCount,
+      }
+    : null;
 
   return (
     <AppShell user={session.user} contentTone="portfolio">
@@ -300,6 +314,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               detail={`${hours(summary.totalLoggedMinutes)} of ${hours(summary.totalEstimatedMinutes)} estimated`}
             />
           </div>
+        </section>
+
+        <section className="report-section company-forecast-strip">
+          <div className="company-forecast-strip__heading">
+            <div>
+              <p className="eyebrow">Current forecast</p>
+              <h2>How company revenue is expected to be used</h2>
+            </div>
+            <Link href="/profit-forecast">View detailed profit forecast →</Link>
+          </div>
+          {companyProfitabilityRow ? (
+            <PortfolioFinancialComposition
+              rows={[companyProfitabilityRow]}
+              variant="total"
+              showHeroMetrics={false}
+            />
+          ) : (
+            <div className="chart-empty">No financial data matches these filters.</div>
+          )}
         </section>
 
         <section className="company-highlights" aria-label="Company highlights">

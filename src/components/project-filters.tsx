@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { FormEvent } from "react";
 import { FlexibleDateRangeFields } from "@/components/flexible-date-range-fields";
 import type { ProjectFilter } from "@/lib/reporting/dashboard-data";
 
@@ -27,8 +28,25 @@ export function ProjectFilterBar({
   preservedProjectIds?: string[];
   preservedPageSize?: number;
 }) {
+  const preserveCurrentSelection = (event: FormEvent<HTMLFormElement>) => {
+    const target = event.currentTarget;
+    target.querySelectorAll("[data-preserved-project]").forEach((input) => input.remove());
+    const selectionForm = document.getElementById("project-selection");
+    const ids = selectionForm
+      ? [...selectionForm.querySelectorAll<HTMLInputElement>('input[name="project"]')]
+          .filter((input) => input.type !== "checkbox" || input.checked)
+          .map((input) => input.value)
+      : preservedProjectIds;
+    [...new Set(ids)].forEach((projectId) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "project";
+      input.value = projectId;
+      input.dataset.preservedProject = "true";
+      target.append(input);
+    });
+  };
   const activeFilterCount = [
-    filter.query,
     filter.client && filter.client !== "ALL" ? filter.client : undefined,
     filter.health && filter.health !== "ALL" ? filter.health : undefined,
     filter.status && filter.status !== "ALL" ? filter.status : undefined,
@@ -45,7 +63,7 @@ export function ProjectFilterBar({
           <circle cx="17.25" cy="16.75" r="3.25" />
           <path d="m19.6 19.1 2.15 2.15" />
         </svg>
-        <span>Search &amp; filter</span>
+        <span>Filters</span>
         {activeFilterCount ? (
           <span className="filter-popover__count">{activeFilterCount}</span>
         ) : null}
@@ -55,15 +73,13 @@ export function ProjectFilterBar({
         className="filter-panel filter-panel--projects filter-panel--visible filter-popover__panel"
         method="get"
         action={action}
+        onSubmit={preserveCurrentSelection}
       >
         <div className="filter-panel__heading">
           <div>
             <p className="eyebrow">Project workspace filters</p>
             <h2>Find the projects you want to compare or combine</h2>
-            <p>
-              Search directly, then narrow the reporting projects by type, planned dates, client,
-              health, or status.
-            </p>
+            <p>Narrow the reporting projects by type, planned dates, client, health, or status.</p>
           </div>
           <Link className="filter-panel__reset" href={resetHref}>
             Reset all
@@ -71,17 +87,6 @@ export function ProjectFilterBar({
         </div>
 
         <div className="projects-filter-grid">
-          <label className="filter-field filter-field--search projects-filter-grid__search">
-            <span>Search projects</span>
-            <input
-              name="q"
-              defaultValue={filter.query}
-              placeholder="Project name, number, client, or tag"
-              autoComplete="off"
-            />
-            <small>Search is available here for project selection and comparison workflows.</small>
-          </label>
-
           <label className="filter-field projects-filter-grid__type">
             <span>Project type</span>
             <select name="type" defaultValue={filter.type ?? "ALL"}>
@@ -148,8 +153,15 @@ export function ProjectFilterBar({
 
         {preservedMode ? <input type="hidden" name="mode" value={preservedMode} /> : null}
         <input type="hidden" name="pageSize" value={preservedPageSize} />
+        {filter.query ? <input type="hidden" name="q" value={filter.query} /> : null}
         {preservedProjectIds.map((projectId) => (
-          <input key={projectId} type="hidden" name="project" value={projectId} />
+          <input
+            key={projectId}
+            data-preserved-project
+            type="hidden"
+            name="project"
+            value={projectId}
+          />
         ))}
 
         <p className="filter-policy-note">

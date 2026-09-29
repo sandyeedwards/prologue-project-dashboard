@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { PayrollFilters } from "@/components/payroll-filters";
 import { requireRole } from "@/lib/auth/session";
 import { getPayrollReport, payrollStatus } from "@/lib/reporting/payroll-data";
-import { payPeriod } from "@/lib/reporting/pay-period";
+import { payPeriod, PTO_LOCK_DAYS } from "@/lib/reporting/pay-period";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function PayrollPage({
   }
   const report = await getPayrollReport(params);
   params.set("date", report.period.startDate);
+  if (report.ptoOnly) params.delete("project");
   const employees = [...new Map(report.all.map((r) => [r.person_id, r.employee_name])).entries()];
   const projects = [...new Map(report.all.map((r) => [r.project_id, r.project_name])).entries()];
   const hours = report.rows.reduce((sum, row) => sum + row.minutes, 0) / 60;
@@ -49,55 +51,22 @@ export default async function PayrollPage({
           </Link>
         </header>
         {invalidDate ? <p role="alert">Invalid date; showing the current pay period.</p> : null}
-        <form method="get" className="payroll-filters" key={params.toString()}>
-          <label>
-            Date within pay period
-            <input type="date" name="date" defaultValue={report.period.startDate} required />
-          </label>
-          <label>
-            Time type
-            <select name="type" defaultValue={report.ptoOnly ? "pto" : "all"}>
-              <option value="all">All time</option>
-              <option value="pto">PTO only</option>
-            </select>
-          </label>
-          <label>
-            Employee
-            <select name="employee" defaultValue={report.employee}>
-              <option value="">All employees</option>
-              {employees
-                .filter(([id]) => id)
-                .map(([id, name]) => (
-                  <option key={id} value={id!}>
-                    {name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label>
-            Project
-            <select name="project" defaultValue={report.project}>
-              <option value="">All projects</option>
-              {projects.map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button className="button" type="submit">
-            Apply filters
-          </button>
-          <Link href="/time-reporting/payroll">Reset to current period</Link>
-        </form>
+        <PayrollFilters
+          date={report.period.startDate}
+          ptoOnly={report.ptoOnly}
+          employee={report.employee}
+          project={report.project}
+          employees={employees}
+          projects={projects}
+        />
         <section className="notice">
           <strong>
             {hours.toFixed(2)} hours · {report.rows.length} entries
           </strong>
           <p>
-            PTO locks 30 days after its work date. Locked hours are preserved when Teamwork changes.
-            Other time remains live. Old entries first captured by this feature are labeled “initial
-            baseline”.
+            PTO locks {PTO_LOCK_DAYS} days after its work date. Locked hours are preserved when
+            Teamwork changes. Other time remains live. Old entries first captured by this feature
+            are labeled “initial baseline”.
           </p>
           <p>
             {changes} locked entries have source changes requiring review. Deletions can only be

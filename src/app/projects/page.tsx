@@ -1,5 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { ProjectFilterBar } from "@/components/project-filters";
+import { ProjectLiveSearch } from "@/components/project-live-search";
+import { ProjectSelectionTray } from "@/components/project-selection-tray";
 import { ProjectPageSizeSelect } from "@/components/project-page-size-select";
 import {
   CombinedPortfolioReport,
@@ -178,6 +180,7 @@ export async function ProjectsWorkspace({
             <p>{pageDescription}</p>
           </div>
           <div className="report-titlebar__actions">
+            <ProjectLiveSearch initialQuery={filter.query} />
             <ProjectFilterBar
               action={basePath}
               filter={filter}
@@ -256,6 +259,9 @@ export async function ProjectsWorkspace({
               <span className="selection-action-bar__count">
                 <b>{projects.length}</b> of {allProjects.length} reporting projects
               </span>
+              <ProjectSelectionTray
+                initial={selected.map((project) => ({ id: project.id, label: project.name }))}
+              />
             </div>
             <div className="selection-action-bar__controls">
               <div className="selection-action-bar__buttons">
@@ -300,7 +306,13 @@ export async function ProjectsWorkspace({
           {selectedIds
             .filter((projectId) => !visibleProjectIds.has(projectId))
             .map((projectId) => (
-              <input key={projectId} type="hidden" name="project" value={projectId} />
+              <input
+                key={projectId}
+                data-preserved-project
+                type="hidden"
+                name="project"
+                value={projectId}
+              />
             ))}
 
           <ProjectTable

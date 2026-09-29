@@ -81,10 +81,12 @@ function CompositionRow({
   row,
   maximumOverrunRatio,
   hero = false,
+  showHeroMetrics = true,
 }: {
   row: ProfitabilityRow;
   maximumOverrunRatio: number;
   hero?: boolean;
+  showHeroMetrics?: boolean;
 }) {
   const tooltipId = useId();
   const plotRef = useRef<HTMLDivElement>(null);
@@ -148,13 +150,15 @@ function CompositionRow({
   };
 
   return (
-    <div className={`portfolio-composition__row${hero ? " portfolio-composition__row--hero" : ""}`}>
+    <div
+      className={`portfolio-composition__row${hero ? " portfolio-composition__row--hero" : ""}${hero && !showHeroMetrics ? " portfolio-composition__row--compact-hero" : ""}`}
+    >
       <div className="portfolio-composition__identity">
         <strong>{row.label}</strong>
         {row.detail ? <small>{row.detail}</small> : null}
       </div>
 
-      {hero ? (
+      {hero && showHeroMetrics ? (
         <div className="portfolio-composition__hero-metrics" aria-hidden="true">
           <span>
             <small>Actual Cost to Date</small>
@@ -271,10 +275,12 @@ function CompositionRow({
 export function PortfolioFinancialComposition({
   rows,
   variant = "groups",
+  showHeroMetrics = true,
   emptyMessage = "No complete financial position is available.",
 }: {
   rows: ProfitabilityRow[];
   variant?: "total" | "groups";
+  showHeroMetrics?: boolean;
   emptyMessage?: string;
 }) {
   const available = rows.filter(
@@ -318,6 +324,7 @@ export function PortfolioFinancialComposition({
             row={row}
             maximumOverrunRatio={maximumOverrunRatio}
             hero={variant === "total"}
+            showHeroMetrics={showHeroMetrics}
           />
         ))}
       </div>

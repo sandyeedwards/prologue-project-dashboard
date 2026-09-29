@@ -78,12 +78,6 @@ export function HostingFinancialChart({
     (_, index) => minimum + index * step,
   );
   const labelEvery = Math.max(1, Math.ceil(points.length / 10));
-  const netPath = points
-    .map(
-      (point, index) =>
-        `${index ? "L" : "M"}${x(index).toFixed(2)},${y(point.displayedNet).toFixed(2)}`,
-    )
-    .join(" ");
   const firstForecastIndex = points.findIndex((point) => point.forecast);
   const hoveredPoint = hovered === null ? null : points[hovered.index];
   const tooltipWidth = 250;
@@ -248,20 +242,39 @@ export function HostingFinancialChart({
                   aria-label={`${point.period}: paid revenue ${fullCurrency(point.displayedRevenue)}, direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net revenue ${fullCurrency(point.displayedNet)}`}
                   onMouseEnter={(event) => inspectAtPointer(event, index)}
                   onMouseMove={(event) => inspectAtPointer(event, index)}
+                  onMouseDown={(event) => event.preventDefault()}
                   onFocus={() => setHovered({ index, x: center, y: y(point.displayedNet) })}
                   onBlur={() => setHovered(null)}
                 />
               </g>
             );
           })}
-          <path d={netPath} className="hosting-chart__net-line" />
+          {points.slice(1).map((point, index) => {
+            const previous = points[index];
+            const negative = previous.displayedNet < 0 || point.displayedNet < 0;
+            return (
+              <path
+                key={`${point.period}-segment`}
+                d={`M${x(index).toFixed(2)},${y(previous.displayedNet).toFixed(2)} L${x(index + 1).toFixed(2)},${y(point.displayedNet).toFixed(2)}`}
+                className={
+                  negative
+                    ? "hosting-chart__net-line hosting-chart__net-line--negative"
+                    : "hosting-chart__net-line"
+                }
+              />
+            );
+          })}
           {points.map((point, index) => (
             <circle
               key={`${point.period}-net`}
               cx={x(index)}
               cy={y(point.displayedNet)}
               r={point.forecast ? 2.5 : 3.5}
-              className="hosting-chart__net-point"
+              className={
+                point.displayedNet < 0
+                  ? "hosting-chart__net-point hosting-chart__net-point--negative"
+                  : "hosting-chart__net-point"
+              }
               opacity={point.forecast ? 0.55 : 1}
             />
           ))}

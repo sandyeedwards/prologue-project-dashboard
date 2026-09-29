@@ -400,9 +400,17 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
             <div>
               <p className="eyebrow">Billable status by employee</p>
 
-              <h2>Total Hours by Billable Status</h2>
+              <h2>
+                {report.range.preset === "month"
+                  ? "Monthly Hours by Billable Status"
+                  : "Hours by Billable Status"}
+              </h2>
 
               <p>
+                <strong>
+                  {selectedPresetLabel}:{" "}
+                  {dateRangeLabel(report.range.startDate, report.range.endDate)}.
+                </strong>{" "}
                 All employees use the same scale. The vertical target marker represents expected
                 hours, while the full lane expands when anyone logs beyond that target so overtime
                 never runs off the chart.

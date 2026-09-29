@@ -30,8 +30,8 @@ export async function getPayrollReport(params: URLSearchParams) {
     order by employee_name, logged_date, teamwork_id
   `;
   const employee = params.get("employee") || "";
-  const project = params.get("project") || "";
   const ptoOnly = params.get("type") === "pto";
+  const project = ptoOnly ? "" : params.get("project") || "";
   const rows = all.filter(
     (row) =>
       (!employee || row.person_id === employee) &&
