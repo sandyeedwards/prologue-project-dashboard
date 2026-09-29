@@ -30,7 +30,7 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
   ]);
 
   const query = one(params.q)?.trim() ?? "";
-  const view = one(params.view) ?? "OPEN";
+  const view = one(params.view) ?? "ATTENTION";
   const status = one(params.status) ?? "ALL";
   const severity = one(params.severity) ?? "ALL";
   const code = one(params.code) ?? "ALL";
@@ -80,12 +80,27 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
   const issues = statusFilteredIssues.filter((issue) => {
     if (view === "ALL") return true;
     if (view === "REVIEWED") return issue.status === "REVIEWED";
-    if (view === "ATTENTION") return issue.status === "OPEN" && issue.severity !== "INFO";
+    if (view === "REVIEW_UNPLANNED") {
+      return issue.status === "OPEN" && issue.code === "UNPLANNED_ACTUAL_WORK";
+    }
+    if (view === "ATTENTION") {
+      return (
+        issue.status === "OPEN" &&
+        issue.code !== "UNPLANNED_ACTUAL_WORK" &&
+        issue.severity !== "INFO"
+      );
+    }
     return issue.status === "OPEN";
   });
 
   const openIssues = statusScopedIssues.filter((issue) => issue.status === "OPEN");
   const reviewedIssues = statusScopedIssues.filter((issue) => issue.status === "REVIEWED");
+  const attentionIssues = openIssues.filter(
+    (issue) => issue.code !== "UNPLANNED_ACTUAL_WORK" && issue.severity !== "INFO",
+  );
+  const unplannedReviewIssues = openIssues.filter(
+    (issue) => issue.code === "UNPLANNED_ACTUAL_WORK",
+  );
 
   return (
     <AppShell user={session.user}>
@@ -117,7 +132,8 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               </p>
             </div>
             <span className="section-meta">
-              {openIssues.length} open {"\u00b7"} {reviewedIssues.length} reviewed
+              {attentionIssues.length} need attention {"\u00b7"} {unplannedReviewIssues.length}{" "}
+              awaiting review {"\u00b7"} {reviewedIssues.length} reviewed
             </span>
           </div>
 
@@ -137,17 +153,16 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
 
           <nav className="issue-view-tabs" aria-label="Issue work queues">
             <Link
-              className={view === "OPEN" ? "is-active" : ""}
-              href="/help/teamwork-issues?view=OPEN"
-            >
-              Open <b>{openIssues.length}</b>
-            </Link>
-            <Link
               className={view === "ATTENTION" ? "is-active" : ""}
               href="/help/teamwork-issues?view=ATTENTION"
             >
-              Needs Attention{" "}
-              <b>{openIssues.filter((issue) => issue.severity !== "INFO").length}</b>
+              Needs Attention <b>{attentionIssues.length}</b>
+            </Link>
+            <Link
+              className={view === "REVIEW_UNPLANNED" ? "is-active" : ""}
+              href="/help/teamwork-issues?view=REVIEW_UNPLANNED"
+            >
+              Review Unplanned Time <b>{unplannedReviewIssues.length}</b>
             </Link>
             <Link
               className={view === "REVIEWED" ? "is-active" : ""}
@@ -259,7 +274,11 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                     {issue.projectNumber ? `${issue.projectNumber} \u00b7 ` : ""}
                     {issue.projectName}
                   </strong>
-                  <span>{issue.status}</span>
+                  <span>
+                    {issue.code === "UNPLANNED_ACTUAL_WORK" && issue.status === "OPEN"
+                      ? "AWAITING REVIEW"
+                      : issue.status}
+                  </span>
                 </div>
 
                 <p>
@@ -288,7 +307,8 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                 </p>
 
                 <small>
-                  {issue.severity} {"\u00b7"} Project status {issue.projectStatus} {"\u00b7"} Age{" "}
+                  {issue.code === "UNPLANNED_ACTUAL_WORK" ? "REVIEW" : issue.severity} {"\u00b7"}{" "}
+                  Project status {issue.projectStatus} {"\u00b7"} Age{" "}
                   {ageInDays(issue.lastDetectedAt)} days {"\u00b7"} Last detected{" "}
                   {dateLabel(issue.lastDetectedAt)}
                   {issue.reviewedAt
@@ -326,8 +346,8 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                       <form action={dismissUnplannedWork}>
                         <input type="hidden" name="projectId" value={issue.projectId} />
                         <input type="hidden" name="issueId" value={issue.id} />
-                        <button className="button button--secondary button--small" type="submit">
-                          Reviewed {"\u2014"} leave unplanned
+                        <button className="button button--primary button--small" type="submit">
+                          Confirm &amp; close
                         </button>
                       </form>
                     )
