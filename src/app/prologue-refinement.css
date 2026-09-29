@@ -8215,3 +8215,331 @@ textarea {
     text-align: left;
   }
 }
+
+/* Final visual polish: restore deliberate page rhythm and keep report surfaces distinct. */
+.executive-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.executive-dashboard > .report-titlebar,
+.executive-dashboard > .company-pulse,
+.executive-dashboard > .report-section,
+.executive-dashboard > .company-highlights,
+.executive-dashboard > .report-launch-grid,
+.executive-dashboard > .report-footer {
+  margin: 0;
+}
+
+.executive-dashboard > .report-footer {
+  margin-top: 2px;
+}
+
+/* Revenue Trends is a one-screen working view on desktop; methodology is available on demand. */
+.focused-report--revenue-trends {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: calc(100dvh - 126px);
+  gap: 14px;
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.focused-report--revenue-trends > .report-titlebar {
+  margin: 0;
+  padding: 18px 22px;
+}
+
+.focused-report--revenue-trends > .report-titlebar h1 {
+  font-size: clamp(1.8rem, 2.25vw, 2.45rem);
+}
+
+.focused-report--revenue-trends > .focused-report__primary {
+  min-height: 0;
+  margin: 0;
+  padding: 16px 20px 12px;
+}
+
+.focused-report--revenue-trends .historical-profit-chart {
+  gap: 7px;
+}
+
+.focused-report--revenue-trends .historical-profit-chart__controls {
+  margin: 0;
+}
+
+.focused-report--revenue-trends .historical-profit-chart__zoom-help {
+  margin-block: 1px;
+  font-size: 0.65rem;
+}
+
+.focused-report--revenue-trends .historical-profit-chart__legend {
+  margin: 0;
+}
+
+.focused-report--revenue-trends .historical-profit-chart__svg {
+  min-height: 0;
+  max-height: calc(100dvh - 410px);
+}
+
+.historical-profit-chart__methodology {
+  margin-top: 1px;
+  border-top: 1px solid #dfe7f1;
+  color: #607087;
+  font-size: 0.68rem;
+}
+
+.historical-profit-chart__methodology summary {
+  width: max-content;
+  padding-top: 7px;
+  color: #315f83;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.historical-profit-chart__methodology p {
+  max-width: 1180px;
+  margin: 7px 0 0;
+  line-height: 1.45;
+}
+
+/* Teamwork Issues: concise action guidance with compact, content-sized columns. */
+.issue-card__explanation {
+  display: grid;
+  width: fit-content;
+  max-width: 100%;
+  grid-template-columns: minmax(250px, 320px) minmax(290px, 380px) minmax(190px, 250px);
+  gap: 0;
+  border-radius: 7px;
+}
+
+.issue-card__explanation p {
+  min-height: 58px;
+  padding: 9px 12px;
+}
+
+.issue-card__explanation strong {
+  color: #5a6f86;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+}
+
+.issue-card__explanation span {
+  color: #27445f;
+  font-size: 0.68rem;
+  line-height: 1.32;
+}
+
+.issue-card__actions {
+  margin-top: 10px;
+}
+
+/* Hosting Reporting: a financial summary first, then operating scale and the timeline. */
+.hosting-overview {
+  display: grid;
+  grid-template-columns: minmax(390px, 1.25fr) minmax(440px, 1fr);
+  gap: 12px;
+}
+
+.hosting-contribution,
+.hosting-scale__card {
+  border: 1px solid #c9d5df;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(15 42 72 / 5%);
+}
+
+.hosting-contribution {
+  --hosting-net: #176b51;
+  padding: 21px 23px 18px;
+  border-top: 3px solid var(--hosting-net);
+  background: linear-gradient(135deg, #fff 0%, #f7fbf9 100%);
+}
+
+.hosting-contribution--loss {
+  --hosting-net: #b44942;
+  background: linear-gradient(135deg, #fff 0%, #fdf8f7 100%);
+}
+
+.hosting-contribution__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.hosting-contribution__heading h2 {
+  margin: 4px 0 0;
+  color: #0b2d4d;
+  font-size: 1rem;
+}
+
+.hosting-contribution__heading > span {
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--hosting-net) 22%, white);
+  border-radius: 6px;
+  color: var(--hosting-net);
+  background: color-mix(in srgb, var(--hosting-net) 7%, white);
+  font-size: 0.67rem;
+  font-weight: 850;
+}
+
+.hosting-contribution__value {
+  display: block;
+  margin-top: 13px;
+  color: var(--hosting-net);
+  font-size: clamp(2.3rem, 3vw, 3.25rem);
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+}
+
+.hosting-contribution > p {
+  margin: 8px 0 16px;
+  color: #60748a;
+  font-size: 0.7rem;
+}
+
+.hosting-contribution__split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hosting-contribution__split > div {
+  display: grid;
+  gap: 3px;
+  padding-top: 11px;
+  border-top: 1px solid #dce4eb;
+}
+
+.hosting-contribution__split span,
+.hosting-scale__card > span {
+  color: #60748a;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+}
+
+.hosting-contribution__split strong {
+  color: #153b5b;
+  font-size: 1rem;
+}
+
+.hosting-contribution__bar {
+  overflow: hidden;
+  height: 5px;
+  margin-top: 13px;
+  border-radius: 999px;
+  background: #d9eee6;
+}
+
+.hosting-contribution__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #36536f;
+}
+
+.hosting-scale {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hosting-scale__card {
+  display: grid;
+  min-height: 116px;
+  align-content: center;
+  padding: 16px 18px;
+  border-top: 2px solid #607990;
+}
+
+.hosting-scale__card--deals {
+  grid-column: 1 / -1;
+  min-height: 104px;
+  border-top-color: #173f63;
+}
+
+.hosting-scale__card strong {
+  margin: 7px 0 4px;
+  color: #0b2d4d;
+  font-size: clamp(1.55rem, 2vw, 2.15rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.hosting-scale__card small {
+  color: #6a7d91;
+  font-size: 0.66rem;
+}
+
+.hosting-chart-section {
+  padding: 20px 22px 15px;
+}
+
+.hosting-chart__scroller {
+  background: #fff;
+}
+
+.hosting-chart__bar--revenue {
+  fill: #4d7898;
+}
+
+.hosting-chart__bar--ivion {
+  fill: #273d57;
+}
+
+.hosting-chart-key--pano,
+.hosting-chart__bar--pano,
+.hosting-chart__tooltip .hosting-chart__tooltip-key--pano {
+  fill: #a67b5b;
+  background: #a67b5b;
+}
+
+.hosting-chart__net-line {
+  stroke: #1f7659;
+  stroke-width: 2.1;
+}
+
+.hosting-chart__net-point {
+  stroke: #1f7659;
+}
+
+@media (max-width: 980px) {
+  .focused-report--revenue-trends {
+    display: block;
+    min-height: 0;
+  }
+
+  .focused-report--revenue-trends > .report-titlebar,
+  .focused-report--revenue-trends > .focused-report__primary {
+    margin-bottom: 14px;
+  }
+
+  .focused-report--revenue-trends .historical-profit-chart__svg {
+    min-height: 430px;
+    max-height: none;
+  }
+
+  .hosting-overview {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .issue-card__explanation {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .hosting-scale,
+  .hosting-contribution__split {
+    grid-template-columns: 1fr;
+  }
+
+  .hosting-scale__card--deals {
+    grid-column: auto;
+  }
+}

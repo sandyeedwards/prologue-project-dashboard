@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { HostingFinancialChart } from "@/components/hosting-financial-chart";
 import { HostingSyncControl } from "@/components/hosting-sync-control";
-import { MetricCard } from "@/components/reporting-ui";
 import { requireUser } from "@/lib/auth/session";
 import {
   BENACO_ANNUAL_PANO_COST,
@@ -259,6 +258,8 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const viewLabel = views.find((option) => option.value === view)?.label ?? "Combined";
   const rangeLabel = ranges.find((option) => option.value === range)?.label ?? "Rolling 12 months";
   const syncTone = latestSync?.status === "FAILED" ? "hosting-status--failed" : "";
+  const contributionMargin = totals.revenue ? totals.netProfit / totals.revenue : null;
+  const costShare = totals.revenue ? Math.min(Math.max(totals.costs / totals.revenue, 0), 1) : 0;
 
   return (
     <AppShell user={session.user} contentTone="portfolio">
@@ -423,68 +424,74 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </section>
         ) : null}
 
-        <section
-          className="metric-grid metric-grid--executive hosting-metrics"
-          aria-label="Hosting summary"
-        >
-          <MetricCard
-            label={`${viewLabel} Paid Revenue`}
-            value={hasSourceData ? currency(totals.revenue) : "No data"}
-            detail="Contracted hosting fees allocated across term periods"
-            accent="blue"
-            priority="primary"
-          />
-          <MetricCard
-            label={`${viewLabel} Direct Costs`}
-            value={hasSourceData ? currency(totals.costs) : "No data"}
-            detail="Platform, subscription, and daily pano hosting costs"
-            accent="red"
-            priority="primary"
-          />
-          <MetricCard
-            label={`${viewLabel} Net Revenue`}
-            value={hasSourceData ? currency(totals.netProfit) : "No data"}
-            detail="Paid revenue less direct hosting costs"
-            accent={hasSourceData && totals.netProfit < 0 ? "red" : "green"}
-            priority="primary"
-          />
-          <MetricCard
-            label="Active Hosting Deals"
-            value={hasSourceData ? number(activeDeals.length) : "No data"}
-            detail={`${filteredDeals.length} records contribute to this view and range`}
-            accent="navy"
-          />
-          {view === "benaco" ? (
-            <>
-              <MetricCard
-                label="Benaco Total Panos"
-                value={hasSourceData ? number(benacoTotalPanos) : "No data"}
-                detail="Complete site panos from Benaco Total Panos"
-                accent="navy"
-              />
-              <MetricCard
-                label="Benaco Counted Panos"
-                value={hasSourceData ? number(benacoCountedPanos) : "No data"}
-                detail="Ivion Total Panos; estimated at 28% only when missing"
-                accent="gray"
-              />
-            </>
-          ) : (
-            <>
-              <MetricCard
-                label="IVION Active Panos"
-                value={hasSourceData ? number(ivionActivePanos) : "No data"}
-                detail={`${number(ivionTotalPanos)} total IVION panos in this range`}
-                accent="navy"
-              />
-              <MetricCard
-                label="Benaco Counted Panos"
-                value={hasSourceData ? number(benacoCountedPanos) : "No data"}
-                detail={`${number(benacoTotalPanos)} total Benaco panos in this range`}
-                accent="gray"
-              />
-            </>
-          )}
+        <section className="hosting-overview" aria-label="Hosting financial summary">
+          <article
+            className={`hosting-contribution${hasSourceData && totals.netProfit < 0 ? " hosting-contribution--loss" : ""}`}
+          >
+            <div className="hosting-contribution__heading">
+              <div>
+                <p className="eyebrow">{viewLabel} contribution</p>
+                <h2>Net hosting revenue</h2>
+              </div>
+              <span>
+                {contributionMargin === null
+                  ? "No margin"
+                  : `${wholePercent(contributionMargin)} margin`}
+              </span>
+            </div>
+            <strong className="hosting-contribution__value">
+              {hasSourceData ? currency(totals.netProfit) : "No data"}
+            </strong>
+            <p>Revenue remaining after direct platform, subscription, and pano costs.</p>
+            <div className="hosting-contribution__split" aria-label="Revenue and cost totals">
+              <div>
+                <span>Paid revenue</span>
+                <strong>{hasSourceData ? currency(totals.revenue) : "No data"}</strong>
+              </div>
+              <div>
+                <span>Direct costs</span>
+                <strong>{hasSourceData ? currency(totals.costs) : "No data"}</strong>
+              </div>
+            </div>
+            <div className="hosting-contribution__bar" aria-hidden="true">
+              <span style={{ width: `${costShare * 100}%` }} />
+            </div>
+          </article>
+
+          <div className="hosting-scale" aria-label="Hosting operating scale">
+            <article className="hosting-scale__card hosting-scale__card--deals">
+              <span>Active hosting deals</span>
+              <strong>{hasSourceData ? number(activeDeals.length) : "No data"}</strong>
+              <small>{filteredDeals.length} records in this reporting range</small>
+            </article>
+            {view === "benaco" ? (
+              <>
+                <article className="hosting-scale__card">
+                  <span>Benaco total panos</span>
+                  <strong>{hasSourceData ? number(benacoTotalPanos) : "No data"}</strong>
+                  <small>Complete site pano inventory</small>
+                </article>
+                <article className="hosting-scale__card">
+                  <span>Benaco counted panos</span>
+                  <strong>{hasSourceData ? number(benacoCountedPanos) : "No data"}</strong>
+                  <small>Billable basis after approved estimates</small>
+                </article>
+              </>
+            ) : (
+              <>
+                <article className="hosting-scale__card">
+                  <span>IVION active panos</span>
+                  <strong>{hasSourceData ? number(ivionActivePanos) : "No data"}</strong>
+                  <small>{number(ivionTotalPanos)} total in this range</small>
+                </article>
+                <article className="hosting-scale__card">
+                  <span>Benaco counted panos</span>
+                  <strong>{hasSourceData ? number(benacoCountedPanos) : "No data"}</strong>
+                  <small>{number(benacoTotalPanos)} total in this range</small>
+                </article>
+              </>
+            )}
+          </div>
         </section>
 
         <section className="report-section hosting-report-section hosting-chart-section">

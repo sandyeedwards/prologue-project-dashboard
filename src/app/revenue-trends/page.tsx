@@ -13,7 +13,7 @@ export default async function RevenueTrendsPage({ searchParams }: { searchParams
   const hasCustomDateRange = Boolean(data.filter.dateFrom && data.filter.dateTo);
   return (
     <AppShell user={session.user} contentTone="portfolio">
-      <main className="shell shell--wide focused-report">
+      <main className="shell shell--wide focused-report focused-report--revenue-trends">
         <section className="report-titlebar">
           <div>
             <p className="eyebrow">Company history</p>
