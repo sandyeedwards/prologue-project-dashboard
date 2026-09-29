@@ -32,22 +32,17 @@ function niceStep(value: number): number {
   return (fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10) * power;
 }
 
-function trend(
-  current: number,
-  previous: number | undefined,
-  favorableWhenUp: boolean,
-): { label: string; tone: "positive" | "negative" | "neutral" } | null {
-  if (previous === undefined) return null;
-  const delta = current - previous;
-  const ratio = Math.abs(delta) / Math.max(Math.abs(previous), 1);
-  if (ratio < 0.01) return { label: "→", tone: "neutral" };
-  const rising = delta > 0;
-  const amount =
-    Math.abs(previous) < 1 ? compactCurrency(Math.abs(delta)) : `${Math.round(ratio * 100)}%`;
-  return {
-    label: `${rising ? "↑" : "↓"}${amount}`,
-    tone: rising === favorableWhenUp ? "positive" : "negative",
-  };
+function periodLabel(period: string): string {
+  const [year, month] = period.split("-").map(Number);
+  if (!year || !month) return period;
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(
+    new Date(Date.UTC(year, month - 1, 1)),
+  );
+}
+
+function marginLabel(net: number, revenue: number): string {
+  if (!revenue) return "Not available";
+  return `${((net / revenue) * 100).toFixed(1)}%`;
 }
 
 export function HostingFinancialChart({
@@ -98,21 +93,75 @@ export function HostingFinancialChart({
   const labelEvery = Math.max(1, Math.ceil(points.length / 10));
   const firstForecastIndex = points.findIndex((point) => point.forecast);
   const hoveredPoint = hovered === null ? null : points[hovered.index];
-  const previousHoveredPoint = hovered && hovered.index > 0 ? points[hovered.index - 1] : null;
-  const hoveredRevenueTrend = hoveredPoint
-    ? trend(hoveredPoint.displayedRevenue, previousHoveredPoint?.displayedRevenue, true)
-    : null;
-  const hoveredIvionTrend = hoveredPoint
-    ? trend(hoveredPoint.displayedIvionCost, previousHoveredPoint?.displayedIvionCost, false)
-    : null;
-  const hoveredBenacoTrend = hoveredPoint
-    ? trend(hoveredPoint.displayedBenacoCost, previousHoveredPoint?.displayedBenacoCost, false)
-    : null;
-  const hoveredNetTrend = hoveredPoint
-    ? trend(hoveredPoint.displayedNet, previousHoveredPoint?.displayedNet, true)
-    : null;
-  const tooltipWidth = 340;
-  const tooltipHeight = view === "combined" ? 150 : 126;
+  const highestNetIndex = points.reduce(
+    (best, point, index) => (point.displayedNet > points[best].displayedNet ? index : best),
+    0,
+  );
+  const lowestNetIndex = points.reduce(
+    (worst, point, index) => (point.displayedNet < points[worst].displayedNet ? index : worst),
+    0,
+  );
+  const firstNegativeIndex = points.findIndex((point) => point.displayedNet < 0);
+  const annotationLabels = new Map<number, string[]>();
+  const addAnnotation = (index: number, label: string) => {
+    if (index < 0) return;
+    annotationLabels.set(index, [...(annotationLabels.get(index) ?? []), label]);
+  };
+  addAnnotation(highestNetIndex, "Highest net");
+  if (firstNegativeIndex >= 0) addAnnotation(firstNegativeIndex, "First negative");
+  if (lowestNetIndex !== highestNetIndex) addAnnotation(lowestNetIndex, "Lowest net");
+  addAnnotation(points.length - 1, "Latest");
+
+  const tooltipRows = hoveredPoint
+    ? [
+        {
+          label: "Paid revenue",
+          value: fullCurrency(hoveredPoint.displayedRevenue),
+          tone: "revenue",
+        },
+        ...(view !== "benaco"
+          ? [
+              {
+                label: "Direct cost – IVION",
+                value: fullCurrency(hoveredPoint.displayedIvionCost),
+                tone: "ivion",
+              },
+            ]
+          : []),
+        ...(view !== "ivion"
+          ? [
+              {
+                label: "Direct cost – Benaco + subscription",
+                value: fullCurrency(hoveredPoint.displayedBenacoCost),
+                tone: "pano",
+              },
+            ]
+          : []),
+        ...(view === "combined"
+          ? [
+              {
+                label: "Total direct costs",
+                value: fullCurrency(
+                  hoveredPoint.displayedIvionCost + hoveredPoint.displayedBenacoCost,
+                ),
+                tone: "cost",
+              },
+            ]
+          : []),
+        {
+          label: "Net revenue",
+          value: fullCurrency(hoveredPoint.displayedNet),
+          tone: hoveredPoint.displayedNet < 0 ? "negative-net" : "net",
+        },
+        {
+          label: "Net margin",
+          value: marginLabel(hoveredPoint.displayedNet, hoveredPoint.displayedRevenue),
+          tone: "margin",
+        },
+      ]
+    : [];
+  const tooltipWidth = 330;
+  const tooltipHeight = 48 + tooltipRows.length * 20;
   const tooltipX = hovered
     ? hovered.x + 14 + tooltipWidth <= width - MARGIN.right
       ? Math.max(MARGIN.left, hovered.x + 14)
@@ -145,13 +194,13 @@ export function HostingFinancialChart({
         {view !== "benaco" ? (
           <span>
             <i className="hosting-chart-key hosting-chart-key--ivion" />
-            IVION platform
+            Direct Cost – IVION
           </span>
         ) : null}
         {view !== "ivion" ? (
           <span>
             <i className="hosting-chart-key hosting-chart-key--pano" />
-            Benaco pano + subscription
+            Direct Cost – Benaco + Subscription
           </span>
         ) : null}
         <span>
@@ -270,7 +319,7 @@ export function HostingFinancialChart({
                   height={plotHeight}
                   fill="transparent"
                   tabIndex={0}
-                  aria-label={`${point.period}: paid revenue ${fullCurrency(point.displayedRevenue)}, direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net revenue ${fullCurrency(point.displayedNet)}`}
+                  aria-label={`${periodLabel(point.period)}: paid revenue ${fullCurrency(point.displayedRevenue)}, IVION platform cost ${fullCurrency(point.displayedIvionCost)}, Benaco and subscription cost ${fullCurrency(point.displayedBenacoCost)}, total direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net revenue ${fullCurrency(point.displayedNet)}, net margin ${marginLabel(point.displayedNet, point.displayedRevenue)}`}
                   onMouseEnter={(event) => inspectAtPointer(event, index)}
                   onMouseMove={(event) => inspectAtPointer(event, index)}
                   onMouseDown={(event) => event.preventDefault()}
@@ -280,20 +329,53 @@ export function HostingFinancialChart({
               </g>
             );
           })}
-          {points.slice(1).map((point, index) => {
+          {points.slice(1).flatMap((point, index) => {
             const previous = points[index];
-            const negative = previous.displayedNet < 0 || point.displayedNet < 0;
-            return (
+            const startX = x(index);
+            const endX = x(index + 1);
+            const startY = y(previous.displayedNet);
+            const endY = y(point.displayedNet);
+            if (
+              previous.displayedNet !== 0 &&
+              point.displayedNet !== 0 &&
+              Math.sign(previous.displayedNet) !== Math.sign(point.displayedNet)
+            ) {
+              const ratio =
+                Math.abs(previous.displayedNet) /
+                (Math.abs(previous.displayedNet) + Math.abs(point.displayedNet));
+              const crossX = startX + (endX - startX) * ratio;
+              return [
+                <path
+                  key={`${point.period}-segment-before-zero`}
+                  d={`M${startX.toFixed(2)},${startY.toFixed(2)} L${crossX.toFixed(2)},${zeroY.toFixed(2)}`}
+                  className={
+                    previous.displayedNet < 0
+                      ? "hosting-chart__net-line hosting-chart__net-line--negative"
+                      : "hosting-chart__net-line"
+                  }
+                />,
+                <path
+                  key={`${point.period}-segment-after-zero`}
+                  d={`M${crossX.toFixed(2)},${zeroY.toFixed(2)} L${endX.toFixed(2)},${endY.toFixed(2)}`}
+                  className={
+                    point.displayedNet < 0
+                      ? "hosting-chart__net-line hosting-chart__net-line--negative"
+                      : "hosting-chart__net-line"
+                  }
+                />,
+              ];
+            }
+            return [
               <path
                 key={`${point.period}-segment`}
-                d={`M${x(index).toFixed(2)},${y(previous.displayedNet).toFixed(2)} L${x(index + 1).toFixed(2)},${y(point.displayedNet).toFixed(2)}`}
+                d={`M${startX.toFixed(2)},${startY.toFixed(2)} L${endX.toFixed(2)},${endY.toFixed(2)}`}
                 className={
-                  negative
+                  point.displayedNet < 0
                     ? "hosting-chart__net-line hosting-chart__net-line--negative"
                     : "hosting-chart__net-line"
                 }
-              />
-            );
+              />,
+            ];
           })}
           {points.map((point, index) => (
             <circle
@@ -309,6 +391,25 @@ export function HostingFinancialChart({
               opacity={point.forecast ? 0.55 : 1}
             />
           ))}
+          {[...annotationLabels.entries()].map(([index, labels]) => {
+            const point = points[index];
+            const isNegative = point.displayedNet < 0;
+            const labelY = Math.min(
+              HEIGHT - MARGIN.bottom - 7,
+              Math.max(MARGIN.top + 10, y(point.displayedNet) + (isNegative ? 18 : -11)),
+            );
+            return (
+              <text
+                key={`${point.period}-annotation`}
+                x={x(index)}
+                y={labelY}
+                textAnchor={index >= points.length - 2 ? "end" : "middle"}
+                className={`hosting-chart__annotation${isNegative ? " hosting-chart__annotation--negative" : ""}`}
+              >
+                {labels.join(" · ")}
+              </text>
+            );
+          })}
           {hoveredPoint && hovered ? (
             <g className="hosting-chart__tooltip" pointerEvents="none">
               <line
@@ -320,7 +421,7 @@ export function HostingFinancialChart({
               />
               <rect x={tooltipX} y={tooltipY} width={tooltipWidth} height={tooltipHeight} rx={8} />
               <text x={tooltipX + 16} y={tooltipY + 23} className="hosting-chart__tooltip-title">
-                {hoveredPoint.period} · {hoveredPoint.forecast ? "Forecast" : "Actual"}
+                {periodLabel(hoveredPoint.period)} · {hoveredPoint.forecast ? "Forecast" : "Actual"}
               </text>
               <line
                 x1={tooltipX + 16}
@@ -329,118 +430,36 @@ export function HostingFinancialChart({
                 y2={tooltipY + 34}
                 className="hosting-chart__tooltip-divider"
               />
-              <circle
-                cx={tooltipX + 20}
-                cy={tooltipY + 55}
-                r={4}
-                className="hosting-chart__tooltip-key hosting-chart__tooltip-key--revenue"
-              />
-              <text x={tooltipX + 33} y={tooltipY + 59}>
-                Paid revenue
-              </text>
-              <text
-                x={tooltipX + 260}
-                y={tooltipY + 59}
-                textAnchor="end"
-                className="hosting-chart__tooltip-value"
-              >
-                {fullCurrency(hoveredPoint.displayedRevenue)}
-              </text>
-              <text
-                x={tooltipX + tooltipWidth - 16}
-                y={tooltipY + 59}
-                textAnchor="end"
-                className={`hosting-chart__tooltip-trend${hoveredRevenueTrend ? ` is-${hoveredRevenueTrend.tone}` : ""}`}
-              >
-                {hoveredRevenueTrend?.label ?? ""}
-              </text>
-              {view !== "benaco" ? (
-                <>
-                  <circle
-                    cx={tooltipX + 20}
-                    cy={tooltipY + 79}
-                    r={4}
-                    className="hosting-chart__tooltip-key hosting-chart__tooltip-key--ivion"
-                  />
-                  <text x={tooltipX + 33} y={tooltipY + 83}>
-                    IVION platform
-                  </text>
-                  <text
-                    x={tooltipX + 260}
-                    y={tooltipY + 83}
-                    textAnchor="end"
-                    className="hosting-chart__tooltip-value"
-                  >
-                    {fullCurrency(hoveredPoint.displayedIvionCost)}
-                  </text>
-                  <text
-                    x={tooltipX + tooltipWidth - 16}
-                    y={tooltipY + 83}
-                    textAnchor="end"
-                    className={`hosting-chart__tooltip-trend${hoveredIvionTrend ? ` is-${hoveredIvionTrend.tone}` : ""}`}
-                  >
-                    {hoveredIvionTrend?.label ?? ""}
-                  </text>
-                </>
-              ) : null}
-              {view !== "ivion" ? (
-                <>
-                  <circle
-                    cx={tooltipX + 20}
-                    cy={tooltipY + (view === "combined" ? 103 : 79)}
-                    r={4}
-                    className="hosting-chart__tooltip-key hosting-chart__tooltip-key--pano"
-                  />
-                  <text x={tooltipX + 33} y={tooltipY + (view === "combined" ? 107 : 83)}>
-                    Benaco pano + subscription
-                  </text>
-                  <text
-                    x={tooltipX + 260}
-                    y={tooltipY + (view === "combined" ? 107 : 83)}
-                    textAnchor="end"
-                    className="hosting-chart__tooltip-value"
-                  >
-                    {fullCurrency(hoveredPoint.displayedBenacoCost)}
-                  </text>
-                  <text
-                    x={tooltipX + tooltipWidth - 16}
-                    y={tooltipY + (view === "combined" ? 107 : 83)}
-                    textAnchor="end"
-                    className={`hosting-chart__tooltip-trend${hoveredBenacoTrend ? ` is-${hoveredBenacoTrend.tone}` : ""}`}
-                  >
-                    {hoveredBenacoTrend?.label ?? ""}
-                  </text>
-                </>
-              ) : null}
-              <circle
-                cx={tooltipX + 20}
-                cy={tooltipY + (view === "combined" ? 127 : 103)}
-                r={4}
-                className="hosting-chart__tooltip-key hosting-chart__tooltip-key--net"
-              />
-              <text
-                x={tooltipX + 33}
-                y={tooltipY + (view === "combined" ? 131 : 107)}
-                className="hosting-chart__tooltip-net"
-              >
-                Net revenue
-              </text>
-              <text
-                x={tooltipX + 260}
-                y={tooltipY + (view === "combined" ? 131 : 107)}
-                textAnchor="end"
-                className="hosting-chart__tooltip-net hosting-chart__tooltip-value"
-              >
-                {fullCurrency(hoveredPoint.displayedNet)}
-              </text>
-              <text
-                x={tooltipX + tooltipWidth - 16}
-                y={tooltipY + (view === "combined" ? 131 : 107)}
-                textAnchor="end"
-                className={`hosting-chart__tooltip-trend${hoveredNetTrend ? ` is-${hoveredNetTrend.tone}` : ""}`}
-              >
-                {hoveredNetTrend?.label ?? ""}
-              </text>
+              {tooltipRows.map((row, index) => {
+                const rowY = tooltipY + 55 + index * 20;
+                return (
+                  <g key={row.label}>
+                    <circle
+                      cx={tooltipX + 20}
+                      cy={rowY}
+                      r={3.5}
+                      className={`hosting-chart__tooltip-key hosting-chart__tooltip-key--${row.tone}`}
+                    />
+                    <text
+                      x={tooltipX + 32}
+                      y={rowY + 4}
+                      className={
+                        row.tone.includes("net") ? "hosting-chart__tooltip-net" : undefined
+                      }
+                    >
+                      {row.label}
+                    </text>
+                    <text
+                      x={tooltipX + tooltipWidth - 16}
+                      y={rowY + 4}
+                      textAnchor="end"
+                      className={`hosting-chart__tooltip-value${row.tone.includes("net") ? " hosting-chart__tooltip-net" : ""}`}
+                    >
+                      {row.value}
+                    </text>
+                  </g>
+                );
+              })}
             </g>
           ) : null}
         </svg>
