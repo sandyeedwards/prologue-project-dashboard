@@ -8569,3 +8569,100 @@ textarea {
     grid-column: auto;
   }
 }
+
+/* Compact, decision-led company exceptions table. */
+.company-watchlist {
+  padding: 22px 26px;
+}
+
+.company-watchlist__heading {
+  align-items: end;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.company-watchlist__heading h2 {
+  margin: 3px 0 2px;
+}
+.company-watchlist__heading p:last-child {
+  color: var(--muted);
+  margin: 0;
+}
+.company-watchlist__heading > a,
+.company-watchlist__table a {
+  color: var(--blue-700);
+  font-weight: 800;
+}
+
+.company-watchlist__table-wrap {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.company-watchlist__table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.company-watchlist__table th,
+.company-watchlist__table td {
+  border-bottom: 1px solid var(--line);
+  padding: 11px 14px;
+  text-align: left;
+  vertical-align: middle;
+}
+.company-watchlist__table th {
+  background: #f5f8fc;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.company-watchlist__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.company-watchlist__table td:first-child small {
+  color: var(--muted);
+  display: block;
+  margin-top: 2px;
+}
+.company-watchlist__signal {
+  background: #edf3fa;
+  border-radius: 999px;
+  color: var(--navy-800);
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 5px 9px;
+}
+.company-watchlist__signal--red {
+  background: #fff0ef;
+  color: #a92f2a;
+}
+.company-watchlist__signal--amber {
+  background: #fff7e6;
+  color: #8a5900;
+}
+.company-watchlist__empty {
+  background: #f5f8fc;
+  border-radius: 10px;
+  color: var(--muted);
+  margin: 0;
+  padding: 18px;
+}
+
+@media (max-width: 760px) {
+  .company-watchlist__heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .company-watchlist__table-wrap {
+    overflow-x: auto;
+  }
+  .company-watchlist__table {
+    min-width: 680px;
+  }
+}

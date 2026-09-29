@@ -497,19 +497,36 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         .reduce((sum, expense) => sum + (numeric(expense.totalCost) ?? 0), 0);
       const remainingOutsourced = Math.max(projectedOutsourced - actualOutsourced, 0);
 
+      const completedTaskListIds = new Set(
+        projectTaskLists
+          .filter((taskList) => {
+            const listTasks = projectTasks.filter((task) => task.taskListId === taskList.id);
+            return (
+              listTasks.length > 0 &&
+              listTasks.every((task) => completed(task.status, task.completedAt))
+            );
+          })
+          .map((taskList) => taskList.id),
+      );
       const budgetRequiredTaskListIds = new Set(
-        projectTaskLists.filter(taskListRequiresBudget).map((taskList) => taskList.id),
+        projectTaskLists
+          .filter((taskList) => taskListRequiresBudget(taskList, completedTaskListIds))
+          .map((taskList) => taskList.id),
       );
 
       const budgetedRequiredTaskListIds = new Set(
         plannedFinancials.knownTaskListBudgets
-          .filter((budget) => budgetRequiredTaskListIds.has(budget.taskListId))
+          .filter(
+            (budget) =>
+              budgetRequiredTaskListIds.has(budget.taskListId) && budget.numericTargetCost > 0,
+          )
           .map((budget) => budget.taskListId),
       );
 
       const taskListBudgetCoverage = calculateTaskListBudgetCoverage(
         projectTaskLists,
         plannedFinancials.knownTaskListBudgets,
+        completedTaskListIds,
       );
       if (taskListBudgetCoverage === "MISSING" || taskListBudgetCoverage === "PARTIAL") {
         warningCount += 1;

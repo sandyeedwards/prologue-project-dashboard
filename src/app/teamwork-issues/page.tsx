@@ -437,7 +437,7 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                           ) : (
                             <form action={dismissUnplannedWork}>
                               <input type="hidden" name="projectId" value={issue.projectId} />
-                              <input type="hidden" name="issueId" value={issue.id} />
+                              <input type="hidden" name="taskId" value={issue.taskId} />
                               <button
                                 className="button button--secondary button--small"
                                 type="submit"

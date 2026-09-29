@@ -57,11 +57,15 @@ export type TaskListCoverageSource = {
   operationalGroup: string;
 };
 
-export function taskListRequiresBudget(taskList: TaskListCoverageSource): boolean {
+export function taskListRequiresBudget(
+  taskList: TaskListCoverageSource,
+  completedTaskListIds: ReadonlySet<string> = new Set(),
+): boolean {
   const status = normalized(taskList.status);
   const name = (taskList.name ?? "").trim().toLowerCase();
 
   if (taskList.operationalGroup === "Admin") return false;
+  if (completedTaskListIds.has(taskList.id)) return false;
   if (status === "COMPLETE" || status === "COMPLETED") return false;
   if (name.startsWith("modeling request")) return false;
 
@@ -71,9 +75,12 @@ export function taskListRequiresBudget(taskList: TaskListCoverageSource): boolea
 export function calculateTaskListBudgetCoverage(
   taskLists: readonly TaskListCoverageSource[],
   taskListBudgets: readonly TaskListBudgetSource[],
+  completedTaskListIds: ReadonlySet<string> = new Set(),
 ): Coverage {
   const requiredTaskListIds = new Set(
-    taskLists.filter(taskListRequiresBudget).map((taskList) => taskList.id),
+    taskLists
+      .filter((taskList) => taskListRequiresBudget(taskList, completedTaskListIds))
+      .map((taskList) => taskList.id),
   );
 
   if (requiredTaskListIds.size === 0) {
@@ -84,7 +91,7 @@ export function calculateTaskListBudgetCoverage(
     taskListBudgets
       .filter(
         (budget) =>
-          requiredTaskListIds.has(budget.taskListId) && numeric(budget.targetCost) !== null,
+          requiredTaskListIds.has(budget.taskListId) && (numeric(budget.targetCost) ?? 0) > 0,
       )
       .map((budget) => budget.taskListId),
   );
