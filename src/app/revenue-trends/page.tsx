@@ -10,12 +10,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function RevenueTrendsPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireUser("/revenue-trends");
   const data = await getFinancialPageData(await searchParams, { includeHistory: true });
-  const latestHistoryDate = data.historicalProfitSeries
-    ?.flatMap((series) => series.points.map((point) => point.date))
-    .sort()
-    .at(-1);
-  const initialFrom = data.filter.dateFrom ?? "2026-04-01";
-  const initialTo = data.filter.dateTo ?? latestHistoryDate;
+  const hasCustomDateRange = Boolean(data.filter.dateFrom && data.filter.dateTo);
   return (
     <AppShell user={session.user} contentTone="portfolio">
       <main className="shell shell--wide focused-report">
@@ -32,7 +27,12 @@ export default async function RevenueTrendsPage({ searchParams }: { searchParams
         <section className="report-section focused-report__primary">
           <HistoricalRevenueProfitChart
             series={data.historicalProfitSeries ?? []}
-            initialDateRange={{ from: initialFrom, to: initialTo }}
+            initialDateRange={
+              hasCustomDateRange
+                ? { from: data.filter.dateFrom, to: data.filter.dateTo }
+                : undefined
+            }
+            defaultRange="6M"
           />
         </section>
       </main>

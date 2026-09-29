@@ -183,15 +183,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </div>
         </section>
 
-        <nav className="company-section-nav" aria-label="Company overview sections">
-          <a href="#company-snapshot">Company snapshot</a>
-          <a href="#profit-forecast">Profit forecast</a>
-          <a href="#portfolio-highlights">Portfolio highlights</a>
-        </nav>
-
         <section
           id="company-snapshot"
-          className="company-pulse"
+          className="company-pulse company-pulse--executive"
           aria-label="Company performance at a glance"
         >
           <div className="company-pulse__summary">
@@ -253,11 +247,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         >
           <div className="company-forecast-strip__heading">
             <div>
-              <p className="eyebrow">Company financial outlook</p>
+              <p className="eyebrow">Financial outlook</p>
               <h2>Profit Forecast</h2>
               <p>
-                Expected profit, current cost, remaining work, and margin for the active company
-                view.
+                How current cost and remaining work translate into the company&apos;s expected
+                outcome.
               </p>
             </div>
             <span>Every figure reflects the active filters.</span>
@@ -279,9 +273,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           aria-label="Company highlights"
         >
           <div className="company-highlights__intro">
-            <p className="eyebrow">Around the company</p>
-            <h2>Portfolio highlights</h2>
-            <p>Useful milestones and standouts from the projects currently in view.</p>
+            <p className="eyebrow">Portfolio signals</p>
+            <h2>Notable projects</h2>
+            <p>Milestones and financial standouts from the active company view.</p>
           </div>
           <article className="company-highlight-card">
             <span className="company-highlight-card__icon" aria-hidden="true">
@@ -337,7 +331,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <strong>
               Go to Revenue Trends <b aria-hidden="true">→</b>
             </strong>
-            <small>Revenue, actual cost, and net profit from January 2025 onward.</small>
+            <small>Inspect the six-month company revenue, cost, and net-profit trajectory.</small>
           </Link>
           <Link href="/operational-performance">
             <span>Delivery groups</span>
