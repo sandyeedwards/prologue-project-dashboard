@@ -5,7 +5,7 @@ services:
     plan: starter
     region: virginia
     branch: main
-    autoDeployTrigger: off
+    autoDeployTrigger: checksPass
 
     dockerfilePath: ./Dockerfile
     dockerContext: .
@@ -62,7 +62,7 @@ services:
     runtime: node
     region: virginia
     branch: main
-    autoDeployTrigger: off
+    autoDeployTrigger: checksPass
     schedule: "17 */6 * * *"
     buildCommand: npm ci --include=dev
     startCommand: npm run hosting:sync
