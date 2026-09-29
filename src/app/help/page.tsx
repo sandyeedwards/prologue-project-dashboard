@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth/session";
-import { getOpenTeamworkIssueCount } from "@/lib/reporting/dashboard-data";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +8,6 @@ export default async function HelpPage() {
   const session = await requireUser("/help");
   const canManageLabor = session.user.role === "MANAGER" || session.user.role === "ADMIN";
   const isAdmin = session.user.role === "ADMIN";
-  const openIssueCount = isAdmin ? await getOpenTeamworkIssueCount() : 0;
 
   return (
     <AppShell user={session.user}>
@@ -107,27 +105,6 @@ export default async function HelpPage() {
               finish.
             </p>
           </article>
-
-          <article className="help-card">
-            <p className="eyebrow">Data quality</p>
-            <h2>Fix issues in Teamwork</h2>
-            <p>
-              Expand a source-data issue to see affected tasks, task lists, or time entries. Correct
-              the Teamwork record rather than editing calculated dashboard values. The NoReport tag
-              is the sole reporting-exclusion tag; Ready Set and DataHall projects remain eligible.
-            </p>
-            <a
-              className="button button--secondary button--small teamwork-issues-link"
-              href="/help/teamwork-issues"
-            >
-              Open Teamwork Issues
-              {isAdmin && openIssueCount > 0 ? (
-                <span className="guide-issue-badge" aria-label={`${openIssueCount} open issues`}>
-                  {openIssueCount > 99 ? "99+" : openIssueCount}
-                </span>
-              ) : null}
-            </a>
-          </article>
         </section>
 
         <section className="report-section">
@@ -153,8 +130,8 @@ export default async function HelpPage() {
                 <Link className="tool-card" href="/admin/users">
                   <span className="tool-card__icon">U</span>
                   <div>
-                    <strong>User access</strong>
-                    <p>Assign Viewer, Manager, and Admin dashboard roles.</p>
+                    <strong>Admin permissions</strong>
+                    <p>Grant or remove Admin access for Teamwork employees.</p>
                   </div>
                 </Link>
                 <Link className="tool-card" href="/admin/calculations">

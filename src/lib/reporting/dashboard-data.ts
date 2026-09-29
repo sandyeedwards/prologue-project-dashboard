@@ -243,7 +243,7 @@ function teamworkIssueGuidance(code: string): {
     case "TASK_LIST_BUDGET_COVERAGE_INCOMPLETE":
       return {
         recommendedAction:
-          "Complete the missing task-list target costs in the current Teamwork project budget.",
+          "Add a target cost for each active delivery task list in one of the project's Teamwork Finance budgets.",
         resolutionPath: "TEAMWORK_REQUIRED",
       };
     case "PROJECT_BUDGET_MISSING":
@@ -1500,20 +1500,26 @@ export async function getProjectQualityIssues(projectId: string): Promise<Qualit
   const missingTaskLists = await sql<Array<{ id: string; teamworkId: number; name: string }>>`
     select tl.id, tl.teamwork_id as "teamworkId", tl.name
     from task_lists tl
-    left join project_budgets pb
-      on pb.project_id = tl.project_id
-      and pb.is_current = true
-    left join task_list_budgets tlb
-      on tlb.project_budget_id = pb.id
-      and tlb.task_list_id = tl.id
-      and tlb.target_cost is not null
     where tl.project_id = ${projectId}
       and tl.is_deleted = false
-      and tlb.id is null
+      and lower(coalesce(tl.operational_group, '')) <> 'admin'
+      and lower(coalesce(tl.status, '')) not in ('complete', 'completed')
+      and lower(trim(tl.name)) not like 'modeling request%'
+      and not exists (
+        select 1
+        from task_list_budgets tlb
+        inner join project_budgets pb on pb.id = tlb.project_budget_id
+        where pb.project_id = tl.project_id
+          and tlb.task_list_id = tl.id
+          and tlb.target_cost is not null
+      )
     order by tl.name
   `;
 
-  const base = context?.apiEndpoint?.replace(/\/+$/, "") ?? null;
+  const base =
+    context?.apiEndpoint?.replace(/\/+$/, "") ??
+    process.env.TEAMWORK_SITE_URL?.replace(/\/+$/, "") ??
+    null;
   const projectTimeUrl =
     base && context ? `${base}/app/projects/${context.projectTeamworkId}/time` : null;
   const projectFinanceUrl =
@@ -1564,7 +1570,7 @@ export async function getProjectQualityIssues(projectId: string): Promise<Qualit
         loggedDate: null,
         minutes: null,
         laborCost: null,
-        description: "No current Teamwork task-list target cost was returned.",
+        description: "No target cost was found across this project's Teamwork Finance budgets.",
         teamworkUrl: projectFinanceUrl,
       }));
     }
@@ -1650,7 +1656,10 @@ export async function getTeamworkIssueCenterRows(): Promise<TeamworkIssueCenterR
     order by tc.connected_at desc
     limit 1
   `;
-  const teamworkBase = connection?.apiEndpoint?.replace(/\/+$/, "") ?? null;
+  const teamworkBase =
+    connection?.apiEndpoint?.replace(/\/+$/, "") ??
+    process.env.TEAMWORK_SITE_URL?.replace(/\/+$/, "") ??
+    null;
   const projects = await getProjectRows();
   const grouped = await Promise.all(
     projects.map(async (project) => {

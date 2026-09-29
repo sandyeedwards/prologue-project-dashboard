@@ -474,7 +474,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 label="IVION Active Panos"
                 value={hasSourceData ? number(ivionActivePanos) : "No data"}
                 detail={`${number(ivionTotalPanos)} total IVION panos in this range`}
-                accent="purple"
+                accent="navy"
               />
               <MetricCard
                 label="Benaco Counted Panos"

@@ -543,7 +543,7 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
                   {project.dataQualityIssueCount ? (
                     <Link
                       className="issue-count issue-count--warning issue-count--link"
-                      href={`/help/teamwork-issues?project=${project.id}&scope=DATA_ISSUES`}
+                      href={`/teamwork-issues?project=${project.id}&scope=DATA_ISSUES`}
                       aria-label={`View ${project.dataQualityIssueCount} data issues for ${project.name}`}
                     >
                       {project.dataQualityIssueCount}

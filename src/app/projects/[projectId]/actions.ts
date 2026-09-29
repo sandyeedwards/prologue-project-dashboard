@@ -64,7 +64,7 @@ function refreshProject(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");
   revalidatePath("/dashboard");
-  revalidatePath("/help/teamwork-issues");
+  revalidatePath("/teamwork-issues");
 }
 
 export async function dismissUnplannedWork(formData: FormData): Promise<void> {

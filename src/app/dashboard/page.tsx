@@ -2,7 +2,6 @@ import { AppShell } from "@/components/app-shell";
 import Link from "next/link";
 import { DashboardPortfolioFilters } from "@/components/dashboard-portfolio-filters";
 import { PortfolioFinancialComposition } from "@/components/portfolio-financial-composition";
-import { MetricCard } from "@/components/reporting-ui";
 import { requireUser } from "@/lib/auth/session";
 import {
   filterAndSortProjects,
@@ -25,27 +24,6 @@ function one(value: string | string[] | undefined): string | undefined {
 function many(value: string | string[] | undefined): string[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
-}
-
-function knownFor(knownCount: number, projectCount: number): string {
-  if (!projectCount) return "No projects match the current filters.";
-  return `Known for ${knownCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
-}
-
-function actualCostCoverageDetail(
-  completeCount: number,
-  partialCount: number,
-  projectCount: number,
-): string {
-  if (!projectCount) return "No projects match the current filters.";
-  if (!partialCount) {
-    return `Complete cost coverage for ${completeCount} of ${projectCount} project${projectCount === 1 ? "" : "s"}`;
-  }
-  return `Cost coverage: ${completeCount} complete · ${partialCount} partial/missing`;
-}
-
-function portfolioMoney(value: string | number | null, projectCount: number): string {
-  return projectCount ? money(value) : "No data";
 }
 
 function displayDate(value: Date | null): string {
@@ -205,7 +183,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </div>
         </section>
 
-        <section className="company-pulse" aria-label="Company performance at a glance">
+        <nav className="company-section-nav" aria-label="Company overview sections">
+          <a href="#company-snapshot">Company snapshot</a>
+          <a href="#profit-forecast">Profit forecast</a>
+          <a href="#portfolio-highlights">Portfolio highlights</a>
+        </nav>
+
+        <section
+          id="company-snapshot"
+          className="company-pulse"
+          aria-label="Company performance at a glance"
+        >
           <div className="company-pulse__summary">
             <p className="eyebrow">Company pulse</p>
             <h2>{companyPulse}</h2>
@@ -216,12 +204,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             </Link>
           </div>
           <div className="company-pulse__stat">
-            <span>Forecast margin</span>
-            <strong>{percent(forecastMargin)}</strong>
+            <span>Cost coverage</span>
+            <strong>
+              {summary.projectCount
+                ? `${summary.actualCostKnownCount} of ${summary.projectCount}`
+                : "No data"}
+            </strong>
             <small>
-              {summary.totalForecastProfit === null
-                ? "Profit unavailable"
-                : `${money(summary.totalForecastProfit)} expected profit`}
+              {summary.actualCostPartialCount
+                ? `${summary.actualCostPartialCount} partial or missing`
+                : "all project costs complete"}
             </small>
           </div>
           <div className="company-pulse__stat">
@@ -255,87 +247,37 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </div>
         </section>
 
-        <section className="executive-kpis" aria-label="Company financial summary">
-          <div className="executive-kpis__primary">
-            <MetricCard
-              priority="primary"
-              accent="gray"
-              label="Actual Cost to Date"
-              value={portfolioMoney(summary.totalActualCost, summary.projectCount)}
-              detail={actualCostCoverageDetail(
-                summary.actualCostKnownCount,
-                summary.actualCostPartialCount,
-                summary.projectCount,
-              )}
-              help="Historical Teamwork labor cost plus active imported project expenses through the latest synchronization. The total includes known subtotals for projects with partial source coverage; missing cost records are never treated as zero."
-            />
-            <MetricCard
-              priority="primary"
-              accent="navy"
-              label="Costed Remaining Work"
-              value={portfolioMoney(totalRemainingCost, summary.projectCount)}
-              detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)}
-              help={`Estimated remaining internal and outsourced cost from today to completion. This excludes actual cost already incurred and mirrors the costed remaining work shown in the profitability chart. ${summary.provisionalCount} project${summary.provisionalCount === 1 ? " is" : "s are"} provisional, so missing rates, assignments, or expenses can make this a known minimum.`}
-              tone={
-                summary.projectCount
-                  ? summary.provisionalCount
-                    ? "warning"
-                    : "success"
-                  : undefined
-              }
-            />
-            <MetricCard
-              priority="primary"
-              accent="green"
-              label="Forecasted Profit"
-              value={portfolioMoney(summary.totalForecastProfit, summary.projectCount)}
-              detail={knownFor(summary.forecastProfitKnownCount, summary.projectCount)}
-              help="Known client fees less known forecast cost. Provisional projects can cause this value to change when unresolved costs are priced."
-            />
-          </div>
-          <div className="executive-kpis__secondary">
-            <MetricCard
-              accent="blue"
-              label="Allocated Revenue"
-              value={portfolioMoney(summary.totalClientFee, summary.projectCount)}
-              detail={knownFor(summary.clientFeeKnownCount, summary.projectCount)}
-              help="Sum of fixed-fee project budgets returned by Teamwork. Missing fees remain missing and are not treated as $0."
-            />
-            <MetricCard
-              accent="navy"
-              label="Projects in View"
-              value={summary.projectCount}
-              detail={`${summary.greenCount} healthy · ${summary.amberCount} at risk · ${summary.redCount} unhealthy`}
-            />
-            <MetricCard
-              accent="blue"
-              label="Logged Hours"
-              value={hours(summary.totalLoggedMinutes)}
-              detail={`${hours(summary.totalLoggedMinutes)} of ${hours(summary.totalEstimatedMinutes)} estimated`}
-            />
-          </div>
-        </section>
-
-        <section className="report-section company-forecast-strip">
+        <section
+          id="profit-forecast"
+          className="report-section company-forecast-strip company-forecast-strip--full"
+        >
           <div className="company-forecast-strip__heading">
             <div>
-              <p className="eyebrow">Current forecast</p>
-              <h2>How company revenue is expected to be used</h2>
+              <p className="eyebrow">Company financial outlook</p>
+              <h2>Profit Forecast</h2>
+              <p>
+                Expected profit, current cost, remaining work, and margin for the active company
+                view.
+              </p>
             </div>
-            <Link href="/profit-forecast">View detailed profit forecast →</Link>
+            <span>Every figure reflects the active filters.</span>
           </div>
           {companyProfitabilityRow ? (
             <PortfolioFinancialComposition
               rows={[companyProfitabilityRow]}
               variant="total"
-              showHeroMetrics={false}
+              showHeroMetrics
             />
           ) : (
             <div className="chart-empty">No financial data matches these filters.</div>
           )}
         </section>
 
-        <section className="company-highlights" aria-label="Company highlights">
+        <section
+          id="portfolio-highlights"
+          className="company-highlights"
+          aria-label="Company highlights"
+        >
           <div className="company-highlights__intro">
             <p className="eyebrow">Around the company</p>
             <h2>Portfolio highlights</h2>
@@ -390,13 +332,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </section>
 
         <nav className="report-launch-grid" aria-label="Detailed company reports">
-          <Link href="/profit-forecast">
-            <span>Expected outcome</span>
-            <strong>
-              Go to Profit Forecast <b aria-hidden="true">→</b>
-            </strong>
-            <small>Revenue, costs, remaining work, margin, and expected profit.</small>
-          </Link>
           <Link href="/revenue-trends">
             <span>History over time</span>
             <strong>
