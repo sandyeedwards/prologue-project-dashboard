@@ -15,10 +15,11 @@ export default async function UsersAdminPage() {
       <main className="shell">
         <section className="hero">
           <p className="eyebrow">Administration</p>
-          <h1>Dashboard access</h1>
+          <h1>Admin permissions</h1>
           <p className="lede">
-            Internal Teamwork employees are provisioned automatically. Assign Manager or Admin only
-            where needed; all other employees remain Viewers.
+            Teamwork employees are added automatically. Grant Admin access to people who should see
+            and manage Teamwork Issues; remove it when they no longer need administrative access.
+            The final active administrator cannot be removed.
           </p>
         </section>
         <section className="panel panel--single">
@@ -29,7 +30,7 @@ export default async function UsersAdminPage() {
                   <th>Employee</th>
                   <th>Email</th>
                   <th>Last login</th>
-                  <th>Role and status</th>
+                  <th>Dashboard permission</th>
                 </tr>
               </thead>
               <tbody>
@@ -37,6 +38,9 @@ export default async function UsersAdminPage() {
                   <tr key={user.id}>
                     <td>
                       <strong>{user.displayName}</strong>
+                      {user.id === session.user.id ? (
+                        <small className="table-subvalue">You</small>
+                      ) : null}
                     </td>
                     <td>{user.email}</td>
                     <td>{user.lastLoginAt?.toLocaleString() ?? "Never"}</td>
@@ -61,7 +65,7 @@ export default async function UsersAdminPage() {
                           <option value="false">Disabled</option>
                         </select>
                         <button className="button button--secondary" type="submit">
-                          Save
+                          Update access
                         </button>
                       </form>
                     </td>

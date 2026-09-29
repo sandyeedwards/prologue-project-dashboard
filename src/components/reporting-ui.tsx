@@ -200,6 +200,7 @@ export function ProjectTable({
                       type="checkbox"
                       name="project"
                       value={row.id}
+                      data-project-label={row.name}
                       defaultChecked={selectedProjectIds.includes(row.id)}
                       aria-label={`Select ${row.name}`}
                     />
@@ -259,7 +260,7 @@ export function ProjectTable({
                   {row.dataQualityIssueCount ? (
                     <Link
                       className="issue-count issue-count--warning issue-count--link"
-                      href={`/help/teamwork-issues?project=${row.id}&scope=DATA_ISSUES`}
+                      href={`/teamwork-issues?project=${row.id}&scope=DATA_ISSUES`}
                       aria-label={`View ${row.dataQualityIssueCount} data issues for ${row.name}`}
                     >
                       {row.dataQualityIssueCount}

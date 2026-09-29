@@ -1,5 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { ProjectFilterBar } from "@/components/project-filters";
+import { ProjectLiveSearch } from "@/components/project-live-search";
+import { ProjectSelectionTray } from "@/components/project-selection-tray";
 import { ProjectPageSizeSelect } from "@/components/project-page-size-select";
 import {
   CombinedPortfolioReport,
@@ -166,7 +168,7 @@ export async function ProjectsWorkspace({
       ? `Combined view of ${reportProjects.length} selected projects. Operational groups are rolled up across the selection.`
       : mode === "compare" && reportProjects.length
         ? `Side-by-side view of ${reportProjects.length} selected projects. Compare mode is limited to ${COMPARE_PROJECT_LIMIT} projects.`
-        : `Compare up to ${COMPARE_PROJECT_LIMIT} projects, or build one combined report from up to ${COMBINE_PROJECT_LIMIT}.`;
+        : "Browse the company project portfolio and select projects for reporting.";
   const filterResetHref = resetHref(basePath, mode, selectedIds, pageSize);
 
   return (
@@ -176,19 +178,6 @@ export async function ProjectsWorkspace({
           <div>
             <h1>{pageTitle}</h1>
             <p>{pageDescription}</p>
-          </div>
-          <div className="report-titlebar__actions">
-            <ProjectFilterBar
-              action={basePath}
-              filter={filter}
-              clients={clients}
-              statuses={statuses}
-              types={types}
-              resetHref={filterResetHref}
-              preservedMode={mode}
-              preservedProjectIds={selectedIds}
-              preservedPageSize={pageSize}
-            />
           </div>
         </section>
 
@@ -249,13 +238,12 @@ export async function ProjectsWorkspace({
                   ? `${selectedIds.length} project${selectedIds.length === 1 ? "" : "s"} selected`
                   : "Select projects below"}
               </strong>
-              <span>
-                Compare is limited to {COMPARE_PROJECT_LIMIT} projects. Combine accepts up to{" "}
-                {COMBINE_PROJECT_LIMIT} and aggregates the selected projects.
-              </span>
               <span className="selection-action-bar__count">
                 <b>{projects.length}</b> of {allProjects.length} reporting projects
               </span>
+              <ProjectSelectionTray
+                initial={selected.map((project) => ({ id: project.id, label: project.name }))}
+              />
             </div>
             <div className="selection-action-bar__controls">
               <div className="selection-action-bar__buttons">
@@ -280,12 +268,24 @@ export async function ProjectsWorkspace({
                   <small>Up to {COMBINE_PROJECT_LIMIT} projects</small>
                 </button>
               </div>
-              <span className="selection-action-bar__note">
-                Filtered results remain available while comparison or combination reports are open.
-              </span>
             </div>
           </section>
         ) : null}
+
+        <section className="project-search-filter-tile" aria-label="Search and filter projects">
+          <ProjectLiveSearch initialQuery={filter.query} />
+          <ProjectFilterBar
+            action={basePath}
+            filter={filter}
+            clients={clients}
+            statuses={statuses}
+            types={types}
+            resetHref={filterResetHref}
+            preservedMode={mode}
+            preservedProjectIds={selectedIds}
+            preservedPageSize={pageSize}
+          />
+        </section>
 
         <form
           id="project-selection"
@@ -300,7 +300,13 @@ export async function ProjectsWorkspace({
           {selectedIds
             .filter((projectId) => !visibleProjectIds.has(projectId))
             .map((projectId) => (
-              <input key={projectId} type="hidden" name="project" value={projectId} />
+              <input
+                key={projectId}
+                data-preserved-project
+                type="hidden"
+                name="project"
+                value={projectId}
+              />
             ))}
 
           <ProjectTable

@@ -18,7 +18,7 @@ export default async function OperationalPerformancePage({
   const data = await getFinancialPageData(await searchParams);
   return (
     <AppShell user={session.user} contentTone="portfolio">
-      <main className="shell shell--wide focused-report">
+      <main className="shell shell--wide focused-report focused-report--compact">
         <section className="report-titlebar">
           <div>
             <p className="eyebrow">Company delivery view</p>

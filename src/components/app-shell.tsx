@@ -37,7 +37,7 @@ export async function AppShell({
           </Link>
 
           <div className="app-header__navigation">
-            <PrimaryNavigation issueCount={issueCount} />
+            <PrimaryNavigation issueCount={issueCount} isAdmin={user.role === "ADMIN"} />
           </div>
 
           <div className="user-menu">

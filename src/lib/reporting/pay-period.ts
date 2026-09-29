@@ -1,5 +1,7 @@
 import { currentTimeReportingDate } from "./time-reporting-rules";
 
+export const PTO_LOCK_DAYS = 15;
+
 export function payPeriod(date = currentTimeReportingDate()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Invalid pay-period date");
   const parsed = new Date(`${date}T00:00:00Z`);
@@ -34,7 +36,7 @@ export function mostRecentClosedPayPeriod(date = currentTimeReportingDate()) {
 export function ptoLockDate(workDate: string) {
   payPeriod(workDate);
   const date = new Date(`${workDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + 30);
+  date.setUTCDate(date.getUTCDate() + PTO_LOCK_DAYS);
   return date.toISOString().slice(0, 10);
 }
 

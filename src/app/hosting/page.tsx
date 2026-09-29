@@ -287,7 +287,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           <div className="report-titlebar__actions">
             <span className={`report-date-chip ${syncTone}`}>
               {latestSync
-                ? `Last refresh ${dateTimeLabel(latestSync.completed_at ?? latestSync.started_at)}`
+                ? `${latestSync.kind === "SCHEDULED" ? "Last automatic sync" : "Last sync"} ${dateTimeLabel(latestSync.completed_at ?? latestSync.started_at)}`
                 : "Hosting data not yet synchronized"}
             </span>
           </div>
@@ -327,41 +327,66 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <span>Report options</span>
               <span className="filter-popover__chevron" aria-hidden="true" />
             </summary>
-            <form className="hosting-grouping filter-popover__panel" method="get">
-              <input type="hidden" name="view" value={view} />
-              <label htmlFor="hosting-range">Time range</label>
-              <select id="hosting-range" name="range" defaultValue={range}>
-                {ranges.map((option) => (
-                  <option value={option.value} key={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <label htmlFor="hosting-grouping">Periods</label>
-              <select id="hosting-grouping" name="grouping" defaultValue={grouping}>
-                {groupings.map((option) => (
-                  <option value={option.value} key={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <label className="hosting-date-field">
-                From
-                <input type="date" name="dateFrom" defaultValue={dateFrom ?? ""} />
-              </label>
-              <label className="hosting-date-field">
-                Through
-                <input type="date" name="dateTo" defaultValue={dateTo ?? ""} />
-              </label>
-              <label className="hosting-forecast-toggle">
-                <input type="checkbox" name="forecast" value="show" defaultChecked={showForecast} />
-                Show forecast
-              </label>
-              <input type="hidden" name="forecast" value="hide" />
-              <button className="button button--primary" type="submit">
-                Apply options
-              </button>
-            </form>
+            <div className="hosting-options-panel filter-popover__panel">
+              <form className="hosting-grouping" method="get">
+                <input type="hidden" name="view" value={view} />
+                <label>
+                  Time range
+                  <select id="hosting-range" name="range" defaultValue={range}>
+                    {ranges.map((option) => (
+                      <option value={option.value} key={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Periods
+                  <select id="hosting-grouping" name="grouping" defaultValue={grouping}>
+                    {groupings.map((option) => (
+                      <option value={option.value} key={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="hosting-date-field">
+                  From
+                  <input type="date" name="dateFrom" defaultValue={dateFrom ?? ""} />
+                </label>
+                <label className="hosting-date-field">
+                  Through
+                  <input type="date" name="dateTo" defaultValue={dateTo ?? ""} />
+                </label>
+                <label className="hosting-forecast-toggle">
+                  <input
+                    type="checkbox"
+                    name="forecast"
+                    value="show"
+                    defaultChecked={showForecast}
+                  />
+                  Show forecast
+                </label>
+                <input type="hidden" name="forecast" value="hide" />
+                <div className="hosting-options-actions">
+                  <Link className="button button--secondary" href={`/hosting?view=${view}`}>
+                    Reset
+                  </Link>
+                  <button className="button button--primary" type="submit">
+                    Apply options
+                  </button>
+                </div>
+              </form>
+              {session.user.role === "ADMIN" ? (
+                <div className="hosting-manual-sync">
+                  <span>
+                    <strong>Admin fallback</strong> · Scheduled sync normally keeps this report
+                    current.
+                  </span>
+                  <HostingSyncControl configured={Boolean(process.env.HUBSPOT_ACCESS_TOKEN)} />
+                </div>
+              ) : null}
+            </div>
           </details>
         </section>
 
@@ -400,10 +425,6 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </section>
         ) : null}
 
-        {session.user.role === "ADMIN" ? (
-          <HostingSyncControl configured={Boolean(process.env.HUBSPOT_ACCESS_TOKEN)} />
-        ) : null}
-
         <section className="metric-grid metric-grid--executive" aria-label="Hosting summary">
           <MetricCard
             label={`${viewLabel} Paid Revenue`}
@@ -416,7 +437,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             label={`${viewLabel} Direct Costs`}
             value={hasSourceData ? currency(totals.costs) : "No data"}
             detail="Platform, subscription, and daily pano hosting costs"
-            accent={view === "combined" ? "red" : "amber"}
+            accent="red"
             priority="primary"
           />
           <MetricCard
@@ -438,7 +459,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 label="Benaco Total Panos"
                 value={hasSourceData ? number(benacoTotalPanos) : "No data"}
                 detail="Complete site panos from Benaco Total Panos"
-                accent="purple"
+                accent="navy"
               />
               <MetricCard
                 label="Benaco Counted Panos"
@@ -453,7 +474,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 label="IVION Active Panos"
                 value={hasSourceData ? number(ivionActivePanos) : "No data"}
                 detail={`${number(ivionTotalPanos)} total IVION panos in this range`}
-                accent="purple"
+                accent="navy"
               />
               <MetricCard
                 label="Benaco Counted Panos"

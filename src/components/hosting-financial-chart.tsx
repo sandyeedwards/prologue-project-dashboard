@@ -32,6 +32,24 @@ function niceStep(value: number): number {
   return (fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10) * power;
 }
 
+function trend(
+  current: number,
+  previous: number | undefined,
+  favorableWhenUp: boolean,
+): { label: string; tone: "positive" | "negative" | "neutral" } | null {
+  if (previous === undefined) return null;
+  const delta = current - previous;
+  const ratio = Math.abs(delta) / Math.max(Math.abs(previous), 1);
+  if (ratio < 0.01) return { label: "→", tone: "neutral" };
+  const rising = delta > 0;
+  const amount =
+    Math.abs(previous) < 1 ? compactCurrency(Math.abs(delta)) : `${Math.round(ratio * 100)}%`;
+  return {
+    label: `${rising ? "↑" : "↓"}${amount}`,
+    tone: rising === favorableWhenUp ? "positive" : "negative",
+  };
+}
+
 export function HostingFinancialChart({
   rows,
   view,
@@ -78,15 +96,24 @@ export function HostingFinancialChart({
     (_, index) => minimum + index * step,
   );
   const labelEvery = Math.max(1, Math.ceil(points.length / 10));
-  const netPath = points
-    .map(
-      (point, index) =>
-        `${index ? "L" : "M"}${x(index).toFixed(2)},${y(point.displayedNet).toFixed(2)}`,
-    )
-    .join(" ");
   const firstForecastIndex = points.findIndex((point) => point.forecast);
   const hoveredPoint = hovered === null ? null : points[hovered.index];
-  const tooltipWidth = 250;
+  const previousHoveredPoint = hovered && hovered.index > 0 ? points[hovered.index - 1] : null;
+  const hoveredRevenueTrend = hoveredPoint
+    ? trend(hoveredPoint.displayedRevenue, previousHoveredPoint?.displayedRevenue, true)
+    : null;
+  const hoveredIvionTrend = hoveredPoint
+    ? trend(hoveredPoint.displayedIvionCost, previousHoveredPoint?.displayedIvionCost, false)
+    : null;
+  const hoveredBenacoTrend = hoveredPoint
+    ? trend(hoveredPoint.displayedBenacoCost, previousHoveredPoint?.displayedBenacoCost, false)
+    : null;
+  const hoveredNetTrend = hoveredPoint
+    ? trend(hoveredPoint.displayedNet, previousHoveredPoint?.displayedNet, true)
+    : null;
+  const latestPoint = points.at(-1)!;
+  const latestNetTrend = trend(latestPoint.displayedNet, points.at(-2)?.displayedNet, true);
+  const tooltipWidth = 278;
   const tooltipHeight = view === "combined" ? 126 : 106;
   const tooltipX = hovered
     ? hovered.x + 14 + tooltipWidth <= width - MARGIN.right
@@ -248,23 +275,53 @@ export function HostingFinancialChart({
                   aria-label={`${point.period}: paid revenue ${fullCurrency(point.displayedRevenue)}, direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net revenue ${fullCurrency(point.displayedNet)}`}
                   onMouseEnter={(event) => inspectAtPointer(event, index)}
                   onMouseMove={(event) => inspectAtPointer(event, index)}
+                  onMouseDown={(event) => event.preventDefault()}
                   onFocus={() => setHovered({ index, x: center, y: y(point.displayedNet) })}
                   onBlur={() => setHovered(null)}
                 />
               </g>
             );
           })}
-          <path d={netPath} className="hosting-chart__net-line" />
+          {points.slice(1).map((point, index) => {
+            const previous = points[index];
+            const negative = previous.displayedNet < 0 || point.displayedNet < 0;
+            return (
+              <path
+                key={`${point.period}-segment`}
+                d={`M${x(index).toFixed(2)},${y(previous.displayedNet).toFixed(2)} L${x(index + 1).toFixed(2)},${y(point.displayedNet).toFixed(2)}`}
+                className={
+                  negative
+                    ? "hosting-chart__net-line hosting-chart__net-line--negative"
+                    : "hosting-chart__net-line"
+                }
+              />
+            );
+          })}
           {points.map((point, index) => (
             <circle
               key={`${point.period}-net`}
               cx={x(index)}
               cy={y(point.displayedNet)}
               r={point.forecast ? 2.5 : 3.5}
-              className="hosting-chart__net-point"
+              className={
+                point.displayedNet < 0
+                  ? "hosting-chart__net-point hosting-chart__net-point--negative"
+                  : "hosting-chart__net-point"
+              }
               opacity={point.forecast ? 0.55 : 1}
             />
           ))}
+          {latestNetTrend ? (
+            <text
+              x={x(points.length - 1) - 9}
+              y={Math.max(MARGIN.top + 12, y(latestPoint.displayedNet) - 10)}
+              textAnchor="end"
+              className={`hosting-chart__latest-trend is-${latestNetTrend.tone}`}
+              aria-hidden="true"
+            >
+              {latestNetTrend.label}
+            </text>
+          ) : null}
           {hoveredPoint && hovered ? (
             <g className="hosting-chart__tooltip" pointerEvents="none">
               <line
@@ -287,8 +344,13 @@ export function HostingFinancialChart({
               <text x={tooltipX + 29} y={tooltipY + 46}>
                 Paid revenue
               </text>
-              <text x={tooltipX + tooltipWidth - 13} y={tooltipY + 46} textAnchor="end">
-                {fullCurrency(hoveredPoint.displayedRevenue)}
+              <text
+                x={tooltipX + tooltipWidth - 13}
+                y={tooltipY + 46}
+                textAnchor="end"
+                className={hoveredRevenueTrend ? `is-${hoveredRevenueTrend.tone}` : undefined}
+              >
+                {fullCurrency(hoveredPoint.displayedRevenue)} {hoveredRevenueTrend?.label ?? ""}
               </text>
               {view !== "benaco" ? (
                 <>
@@ -301,8 +363,13 @@ export function HostingFinancialChart({
                   <text x={tooltipX + 29} y={tooltipY + 66}>
                     IVION platform
                   </text>
-                  <text x={tooltipX + tooltipWidth - 13} y={tooltipY + 66} textAnchor="end">
-                    {fullCurrency(hoveredPoint.displayedIvionCost)}
+                  <text
+                    x={tooltipX + tooltipWidth - 13}
+                    y={tooltipY + 66}
+                    textAnchor="end"
+                    className={hoveredIvionTrend ? `is-${hoveredIvionTrend.tone}` : undefined}
+                  >
+                    {fullCurrency(hoveredPoint.displayedIvionCost)} {hoveredIvionTrend?.label ?? ""}
                   </text>
                 </>
               ) : null}
@@ -321,8 +388,10 @@ export function HostingFinancialChart({
                     x={tooltipX + tooltipWidth - 13}
                     y={tooltipY + (view === "combined" ? 86 : 66)}
                     textAnchor="end"
+                    className={hoveredBenacoTrend ? `is-${hoveredBenacoTrend.tone}` : undefined}
                   >
-                    {fullCurrency(hoveredPoint.displayedBenacoCost)}
+                    {fullCurrency(hoveredPoint.displayedBenacoCost)}{" "}
+                    {hoveredBenacoTrend?.label ?? ""}
                   </text>
                 </>
               ) : null}
@@ -343,9 +412,9 @@ export function HostingFinancialChart({
                 x={tooltipX + tooltipWidth - 13}
                 y={tooltipY + (view === "combined" ? 108 : 88)}
                 textAnchor="end"
-                className="hosting-chart__tooltip-net"
+                className={`hosting-chart__tooltip-net${hoveredNetTrend ? ` is-${hoveredNetTrend.tone}` : ""}`}
               >
-                {fullCurrency(hoveredPoint.displayedNet)}
+                {fullCurrency(hoveredPoint.displayedNet)} {hoveredNetTrend?.label ?? ""}
               </text>
             </g>
           ) : null}

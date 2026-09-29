@@ -52,17 +52,28 @@ export function selectRevenueBudget(
 }
 export type TaskListCoverageSource = {
   id: string;
+  name?: string | null;
+  status?: string | null;
   operationalGroup: string;
 };
+
+export function taskListRequiresBudget(taskList: TaskListCoverageSource): boolean {
+  const status = normalized(taskList.status);
+  const name = (taskList.name ?? "").trim().toLowerCase();
+
+  if (taskList.operationalGroup === "Admin") return false;
+  if (status === "COMPLETE" || status === "COMPLETED") return false;
+  if (name.startsWith("modeling request")) return false;
+
+  return true;
+}
 
 export function calculateTaskListBudgetCoverage(
   taskLists: readonly TaskListCoverageSource[],
   taskListBudgets: readonly TaskListBudgetSource[],
 ): Coverage {
   const requiredTaskListIds = new Set(
-    taskLists
-      .filter((taskList) => taskList.operationalGroup !== "Admin")
-      .map((taskList) => taskList.id),
+    taskLists.filter(taskListRequiresBudget).map((taskList) => taskList.id),
   );
 
   if (requiredTaskListIds.size === 0) {

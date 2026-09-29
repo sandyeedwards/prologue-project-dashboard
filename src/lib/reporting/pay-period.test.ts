@@ -25,8 +25,8 @@ describe("payroll dates and CSV", () => {
     });
   });
   it("locks after thirty calendar days across month and year boundaries", () => {
-    expect(ptoLockDate("2026-12-15")).toBe("2027-01-14");
-    expect(ptoLockDate("2028-02-01")).toBe("2028-03-02");
+    expect(ptoLockDate("2026-12-15")).toBe("2026-12-30");
+    expect(ptoLockDate("2028-02-01")).toBe("2028-02-16");
   });
   it("quotes cells and prevents spreadsheet formulas from source text", () => {
     expect(csvCell('a,"b"')).toBe('"a,""b"""');
