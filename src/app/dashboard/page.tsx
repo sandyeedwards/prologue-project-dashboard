@@ -245,7 +245,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <div className="executive-kpis__primary">
             <MetricCard
               priority="primary"
-              accent="amber"
+              accent="gray"
               label="Actual Cost to Date"
               value={portfolioMoney(summary.totalActualCost, summary.projectCount)}
               detail={actualCostCoverageDetail(
@@ -257,7 +257,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             />
             <MetricCard
               priority="primary"
-              accent="purple"
+              accent="navy"
               label="Costed Remaining Work"
               value={portfolioMoney(totalRemainingCost, summary.projectCount)}
               detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)}
@@ -294,7 +294,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               detail={`${summary.greenCount} healthy · ${summary.amberCount} at risk · ${summary.redCount} unhealthy`}
             />
             <MetricCard
-              accent="purple"
+              accent="blue"
               label="Logged Hours"
               value={hours(summary.totalLoggedMinutes)}
               detail={`${hours(summary.totalLoggedMinutes)} of ${hours(summary.totalEstimatedMinutes)} estimated`}
