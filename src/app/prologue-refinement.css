@@ -8484,27 +8484,53 @@ textarea {
 }
 
 .hosting-chart__bar--revenue {
-  fill: #4d7898;
+  fill: #2384c6;
+}
+
+.hosting-chart-key--revenue,
+.hosting-chart__tooltip .hosting-chart__tooltip-key--revenue {
+  fill: #2384c6;
+  background: #2384c6;
 }
 
 .hosting-chart__bar--ivion {
-  fill: #273d57;
+  fill: #284d7b;
+}
+
+.hosting-chart-key--ivion,
+.hosting-chart__tooltip .hosting-chart__tooltip-key--ivion {
+  fill: #284d7b;
+  background: #284d7b;
 }
 
 .hosting-chart-key--pano,
 .hosting-chart__bar--pano,
 .hosting-chart__tooltip .hosting-chart__tooltip-key--pano {
-  fill: #a67b5b;
-  background: #a67b5b;
+  fill: #c16e3b;
+  background: #c16e3b;
 }
 
 .hosting-chart__net-line {
-  stroke: #1f7659;
-  stroke-width: 2.1;
+  stroke: #11855d;
+  stroke-width: 2.35;
 }
 
 .hosting-chart__net-point {
-  stroke: #1f7659;
+  stroke: #11855d;
+}
+
+.hosting-chart-key--net,
+.hosting-chart__tooltip .hosting-chart__tooltip-key--net {
+  fill: #11855d;
+  background: #11855d;
+}
+
+.hosting-chart__net-line--negative {
+  stroke: #c53f37;
+}
+
+.hosting-chart__net-point--negative {
+  stroke: #c53f37;
 }
 
 @media (max-width: 980px) {
