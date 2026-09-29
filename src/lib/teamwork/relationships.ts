@@ -34,6 +34,7 @@ export const PERSON_ID_PATHS = [
 export interface ProjectLookupValue {
   id: string;
   teamworkId: number;
+  name?: string | null;
   startDate?: string | null;
   excludedFromReporting?: boolean;
 }

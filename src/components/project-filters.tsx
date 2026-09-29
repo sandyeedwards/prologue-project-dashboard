@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { FormEvent } from "react";
 import { FlexibleDateRangeFields } from "@/components/flexible-date-range-fields";
 import type { ProjectFilter } from "@/lib/reporting/dashboard-data";
 
@@ -27,113 +28,148 @@ export function ProjectFilterBar({
   preservedProjectIds?: string[];
   preservedPageSize?: number;
 }) {
+  const preserveCurrentSelection = (event: FormEvent<HTMLFormElement>) => {
+    const target = event.currentTarget;
+    target.querySelectorAll("[data-preserved-project]").forEach((input) => input.remove());
+    const selectionForm = document.getElementById("project-selection");
+    const ids = selectionForm
+      ? [...selectionForm.querySelectorAll<HTMLInputElement>('input[name="project"]')]
+          .filter((input) => input.type !== "checkbox" || input.checked)
+          .map((input) => input.value)
+      : preservedProjectIds;
+    [...new Set(ids)].forEach((projectId) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "project";
+      input.value = projectId;
+      input.dataset.preservedProject = "true";
+      target.append(input);
+    });
+  };
+  const activeFilterCount = [
+    filter.client && filter.client !== "ALL" ? filter.client : undefined,
+    filter.health && filter.health !== "ALL" ? filter.health : undefined,
+    filter.status && filter.status !== "ALL" ? filter.status : undefined,
+    filter.type && filter.type !== "ALL" ? filter.type : undefined,
+    filter.dateFrom,
+    filter.dateTo,
+  ].filter(Boolean).length;
+
   return (
-    <form
-      className="filter-panel filter-panel--projects filter-panel--visible"
-      method="get"
-      action={action}
-    >
-      <div className="filter-panel__heading">
-        <div>
-          <p className="eyebrow">Project workspace filters</p>
-          <h2>Find the projects you want to compare or combine</h2>
-          <p>
-            Search directly, then narrow the reporting portfolio by type, planned dates, client,
-            health, or status.
-          </p>
-        </div>
-        <Link className="filter-panel__reset" href={resetHref}>
-          Reset all
-        </Link>
-      </div>
-
-      <div className="projects-filter-grid">
-        <label className="filter-field filter-field--search projects-filter-grid__search">
-          <span>Search projects</span>
-          <input
-            name="q"
-            defaultValue={filter.query}
-            placeholder="Project name, number, client, or tag"
-            autoComplete="off"
-          />
-          <small>Search is available here for project selection and comparison workflows.</small>
-        </label>
-
-        <label className="filter-field projects-filter-grid__type">
-          <span>Project type</span>
-          <select name="type" defaultValue={filter.type ?? "ALL"}>
-            <option value="ALL">All project types</option>
-            {types.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-          <small>Ready Set and DataHall are included in Scanning.</small>
-        </label>
-
-        <FlexibleDateRangeFields
-          initialFrom={filter.dateFrom}
-          initialTo={filter.dateTo}
-          className="projects-filter-grid__dates"
-        />
-
-        <label className="filter-field">
-          <span>Client</span>
-          <select name="client" defaultValue={filter.client ?? "ALL"}>
-            <option value="ALL">All clients</option>
-            {clients.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="filter-field">
-          <span>Health</span>
-          <select name="health" defaultValue={filter.health ?? "ALL"}>
-            <option value="ALL">All health</option>
-            <option value="GREEN">Healthy</option>
-            <option value="AMBER">At risk</option>
-            <option value="RED">Unhealthy</option>
-            <option value="GRAY">N/A</option>
-          </select>
-        </label>
-
-        <label className="filter-field">
-          <span>Status</span>
-          <select name="status" defaultValue={filter.status ?? "ALL"}>
-            <option value="ALL">All statuses</option>
-            {statuses.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="projects-filter-grid__actions">
-          <button className="button button--primary" type="submit">
-            {submitLabel}
-          </button>
-          <Link className="button button--secondary" href={resetHref}>
-            Clear
+    <details className="filter-popover filter-popover--workspace">
+      <summary className="filter-popover__trigger">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5h16l-6.25 7.1v5.35l-3.5 1.75v-7.1L4 5Z" />
+          <circle cx="17.25" cy="16.75" r="3.25" />
+          <path d="m19.6 19.1 2.15 2.15" />
+        </svg>
+        <span>Filters</span>
+        {activeFilterCount ? (
+          <span className="filter-popover__count">{activeFilterCount}</span>
+        ) : null}
+        <span className="filter-popover__chevron" aria-hidden="true" />
+      </summary>
+      <form
+        className="filter-panel filter-panel--projects filter-panel--visible filter-popover__panel"
+        method="get"
+        action={action}
+        onSubmit={preserveCurrentSelection}
+      >
+        <div className="filter-panel__heading">
+          <div>
+            <p className="eyebrow">Project workspace filters</p>
+            <h2>Find the projects you want to compare or combine</h2>
+            <p>Narrow the reporting projects by type, planned dates, client, health, or status.</p>
+          </div>
+          <Link className="filter-panel__reset" href={resetHref}>
+            Reset all
           </Link>
         </div>
-      </div>
 
-      {preservedMode ? <input type="hidden" name="mode" value={preservedMode} /> : null}
-      <input type="hidden" name="pageSize" value={preservedPageSize} />
-      {preservedProjectIds.map((projectId) => (
-        <input key={projectId} type="hidden" name="project" value={projectId} />
-      ))}
+        <div className="projects-filter-grid">
+          <label className="filter-field projects-filter-grid__type">
+            <span>Project type</span>
+            <select name="type" defaultValue={filter.type ?? "ALL"}>
+              <option value="ALL">All project types</option>
+              {types.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+            <small>Ready Set and DataHall are included in Scanning.</small>
+          </label>
 
-      <p className="filter-policy-note">
-        <strong>Reporting policy:</strong> projects tagged NoReport are excluded. Date filters use
-        overlapping project dates. Search and filters do not change the selected projects in an open
-        comparison or combined report.
-      </p>
-    </form>
+          <FlexibleDateRangeFields
+            initialFrom={filter.dateFrom}
+            initialTo={filter.dateTo}
+            className="projects-filter-grid__dates"
+          />
+
+          <label className="filter-field">
+            <span>Client</span>
+            <select name="client" defaultValue={filter.client ?? "ALL"}>
+              <option value="ALL">All clients</option>
+              {clients.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="filter-field">
+            <span>Health</span>
+            <select name="health" defaultValue={filter.health ?? "ALL"}>
+              <option value="ALL">All health</option>
+              <option value="GREEN">Healthy</option>
+              <option value="AMBER">At risk</option>
+              <option value="RED">Unhealthy</option>
+              <option value="GRAY">N/A</option>
+            </select>
+          </label>
+
+          <label className="filter-field">
+            <span>Status</span>
+            <select name="status" defaultValue={filter.status ?? "ALL"}>
+              <option value="ALL">All statuses</option>
+              {statuses.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="projects-filter-grid__actions">
+            <button className="button button--primary" type="submit">
+              {submitLabel}
+            </button>
+            <Link className="button button--secondary" href={resetHref}>
+              Clear
+            </Link>
+          </div>
+        </div>
+
+        {preservedMode ? <input type="hidden" name="mode" value={preservedMode} /> : null}
+        <input type="hidden" name="pageSize" value={preservedPageSize} />
+        {filter.query ? <input type="hidden" name="q" value={filter.query} /> : null}
+        {preservedProjectIds.map((projectId) => (
+          <input
+            key={projectId}
+            data-preserved-project
+            type="hidden"
+            name="project"
+            value={projectId}
+          />
+        ))}
+
+        <p className="filter-policy-note">
+          <strong>Reporting policy:</strong> projects tagged NoReport are excluded. Date filters use
+          overlapping project dates. Search and filters do not change the selected projects in an
+          open comparison or combined report.
+        </p>
+      </form>
+    </details>
   );
 }

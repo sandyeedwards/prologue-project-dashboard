@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ChartPanel,
-  HealthDonut,
+  MarginSummaryDonut,
   PortfolioAnalysisDisclosure,
 } from "@/components/reporting-charts";
 import { DashboardProfitabilityTabs } from "@/components/dashboard-profitability-tabs";
@@ -12,13 +12,13 @@ import {
   CompareOperationalProfitabilityChart,
   type ComparedProjectOperationalGroups,
 } from "@/components/compare-operational-profitability-chart";
-import { CoverageBadge, HealthBadge, MetricCard } from "@/components/reporting-ui";
+import { CoverageBadge, MarginBadge, MetricCard } from "@/components/reporting-ui";
 import {
   summarizeProjects,
   type PortfolioOperationalGroupRow,
   type ProjectReportRow,
 } from "@/lib/reporting/dashboard-data";
-import { hours, money, percent } from "@/lib/reporting/format";
+import { hours, money } from "@/lib/reporting/format";
 
 function numeric(value: string | null): number | null {
   if (value === null || value.trim() === "") return null;
@@ -134,7 +134,7 @@ export function ProjectComparisonReport({
           className="compare-hours-panel"
           eyebrow="Effort comparison"
           title="Logged vs Estimated Hours by Project"
-          description="Each project shows logged hours as a percent of its estimate. Values above 100% indicate the estimate has been exceeded."
+          description="Estimate length shows relative workload across projects. Blue shows logged hours within the estimate; red shows work beyond the estimate."
         >
           <HoursCompletionSummary rows={effortRows} />
         </ChartPanel>
@@ -159,11 +159,10 @@ export function ProjectComparisonReport({
         <div className="compare-register__scroll">
           <div className="compare-register__head" aria-hidden="true">
             <span>Project</span>
-            <span>Health</span>
+            <span>Margin</span>
             <span>Actual Cost</span>
             <span>Remaining Work</span>
             <span>Forecast Profit</span>
-            <span>Margin</span>
             <span>Coverage</span>
           </div>
           <div className="compare-register__rows">
@@ -185,8 +184,9 @@ export function ProjectComparisonReport({
                       {project.isProvisional ? " · Provisional" : ""}
                     </span>
                   </div>
-                  <div>
-                    <HealthBadge band={project.healthBand} score={project.healthScore} />
+                  <div className="compare-register__margin">
+                    <MarginBadge value={project.forecastMarginPercent} />
+                    <small>{project.isProvisional ? "Ceiling" : "Forecast"}</small>
                   </div>
                   <div className="compare-register__money">
                     <strong>{money(project.actualTotalCost)}</strong>
@@ -204,10 +204,7 @@ export function ProjectComparisonReport({
                       {profit !== null && profit < 0 ? "Forecast loss" : "Unspent revenue"}
                     </small>
                   </div>
-                  <div className="compare-register__margin">
-                    <strong>{percent(project.forecastMarginPercent, 1)}</strong>
-                    <small>{project.isProvisional ? "Ceiling" : "Forecast"}</small>
-                  </div>
+
                   <div className="compare-register__coverage" aria-label="Source coverage">
                     <CoverageBadge value={project.laborCoverage} />
                     <CoverageBadge value={project.assignmentCoverage} />
@@ -334,7 +331,7 @@ export function CombinedPortfolioReport({
           />
           <MetricCard
             label={summary.provisionalCount ? "Margin Ceiling" : "Forecast Margin"}
-            value={combinedMargin === null ? "Missing" : `${combinedMargin.toFixed(1)}%`}
+            value={<MarginBadge value={combinedMargin} />}
             detail={knownFor(summary.forecastMarginKnownCount, summary.projectCount)}
             help="Combined forecast profit divided by combined client fees. This is not an average of the selected project margins."
           />
@@ -348,7 +345,7 @@ export function CombinedPortfolioReport({
 
       <section
         className="executive-report-stack"
-        aria-label="Combined portfolio profitability, health, and effort"
+        aria-label="Combined project profitability, margin, and effort"
       >
         <DashboardProfitabilityTabs
           groupRows={profitabilityRows}
@@ -362,21 +359,19 @@ export function CombinedPortfolioReport({
         <div className="executive-support-row">
           <ChartPanel
             className="executive-report-grid__health executive-support-row__health"
-            eyebrow="Portfolio condition"
-            title="Health Summary"
+            eyebrow="Combined margin"
+            title="Margin Summary"
+            description="Project counts use the same forecast-margin thresholds applied throughout reporting."
+            help="Forecast margin is calculated from project revenue and forecast cost. Strong margin is 50% or higher, Watch margin is above 35% and below 50%, Low margin is 35% or lower, and N/A means no usable forecast margin is available."
           >
-            <HealthDonut
-              green={summary.greenCount}
-              amber={summary.amberCount}
-              red={summary.redCount}
-              gray={summary.grayCount}
-            />
+            <MarginSummaryDonut projects={projects} />
           </ChartPanel>
           <ChartPanel
             className="executive-report-grid__effort executive-support-row__effort"
             eyebrow="Effort exposure"
             title="Logged vs Estimated Hours by Group"
-            description="Each row shows logged hours as a percent of the estimate. Values above 100% indicate the group has exceeded its estimate."
+            description="Estimate length shows relative workload across groups. Blue shows logged hours within the estimate; red shows work beyond the estimate."
+            help="Estimated hours come from the reporting estimate baseline for each operational group. Logged hours come from synced Teamwork time entries. Blue represents logged time within the estimate; red represents logged time beyond the estimate."
           >
             <HoursCompletionSummary rows={effortRows} />
           </ChartPanel>

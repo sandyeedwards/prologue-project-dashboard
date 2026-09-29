@@ -18,14 +18,14 @@ const forecastView: ProfitabilityViewDefinition = {
   id: "total",
   label: "Forecasted Profitability",
   description:
-    "View the combined financial position of every operational group in the filtered portfolio with the same revenue, cost-to-date, remaining-cost, and profit structure.",
+    "View the combined financial position of every operational group in the filtered company view with the same revenue, cost-to-date, remaining-cost, and profit structure.",
 };
 
 const historicalView: ProfitabilityViewDefinition = {
   id: "history",
   label: "Historical Revenue & Net Profit",
   description:
-    "Track gross revenue, source-dated actual cost, anticipated cost, net profit to date, and forecasted net profit over time. Dashboard filters define the portfolio, and the calendar controls adjust the visible historical range.",
+    "Track gross revenue, source-dated actual cost, anticipated cost, net profit to date, and forecasted net profit over time. Dashboard filters define the projects, and the calendar controls adjust the visible historical range.",
 };
 
 const groupView: ProfitabilityViewDefinition = {
@@ -56,6 +56,7 @@ export function DashboardProfitabilityTabs({
 }) {
   const id = useId();
   const [activeView, setActiveView] = useState<ProfitabilityView>("total");
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const configuredViews = [
     {
       ...forecastView,
@@ -118,7 +119,25 @@ export function DashboardProfitabilityTabs({
       </div>
 
       {filterControls ? (
-        <div className="dashboard-profitability-tabs__filters">{filterControls}</div>
+        <div className="dashboard-profitability-tabs__filters">
+          <button
+            className="dashboard-profitability-tabs__filters-toggle"
+            type="button"
+            aria-expanded={filtersOpen}
+            aria-controls={`${id}-filters`}
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            <span>Filters</span>
+            <span className="dashboard-profitability-tabs__filters-chevron" aria-hidden="true" />
+          </button>
+          <div
+            id={`${id}-filters`}
+            className="dashboard-profitability-tabs__filters-body"
+            hidden={!filtersOpen}
+          >
+            {filterControls}
+          </div>
+        </div>
       ) : null}
 
       <p className="dashboard-profitability-tabs__description">{active.description}</p>
@@ -139,7 +158,7 @@ export function DashboardProfitabilityTabs({
               <PortfolioFinancialComposition rows={[totalRow]} variant="total" />
             ) : (
               <div className="chart-empty">
-                No complete portfolio financial position is available.
+                No complete combined financial position is available.
               </div>
             )
           ) : historicalSeries !== undefined ? (
@@ -148,7 +167,7 @@ export function DashboardProfitabilityTabs({
               initialDateRange={historicalInitialRange}
             />
           ) : (
-            <div className="chart-empty">No historical portfolio data is available.</div>
+            <div className="chart-empty">No historical project data is available.</div>
           )}
         </div>
       ))}

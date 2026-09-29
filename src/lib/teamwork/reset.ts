@@ -11,6 +11,7 @@ export async function resetTeamworkImportData() {
   await db.transaction(async (transaction) => {
     await transaction.execute(sql`
       truncate table
+        payroll_pto_ledger,
         operational_group_metrics,
         task_metrics,
         project_metrics,

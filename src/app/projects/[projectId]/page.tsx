@@ -5,7 +5,8 @@ import { ChartPanel, CostPerformanceChart, GroupedBarChart } from "@/components/
 import { ProjectFinancialPosition } from "@/components/project-financial-position";
 import {
   CoverageBadge,
-  HealthBadge,
+  MarginBadge,
+  MarginText,
   MetricCard,
   ProvisionalNotice,
 } from "@/components/reporting-ui";
@@ -20,6 +21,7 @@ import {
   getProjectUnplannedWork,
 } from "@/lib/reporting/dashboard-data";
 import { dateLabel, hours, money, percent } from "@/lib/reporting/format";
+import { buildMobAreaBreakdown } from "@/lib/reporting/mob-area-breakdown";
 import { dismissAllUnplannedWork, dismissUnplannedWork, reopenUnplannedWork } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +55,21 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
     searchParams,
   ]);
   const projectTypes = getProjectTypeFacets(project);
-  const isDataHall = projectTypes.includes("DataHall");
+  const specialProjectKind = projectTypes.includes("Ready Set")
+    ? "READY_SET"
+    : projectTypes.includes("DataHall")
+      ? "DATA_HALL"
+      : null;
+  const mobAreaBreakdowns = specialProjectKind
+    ? buildMobAreaBreakdown({
+        kind: specialProjectKind,
+        tasks,
+        expenses,
+      })
+    : [];
+  const requestedMobArea = one(query.mobArea)?.trim();
+  const selectedMobArea =
+    mobAreaBreakdowns.find((row) => row.name === requestedMobArea) ?? mobAreaBreakdowns[0] ?? null;
   const isArchived = project.archivedAt !== null || project.status.toLowerCase() === "archived";
   const clientFee = numeric(project.clientFee);
   const actualTotalCost = numeric(project.actualTotalCost);
@@ -68,10 +84,20 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
     clientFee === null || clientFee === 0 || actualProfit === null
       ? null
       : (actualProfit / clientFee) * 100;
+  const plannedEstimateConsumptionPercent =
+    project.plannedLoggedMinutes !== null && project.canonicalEstimatedMinutes > 0
+      ? (project.plannedLoggedMinutes / project.canonicalEstimatedMinutes) * 100
+      : null;
+  const plannedOverEstimateMinutes =
+    project.plannedLoggedMinutes !== null && project.canonicalEstimatedMinutes > 0
+      ? Math.max(project.plannedLoggedMinutes - project.canonicalEstimatedMinutes, 0)
+      : null;
   const taskQuery = one(query.task)?.trim().toLowerCase() ?? "";
   const groupFilter = one(query.group) ?? "ALL";
   const coverageFilter = one(query.coverage) ?? "ALL";
-  const filteredTasks = tasks.filter((task) => {
+  const visibleGroups = groups.filter((group) => group.groupName !== "Unclassified");
+  const reportingTasks = tasks.filter((task) => task.operationalGroup !== "Unclassified");
+  const filteredTasks = reportingTasks.filter((task) => {
     if (
       taskQuery &&
       ![task.name, task.taskListName, task.operationalGroup].some((value) =>
@@ -85,7 +111,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   });
   const displayedTasks = filteredTasks.slice(0, 250);
   const hasTaskFilters = Boolean(taskQuery) || groupFilter !== "ALL" || coverageFilter !== "ALL";
-  const operationalGroups = groups
+  const operationalGroups = visibleGroups
     .map((group) => ({
       ...group,
       tasks: displayedTasks.filter((task) => task.operationalGroup === group.groupName),
@@ -94,7 +120,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const activeUnplannedWork = unplannedWork.filter((item) => !item.isDismissed);
   const dismissedUnplannedWork = unplannedWork.filter((item) => item.isDismissed);
   const isAdmin = session.user.role === "ADMIN";
-  const groupChartRows = groups.map((group) => ({
+  const groupChartRows = visibleGroups.map((group) => ({
     label: group.groupName,
     values: {
       estimated: group.estimatedMinutes / 60,
@@ -104,14 +130,16 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
       forecast: numeric(group.forecastCost),
     },
   }));
-  const groupCostPerformanceRows = groups.map((group) => {
+  const groupCostPerformanceRows = visibleGroups.map((group) => {
     const actualLabor = numeric(group.actualLaborCost);
     const actualNonLabor = numeric(group.actualNonLaborCost);
     return {
       label: group.groupName,
       target: numeric(group.targetCost),
+      targetCoverage: group.targetCostCoverage,
       actual: actualLabor === null || actualNonLabor === null ? null : actualLabor + actualNonLabor,
       forecast: numeric(group.forecastCost),
+      progressPercent: numeric(group.progressPercent),
     };
   });
 
@@ -126,7 +154,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
         <section className="page-heading page-heading--split project-heading">
           <div>
             <div className="heading-badges">
-              <HealthBadge band={project.healthBand} score={project.healthScore} />
+              <MarginBadge value={project.forecastMarginPercent} />
               {project.isProvisional ? <span className="tag tag--warning">Provisional</span> : null}
             </div>
             <h1>{project.name}</h1>
@@ -177,7 +205,12 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                   : "Unspent Revenue / Forecasted Profit"
               }
               value={money(project.forecastProfit)}
-              detail={`${percent(project.forecastMarginPercent, 1)} ${project.isProvisional ? "margin ceiling" : "forecast margin"}`}
+              detail={
+                <>
+                  <MarginText value={project.forecastMarginPercent} />{" "}
+                  {project.isProvisional ? "margin ceiling" : "forecast margin"}
+                </>
+              }
               tone={project.isProvisional ? "warning" : undefined}
             />
           </div>
@@ -190,12 +223,16 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             <MetricCard
               label="Profit to Date"
               value={money(actualProfit)}
-              detail={`${percent(actualMargin, 1)} margin to date`}
+              detail={
+                <>
+                  <MarginText value={actualMargin} /> margin to date
+                </>
+              }
             />
             <MetricCard
-              label="Target Cost"
+              label="Planned Cost"
               value={money(project.targetCost)}
-              detail="Project budget expected cost"
+              detail="Sum of Teamwork task-list cost budgets"
             />
           </div>
         </section>
@@ -212,7 +249,9 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <MetricCard
             label="Logged Hours"
             value={hours(project.loggedMinutes)}
-            detail={`${percent(project.canonicalEstimatedMinutes ? ((project.loggedMinutes - project.unplannedLoggedMinutes) / project.canonicalEstimatedMinutes) * 100 : null)} planned estimate consumed${project.unplannedLoggedMinutes > 0 ? ` · ${hours(project.unplannedLoggedMinutes)} unplanned` : ""}`}
+            detail={`${percent(plannedEstimateConsumptionPercent)} planned estimate consumed \u00b7 ${
+              plannedOverEstimateMinutes === null ? "N/A" : hours(plannedOverEstimateMinutes)
+            } over estimate \u00b7 ${hours(project.unplannedLoggedMinutes)} unplanned`}
           />
           <MetricCard
             label="Estimated Hours"
@@ -243,11 +282,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           </ChartPanel>
           <ChartPanel
             eyebrow="Effort by operation"
-            title={
-              isDataHall
-                ? "Estimated and logged hours by area"
-                : "Estimated and logged hours by group"
-            }
+            title="Estimated and logged hours by group"
             description="Hours are rolled up from the same canonical task branches shown below."
           >
             <GroupedBarChart
@@ -261,12 +296,149 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           </ChartPanel>
           <ChartPanel
             eyebrow="Cost performance"
-            title={isDataHall ? "Cost against target by area" : "Cost against target by group"}
-            description="Operational groups do not have allocated revenue, so this compares actual and forecast cost with each group target instead of inventing group profit."
+            title="Cost against target by group"
+            description="Actual cost and costed remaining work build to the forecast. Green shows forecast headroom below a complete planned-cost target; red shows cost above target. Groups without a complete target remain N/A."
           >
             <CostPerformanceChart rows={groupCostPerformanceRows} />
           </ChartPanel>
         </section>
+
+        {specialProjectKind ? (
+          <section className="report-section">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Mobilization / Area</p>
+                <h2>Mob / Area Breakdown</h2>
+                <p className="section-description">
+                  {specialProjectKind === "READY_SET"
+                    ? "Ready Set mobilizations"
+                    : "Data Hall areas"}{" "}
+                  are preserved from Teamwork task-list names. Travel is shown separately inside
+                  Fieldwork without changing the overall Fieldwork service rollup.
+                </p>
+              </div>
+              <span className="section-meta">
+                {mobAreaBreakdowns.length}{" "}
+                {specialProjectKind === "READY_SET" ? "mobilizations" : "areas"}
+              </span>
+            </div>
+
+            {mobAreaBreakdowns.length ? (
+              <>
+                <form className="filter-bar filter-bar--compact" method="get">
+                  {taskQuery ? <input type="hidden" name="task" value={taskQuery} /> : null}
+                  {groupFilter !== "ALL" ? (
+                    <input type="hidden" name="group" value={groupFilter} />
+                  ) : null}
+                  {coverageFilter !== "ALL" ? (
+                    <input type="hidden" name="coverage" value={coverageFilter} />
+                  ) : null}
+
+                  <label className="filter-field">
+                    <span>{specialProjectKind === "READY_SET" ? "Mobilization" : "Area"}</span>
+                    <select name="mobArea" defaultValue={selectedMobArea?.name ?? ""}>
+                      {mobAreaBreakdowns.map((row) => (
+                        <option key={row.name} value={row.name}>
+                          {row.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <button className="button button--primary" type="submit">
+                    View
+                  </button>
+                </form>
+
+                {selectedMobArea ? (
+                  <>
+                    <div className="operation-group__metric-strip">
+                      <span>
+                        <small>Estimated hours</small>
+                        <strong>{hours(selectedMobArea.estimatedMinutes)}</strong>
+                      </span>
+                      <span>
+                        <small>Logged hours</small>
+                        <strong>{hours(selectedMobArea.loggedMinutes)}</strong>
+                      </span>
+                      <span>
+                        <small>Remaining hours</small>
+                        <strong>{hours(selectedMobArea.remainingMinutes)}</strong>
+                      </span>
+                      <span>
+                        <small>Actual labor</small>
+                        <strong>{money(selectedMobArea.actualLaborCost)}</strong>
+                      </span>
+                      <span>
+                        <small>Remaining labor</small>
+                        <strong>{money(selectedMobArea.remainingLaborCost)}</strong>
+                      </span>
+                      <span>
+                        <small>Forecast labor</small>
+                        <strong>{money(selectedMobArea.projectedLaborCost)}</strong>
+                      </span>
+                      <span>
+                        <small>Expenses</small>
+                        <strong>{money(selectedMobArea.actualExpenseCost)}</strong>
+                      </span>
+                      <span>
+                        <small>Actual cost total</small>
+                        <strong>{money(selectedMobArea.actualTotalCost)}</strong>
+                      </span>
+                    </div>
+
+                    <div className="table-wrap report-table-wrap">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Work split</th>
+                            <th>Estimated</th>
+                            <th>Logged</th>
+                            <th>Remaining</th>
+                            <th>Actual labor</th>
+                            <th>Remaining labor</th>
+                            <th>Forecast labor</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(
+                            [
+                              ["Travel", selectedMobArea.travel],
+                              ["Other Fieldwork", selectedMobArea.otherFieldwork],
+                            ] as const
+                          ).map(([label, rollup]) => (
+                            <tr key={label}>
+                              <td>
+                                <strong>{label}</strong>
+                              </td>
+                              <td>{hours(rollup.estimatedMinutes)}</td>
+                              <td>{hours(rollup.loggedMinutes)}</td>
+                              <td>{hours(rollup.remainingMinutes)}</td>
+                              <td>{money(rollup.actualLaborCost)}</td>
+                              <td>{money(rollup.remainingLaborCost)}</td>
+                              <td>{money(rollup.projectedLaborCost)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <p className="table-note">
+                      Teamwork expenses linked to {selectedMobArea.name} are included in the Mob /
+                      Area actual cost total. They are not assigned to Travel or Other Fieldwork
+                      because the reporting source does not provide task-level expense attribution.
+                    </p>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <div className="empty-panel">
+                No {specialProjectKind === "READY_SET" ? "mobilization" : "area"} task lists are
+                available for this project.
+              </div>
+            )}
+          </section>
+        ) : null}
 
         <section className="report-section">
           <div className="section-heading">
@@ -280,8 +452,9 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           </div>
           <p className="section-description">
             Actual cost uses historical labor and imported expenses. A project is provisional only
-            when a source needed to price remaining or expected work is incomplete. Task-list target
-            costs affect group variance, not whole-project profit.
+            when a source needed to price remaining or expected work is incomplete. Task-list
+            budgets define planned internal cost and group cost targets; forecast profit remains the
+            fixed fee less forecast cost.
           </p>
           <div className="coverage-grid">
             <div>
@@ -354,30 +527,33 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <div className="section-heading">
             <div>
               <p className="eyebrow">Operations and task branches</p>
-              <h2>
-                {isDataHall ? "Area and mobilization performance" : "Operational group performance"}
-              </h2>
+              <h2>Operational group performance</h2>
               <p className="section-description">
                 Open a group to review its calculated task branches. Search and filters apply inside
                 every group without changing whole-project financials.
               </p>
             </div>
             <span className="section-meta">
-              {filteredTasks.length} of {tasks.length} tasks
+              {filteredTasks.length} of {reportingTasks.length} operational tasks
             </span>
           </div>
           <form className="filter-bar filter-bar--compact" method="get">
+            {selectedMobArea ? (
+              <input type="hidden" name="mobArea" value={selectedMobArea.name} />
+            ) : null}
             <label className="filter-field filter-field--search">
               <span>Search tasks</span>
               <input name="task" defaultValue={taskQuery} placeholder="Task, list, or group" />
             </label>
             <label className="filter-field">
-              <span>{isDataHall ? "Area / group" : "Group"}</span>
+              <span>Group</span>
               <select name="group" defaultValue={groupFilter}>
                 <option value="ALL">All</option>
-                {[...new Set(tasks.map((task) => task.operationalGroup))].sort().map((value) => (
-                  <option key={value}>{value}</option>
-                ))}
+                {[...new Set(reportingTasks.map((task) => task.operationalGroup))]
+                  .sort()
+                  .map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
               </select>
             </label>
             <label className="filter-field">
@@ -438,7 +614,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                 <div className="operation-group__body">
                   <div className="operation-group__metric-strip">
                     <span>
-                      <small>Target cost</small>
+                      <small>Planned cost</small>
                       <strong>{money(group.targetCost)}</strong>
                     </span>
                     <span>
@@ -530,9 +706,10 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                 <p className="eyebrow">Unplanned work review</p>
                 <h2>Logged work without a top-level estimate</h2>
                 <p className="section-description">
-                  These hours and their historical labor cost are already included. Add an estimate
-                  in Teamwork to resolve the item, or an Admin can mark it reviewed and leave it
-                  unplanned. Subtasks are intentionally exempt.
+                  These hours and their historical labor cost are already included. Current
+                  unplanned work remains visible for review. An Admin can mark an item reviewed and
+                  leave it unplanned; reviewed items remain available below for reference and can be
+                  reopened. Subtasks are intentionally exempt.
                 </p>
               </div>
               <span className="section-meta">
@@ -543,7 +720,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
               <form action={dismissAllUnplannedWork} className="inline-action-form">
                 <input type="hidden" name="projectId" value={project.id} />
                 <button className="button button--secondary" type="submit">
-                  Dismiss all current unplanned-work flags
+                  Mark all current unplanned work reviewed
                 </button>
               </form>
             ) : null}
@@ -575,44 +752,59 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                       <input type="hidden" name="projectId" value={project.id} />
                       <input type="hidden" name="issueId" value={item.issueId} />
                       <button className="button button--secondary" type="submit">
-                        Reviewed — leave unplanned
+                        Reviewed — leave unplanned
                       </button>
                     </form>
                   ) : null}
                 </article>
               ))}
-              {dismissedUnplannedWork.map((item) => (
-                <article
-                  className="unplanned-work-card unplanned-work-card--dismissed"
-                  key={item.issueId}
-                >
-                  <div>
-                    <strong>{item.taskName}</strong>
+              {dismissedUnplannedWork.length ? (
+                <details className="unplanned-work-reviewed">
+                  <summary>
+                    <span>Reviewed unplanned work</span>
                     <small>
-                      {item.taskListName} · Reviewed by {item.dismissedByName ?? "Admin"}
+                      {dismissedUnplannedWork.length} reviewed item
+                      {dismissedUnplannedWork.length === 1 ? "" : "s"} retained for reference
                     </small>
+                  </summary>
+
+                  <div className="unplanned-work-reviewed__list">
+                    {dismissedUnplannedWork.map((item) => (
+                      <article
+                        className="unplanned-work-card unplanned-work-card--dismissed"
+                        key={item.issueId}
+                      >
+                        <div>
+                          <strong>{item.taskName}</strong>
+                          <small>
+                            {item.taskListName} {"\u00b7"} Reviewed by{" "}
+                            {item.dismissedByName ?? "Admin"}
+                          </small>
+                        </div>
+                        <dl>
+                          <div>
+                            <dt>Reviewed hours</dt>
+                            <dd>{hours(item.loggedMinutes)}</dd>
+                          </div>
+                          <div>
+                            <dt>Historical labor</dt>
+                            <dd>{money(item.laborCost)}</dd>
+                          </div>
+                        </dl>
+                        {isAdmin ? (
+                          <form action={reopenUnplannedWork}>
+                            <input type="hidden" name="projectId" value={project.id} />
+                            <input type="hidden" name="taskId" value={item.taskId} />
+                            <button className="button button--secondary" type="submit">
+                              Reopen
+                            </button>
+                          </form>
+                        ) : null}
+                      </article>
+                    ))}
                   </div>
-                  <dl>
-                    <div>
-                      <dt>Reviewed hours</dt>
-                      <dd>{hours(item.loggedMinutes)}</dd>
-                    </div>
-                    <div>
-                      <dt>Historical labor</dt>
-                      <dd>{money(item.laborCost)}</dd>
-                    </div>
-                  </dl>
-                  {isAdmin ? (
-                    <form action={reopenUnplannedWork}>
-                      <input type="hidden" name="projectId" value={project.id} />
-                      <input type="hidden" name="taskId" value={item.taskId} />
-                      <button className="button button--secondary" type="submit">
-                        Reopen
-                      </button>
-                    </form>
-                  ) : null}
-                </article>
-              ))}
+                </details>
+              ) : null}
             </div>
           </section>
         ) : null}
@@ -691,12 +883,12 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                                 ) : null}
                               </td>
                               <td>
-                                {item.personName ?? "—"}
+                                {item.personName ?? "—"}
                                 <small className="table-subvalue">
                                   {dateLabel(item.loggedDate)}
                                 </small>
                               </td>
-                              <td>{item.minutes === null ? "—" : hours(item.minutes)}</td>
+                              <td>{item.minutes === null ? "—" : hours(item.minutes)}</td>
                               <td>{money(item.laborCost)}</td>
                               <td>
                                 {item.teamworkUrl ? (
@@ -704,7 +896,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                                     Open
                                   </a>
                                 ) : (
-                                  "—"
+                                  "—"
                                 )}
                               </td>
                             </tr>

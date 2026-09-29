@@ -1,8 +1,12 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import type { ProfitabilityRow } from "@/components/profitability-chart-types";
+import { MarginBadge } from "@/components/reporting-ui";
+import { PrologueMark } from "@/components/prologue-brand";
 import type { ProjectReportRow } from "@/lib/reporting/dashboard-data";
 import { hours, money, percent } from "@/lib/reporting/format";
+import { marginTone } from "@/lib/reporting/margin-status";
+import { COMBINE_PROJECT_LIMIT, combinedProjectsHref } from "@/lib/reporting/project-selection";
 
 export type ChartSeries = {
   key: string;
@@ -40,12 +44,14 @@ export function ChartPanel({
   title,
   eyebrow,
   description,
+  help,
   children,
   className = "",
 }: {
   title: string;
   eyebrow?: string;
   description?: string;
+  help?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
@@ -57,6 +63,20 @@ export function ChartPanel({
           <h3>{title}</h3>
           {description ? <p>{description}</p> : null}
         </div>
+        {help ? (
+          <span className="chart-panel__help">
+            <button
+              className="chart-panel__help-trigger"
+              type="button"
+              aria-label={`Information about ${title}`}
+            >
+              ?
+            </button>
+            <span className="chart-panel__help-panel" role="tooltip">
+              {help}
+            </span>
+          </span>
+        ) : null}
       </header>
       {children}
     </article>
@@ -135,42 +155,69 @@ export function GroupedBarChart({
   );
 }
 
-export function HealthDonut({
-  green,
-  amber,
-  red,
-  gray,
-}: {
-  green: number;
-  amber: number;
-  red: number;
-  gray: number;
-}) {
+export function MarginSummaryDonut({ projects }: { projects: ProjectReportRow[] }) {
+  const groupedProjects: Record<"green" | "yellow" | "red" | "neutral", ProjectReportRow[]> = {
+    green: [],
+    yellow: [],
+    red: [],
+    neutral: [],
+  };
+
+  for (const project of projects) {
+    groupedProjects[marginTone(project.forecastMarginPercent)].push(project);
+  }
+
   const segments = [
-    { label: "Healthy", value: green, tone: "green" },
-    { label: "At risk", value: amber, tone: "amber" },
-    { label: "Unhealthy", value: red, tone: "red" },
-    { label: "N/A", value: gray, tone: "gray" },
+    {
+      label: "Strong margin",
+      detail: "50% or higher",
+      projects: groupedProjects.green,
+      tone: "green",
+    },
+    {
+      label: "Watch margin",
+      detail: "Above 35% and below 50%",
+      projects: groupedProjects.yellow,
+      tone: "amber",
+    },
+    {
+      label: "Low margin",
+      detail: "35% or lower",
+      projects: groupedProjects.red,
+      tone: "red",
+    },
+    {
+      label: "N/A",
+      detail: "No margin",
+      projects: groupedProjects.neutral,
+      tone: "gray",
+    },
   ] as const;
-  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
-  if (!total) return <div className="chart-empty">No calculated projects are available.</div>;
+
+  const total = projects.length;
+
+  if (!total) {
+    return <div className="chart-empty">No calculated projects are available.</div>;
+  }
 
   let offset = 0;
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
+
   return (
-    <div
-      className="donut-chart"
-      role="img"
-      aria-label={`Project health distribution across ${total} projects`}
-    >
-      <div className="donut-chart__graphic">
+    <div className="donut-chart">
+      <div
+        className="donut-chart__graphic"
+        role="img"
+        aria-label={`Forecast margin distribution across ${total} projects`}
+      >
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle className="donut-chart__base" cx="60" cy="60" r={radius} />
           {segments.map((segment) => {
-            const length = (segment.value / total) * circumference;
+            const length = (segment.projects.length / total) * circumference;
             const currentOffset = offset;
             offset += length;
+
             return (
               <circle
                 key={segment.label}
@@ -184,22 +231,64 @@ export function HealthDonut({
             );
           })}
         </svg>
+
         <div className="donut-chart__center">
           <strong>{total}</strong>
           <span>projects</span>
         </div>
       </div>
+
       <div className="donut-chart__legend">
-        {segments.map((segment) => (
-          <div key={segment.label}>
-            <span>
-              <i className={`chart-swatch chart-tone--${segment.tone}`} />
-              {segment.label}
-            </span>
-            <strong>{segment.value}</strong>
-            <small>{((segment.value / total) * 100).toFixed(0)}%</small>
-          </div>
-        ))}
+        {segments.map((segment) => {
+          const count = segment.projects.length;
+          const href = combinedProjectsHref(segment.projects.map((project) => project.id));
+          const isOverCombineLimit = count > COMBINE_PROJECT_LIMIT;
+
+          const summary = (
+            <>
+              <span className="donut-chart__legend-label">
+                <i className={`chart-swatch chart-tone--${segment.tone}`} />
+                {segment.label}
+              </span>
+              <strong>{count}</strong>
+              <small>
+                {segment.detail}
+                {isOverCombineLimit
+                  ? ` · Select up to ${COMBINE_PROJECT_LIMIT} in Projects to combine`
+                  : ""}
+              </small>
+            </>
+          );
+
+          return (
+            <div className="donut-chart__legend-row" key={segment.label}>
+              {href ? (
+                <Link
+                  className="donut-chart__legend-link"
+                  href={href}
+                  aria-label={`Open Combined Project Report for ${count} ${segment.label.toLowerCase()} project${count === 1 ? "" : "s"}`}
+                >
+                  {summary}
+                </Link>
+              ) : (
+                <div className="donut-chart__legend-summary">{summary}</div>
+              )}
+
+              {count > 0 ? (
+                <div className="donut-chart__projects" role="tooltip">
+                  <strong>Projects in this margin band</strong>
+                  {segment.projects.map((project) => (
+                    <span key={project.id}>
+                      {project.projectNumber
+                        ? `${project.projectNumber} \u00b7 ${project.name}`
+                        : project.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -209,15 +298,29 @@ export type { ProfitabilityRow } from "@/components/profitability-chart-types";
 
 export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
   const availableRows = rows.filter((row) => finite(row.profit));
-  const maximum = Math.max(...availableRows.map((row) => Math.abs(row.profit ?? 0)), 1);
   if (!availableRows.length)
     return <div className="chart-empty">No profit or loss positions are available.</div>;
+
+  const maximumProfit = Math.max(...availableRows.map((row) => Math.max(row.profit ?? 0, 0)), 0);
+  const maximumLoss = Math.max(...availableRows.map((row) => Math.max(-(row.profit ?? 0), 0)), 0);
+
+  const lossLanePercent =
+    maximumLoss > 0
+      ? Math.min(30, Math.max(10, (maximumLoss / Math.max(maximumLoss + maximumProfit, 1)) * 100))
+      : 7;
+
+  const profitLanePercent = 100 - lossLanePercent;
+
+  const chartStyle = {
+    "--diverging-loss-lane": `${lossLanePercent}%`,
+  } as CSSProperties;
 
   return (
     <div
       className="diverging-profit"
       role="img"
       aria-label="Forecast profit and loss by operational group"
+      style={chartStyle}
     >
       <div className="diverging-profit__axis" aria-hidden="true">
         <span>Loss</span>
@@ -227,7 +330,14 @@ export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
       <div className="diverging-profit__rows">
         {availableRows.map((row) => {
           const profit = row.profit ?? 0;
-          const width = Math.max((Math.abs(profit) / maximum) * 50, profit === 0 ? 0 : 2);
+          const width =
+            profit < 0
+              ? maximumLoss > 0
+                ? Math.max((Math.abs(profit) / maximumLoss) * lossLanePercent, 2)
+                : 0
+              : maximumProfit > 0
+                ? Math.max((profit / maximumProfit) * profitLanePercent, profit === 0 ? 0 : 2)
+                : 0;
           return (
             <div className="diverging-profit__row" key={row.label}>
               <div className="diverging-profit__label">
@@ -305,7 +415,7 @@ export function OperationalBreakdown({ rows }: { rows: ProfitabilityRow[] }) {
                 <td>
                   <strong>{row.label}</strong>
                 </td>
-                <td>{row.projectCount ?? "—"}</td>
+                <td>{row.projectCount ?? "\u2014"}</td>
                 <td>{finite(row.revenue) ? compactCurrency(row.revenue) : "Missing"}</td>
                 <td>{finite(row.cost) ? compactCurrency(row.cost) : "Missing"}</td>
                 <td
@@ -346,7 +456,7 @@ function AnalysisTakeaway({ rows }: { rows: ProfitabilityRow[] }) {
   return (
     <aside className="analysis-takeaway">
       <span className="analysis-takeaway__icon" aria-hidden="true">
-        ↗
+        <PrologueMark height={28} className="analysis-takeaway__mark" />
       </span>
       <div>
         <strong>Key takeaway</strong>
@@ -384,13 +494,12 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
           <tr>
             <th>Project</th>
             <th>Client</th>
-            <th>Health</th>
+            <th>Margin</th>
             <th>Forecast profit</th>
-            <th>Margin / ceiling</th>
             <th>Logged hours</th>
             <th>vs. estimate</th>
             <th>Task completion</th>
-            <th>Quality</th>
+            <th>Data Issues</th>
           </tr>
         </thead>
         <tbody>
@@ -398,31 +507,24 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
             const estimateHours = project.canonicalEstimatedMinutes / 60;
             const loggedHours = project.loggedMinutes / 60;
             const effortPercent = estimateHours > 0 ? (loggedHours / estimateHours) * 100 : null;
-            const healthLabel =
-              project.healthBand === "GREEN"
-                ? "Healthy"
-                : project.healthBand === "AMBER"
-                  ? "At risk"
-                  : project.healthBand === "RED"
-                    ? "Unhealthy"
-                    : "N/A";
             return (
               <tr key={project.id}>
                 <td>
                   <Link className="project-link" href={`/projects/${project.id}`}>
                     <strong>
-                      {project.projectNumber ? `${project.projectNumber} · ` : ""}
+                      {project.projectNumber ? `${project.projectNumber} \u00b7 ` : ""}
                       {project.name.replace(`${project.projectNumber} - `, "")}
                     </strong>
                   </Link>
                 </td>
-                <td>{project.companyName ?? "—"}</td>
+                <td>{project.companyName ?? "\u2014"}</td>
                 <td>
-                  <span
-                    className={`project-health-label project-health-label--${project.healthBand.toLowerCase()}`}
-                  >
-                    {healthLabel}
-                  </span>
+                  <MarginBadge value={project.forecastMarginPercent} />
+                  {project.isProvisional ? (
+                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
+                  ) : (
+                    <small className="table-subvalue">Forecast</small>
+                  )}
                 </td>
                 <td
                   className={
@@ -433,32 +535,29 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
                 >
                   {money(project.forecastProfit)}
                 </td>
-                <td>
-                  {percent(project.forecastMarginPercent, 2)}
-                  {project.isProvisional ? (
-                    <small className="table-subvalue table-subvalue--warning">Ceiling</small>
-                  ) : null}
-                </td>
+
                 <td>{hours(project.loggedMinutes)}</td>
                 <td>{effortPercent === null ? "N/A" : `${effortPercent.toFixed(0)}%`}</td>
                 <td>{percent(project.progressPercent)}</td>
                 <td>
-                  <span
-                    className={
-                      project.dataQualityIssueCount
-                        ? "issue-count issue-count--warning"
-                        : "issue-count"
-                    }
-                  >
-                    {project.dataQualityIssueCount}
-                  </span>
+                  {project.dataQualityIssueCount ? (
+                    <Link
+                      className="issue-count issue-count--warning issue-count--link"
+                      href={`/help/teamwork-issues?project=${project.id}&scope=DATA_ISSUES`}
+                      aria-label={`View ${project.dataQualityIssueCount} data issues for ${project.name}`}
+                    >
+                      {project.dataQualityIssueCount}
+                    </Link>
+                  ) : (
+                    <span className="issue-count">0</span>
+                  )}
                 </td>
               </tr>
             );
           })}
           {!sorted.length ? (
             <tr>
-              <td className="empty-state" colSpan={9}>
+              <td className="empty-state" colSpan={8}>
                 No projects are available in this report.
               </td>
             </tr>
@@ -472,16 +571,18 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
 export function PortfolioAnalysisDisclosure({
   rows,
   projects = [],
+  showProjectAttention = true,
 }: {
   rows: ProfitabilityRow[];
   projects?: ProjectReportRow[];
+  showProjectAttention?: boolean;
 }) {
   return (
     <section className="additional-data-views" aria-labelledby="additional-data-title">
       <div className="additional-data-views__heading">
         <div>
           <p className="eyebrow">Decision support</p>
-          <h3 id="additional-data-title">Portfolio Insights & Attention</h3>
+          <h3 id="additional-data-title">Company Insights & Attention</h3>
         </div>
         <span>
           Open a focused view to investigate profit drivers, risk, and project-level performance.
@@ -521,46 +622,53 @@ export function PortfolioAnalysisDisclosure({
         </div>
       </details>
 
-      <details className="analysis-disclosure analysis-disclosure--single">
-        <summary>
-          <span>
-            <strong>Project Attention Register</strong>
-            <small>
-              Review project-level profitability, effort consumption, health, and data quality.
-            </small>
-          </span>
-          <i aria-hidden="true" />
-        </summary>
-        <div className="analysis-disclosure__content analysis-disclosure__content--single">
-          <section className="analysis-card analysis-card--table">
-            <ProjectPerformanceDetails projects={projects} />
-          </section>
-        </div>
-      </details>
+      {showProjectAttention ? (
+        <details className="analysis-disclosure analysis-disclosure--single">
+          <summary>
+            <span>
+              <strong>Project Attention Register</strong>
+              <small>
+                Review project-level profitability, effort consumption, health, and data quality.
+              </small>
+            </span>
+            <i aria-hidden="true" />
+          </summary>
+          <div className="analysis-disclosure__content analysis-disclosure__content--single">
+            <section className="analysis-card analysis-card--table">
+              <ProjectPerformanceDetails projects={projects} />
+            </section>
+          </div>
+        </details>
+      ) : null}
     </section>
   );
 }
 
 export function CostPerformanceChart({
   rows,
-  emptyMessage = "No group target costs are available.",
+  emptyMessage = "No operational group cost data is available.",
 }: {
   rows: Array<{
     label: string;
     target: number | null;
+    targetCoverage: "COMPLETE" | "PARTIAL" | "MISSING" | "NOT_EXPECTED";
     actual: number | null;
     forecast: number | null;
+    progressPercent: number | null;
   }>;
   emptyMessage?: string;
 }) {
-  const availableRows = rows.filter((row) => finite(row.target) && row.target > 0);
-  if (!availableRows.length) return <div className="chart-empty">{emptyMessage}</div>;
+  if (!rows.length) return <div className="chart-empty">{emptyMessage}</div>;
+
+  const hasCompleteTarget = rows.some(
+    (row) => row.targetCoverage === "COMPLETE" && finite(row.target) && row.target > 0,
+  );
 
   return (
     <div
       className="cost-performance-chart"
-      role="img"
-      aria-label="Operational group cost performance against target"
+      role="group"
+      aria-label="Operational group actual cost, remaining work, forecast cost, and planned cost target"
     >
       <div className="chart-legend" aria-hidden="true">
         <span>
@@ -571,86 +679,197 @@ export function CostPerformanceChart({
           <i className="chart-swatch chart-tone--amber" />
           Costed remaining work
         </span>
-        <span>
-          <i className="cost-performance__target-key" />
-          Target cost
-        </span>
+        {hasCompleteTarget ? (
+          <>
+            <span>
+              <i className="chart-swatch cost-performance__headroom-key" />
+              Target headroom
+            </span>
+            <span>
+              <i className="chart-swatch cost-performance__overrun-key" />
+              Above target
+            </span>
+            <span>
+              <i className="cost-performance__target-key" />
+              Planned target
+            </span>
+          </>
+        ) : null}
       </div>
+
       <div className="cost-performance__rows">
         {rows.map((row) => {
-          if (!finite(row.target) || row.target <= 0) {
-            return (
-              <div className="cost-performance__row" key={row.label}>
-                <div className="cost-performance__heading">
-                  <strong>{row.label}</strong>
-                  <span>Target cost missing</span>
-                </div>
-                <div className="cost-performance__missing">
-                  Add a task-list target cost to compare performance.
-                </div>
-              </div>
-            );
+          const actualKnown = finite(row.actual);
+          const forecastKnown = finite(row.forecast);
+
+          const actual = actualKnown ? Math.max(row.actual ?? 0, 0) : 0;
+          const forecast = forecastKnown ? Math.max(row.forecast ?? actual, actual) : actual;
+          const remainingKnown = actualKnown && forecastKnown;
+          const remaining = remainingKnown ? Math.max(forecast - actual, 0) : 0;
+
+          const knownTarget = finite(row.target) && row.target > 0 ? row.target : null;
+          const targetComparable = row.targetCoverage === "COMPLETE" && knownTarget !== null;
+          const partialTarget = row.targetCoverage === "PARTIAL" && knownTarget !== null;
+          const displayedTarget = targetComparable || partialTarget ? knownTarget : null;
+          const isComplete = finite(row.progressPercent) && row.progressPercent >= 100;
+
+          const scale =
+            targetComparable && knownTarget !== null
+              ? Math.max(knownTarget * 1.12, forecast * 1.03, actual * 1.03, 1)
+              : Math.max(forecast, actual, 1);
+
+          const actualWithinTarget =
+            targetComparable && knownTarget !== null ? Math.min(actual, knownTarget) : actual;
+
+          const forecastWithinTarget =
+            targetComparable && knownTarget !== null ? Math.min(forecast, knownTarget) : forecast;
+
+          const remainingWithinTarget = Math.max(forecastWithinTarget - actualWithinTarget, 0);
+
+          const actualWidth = (actualWithinTarget / scale) * 100;
+          const remainingLeft = (actualWithinTarget / scale) * 100;
+          const remainingWidth = (remainingWithinTarget / scale) * 100;
+
+          const targetPosition =
+            targetComparable && knownTarget !== null ? (knownTarget / scale) * 100 : null;
+
+          const headroom =
+            targetComparable && knownTarget !== null ? Math.max(knownTarget - forecast, 0) : 0;
+          const headroomLeft = (forecast / scale) * 100;
+          const headroomWidth = (headroom / scale) * 100;
+
+          const overrun =
+            targetComparable && knownTarget !== null ? Math.max(forecast - knownTarget, 0) : 0;
+          const overrunLeft =
+            targetComparable && knownTarget !== null ? (knownTarget / scale) * 100 : 0;
+          const overrunWidth = (overrun / scale) * 100;
+
+          const variance =
+            targetComparable && knownTarget !== null && forecastKnown
+              ? knownTarget - forecast
+              : null;
+
+          let status = "No planned target";
+          let statusTone: "neutral" | "favorable" | "unfavorable" = "neutral";
+
+          if (row.targetCoverage === "PARTIAL") {
+            status = "Planned target incomplete";
           }
 
-          const actualValue = row.actual;
-          const forecastValue = row.forecast;
-          const actualKnown = finite(actualValue);
-          const forecastKnown = finite(forecastValue);
-          const actual = actualKnown ? Math.max(actualValue, 0) : 0;
-          const forecast = forecastKnown ? Math.max(forecastValue, actual) : actual;
-          const scale = Math.max(row.target, forecast, actual, 1);
-          const targetPosition = (row.target / scale) * 100;
-          const actualWidth = (Math.min(actual, scale) / scale) * 100;
-          const remainingWidth = (Math.max(forecast - actual, 0) / scale) * 100;
-          const variance = forecastKnown ? row.target - forecast : null;
-          const status =
-            variance === null
-              ? "Forecast cost missing"
-              : variance >= 0
-                ? `${compactCurrency(variance)} under target`
-                : `${compactCurrency(Math.abs(variance))} over target`;
-          const statusTone =
-            variance === null ? "neutral" : variance >= 0 ? "favorable" : "unfavorable";
+          if (targetComparable && knownTarget !== null) {
+            if (!forecastKnown) {
+              status = "Forecast cost missing";
+            }
+
+            if (!isComplete && actualKnown && actual > knownTarget) {
+              status = "Already " + compactCurrency(actual - knownTarget) + " over target";
+              statusTone = "unfavorable";
+            } else if (forecastKnown && variance !== null && variance > 0.005) {
+              status = isComplete
+                ? "Came in " + compactCurrency(variance) + " under target"
+                : "Forecast " + compactCurrency(variance) + " under target";
+              statusTone = "favorable";
+            } else if (forecastKnown && variance !== null && variance < -0.005) {
+              status = isComplete
+                ? "Came in " + compactCurrency(Math.abs(variance)) + " over target"
+                : "Forecast " + compactCurrency(Math.abs(variance)) + " over target";
+              statusTone = "unfavorable";
+            } else if (forecastKnown && variance !== null) {
+              status = isComplete ? "Came in on target" : "Forecast on target";
+              statusTone = "favorable";
+            }
+          }
 
           return (
             <div className="cost-performance__row" key={row.label}>
               <div className="cost-performance__heading">
                 <strong>{row.label}</strong>
                 <span
-                  className={`cost-performance__status cost-performance__status--${statusTone}`}
+                  className={"cost-performance__status cost-performance__status--" + statusTone}
                 >
                   {status}
                 </span>
               </div>
+
               <div className="cost-performance__track" aria-hidden="true">
+                {headroom > 0 ? (
+                  <span
+                    className="cost-performance__headroom"
+                    style={
+                      {
+                        "--cost-left": String(headroomLeft) + "%",
+                        "--cost-width": String(headroomWidth) + "%",
+                      } as CSSProperties
+                    }
+                  />
+                ) : null}
+
                 <span
                   className="cost-performance__actual"
-                  style={{ "--cost-width": `${actualWidth}%` } as CSSProperties}
-                />
-                <span
-                  className="cost-performance__remaining"
                   style={
                     {
-                      "--cost-left": `${actualWidth}%`,
-                      "--cost-width": `${remainingWidth}%`,
+                      "--cost-width": String(actualWidth) + "%",
                     } as CSSProperties
                   }
                 />
-                <span
-                  className="cost-performance__target"
-                  style={{ "--target-position": `${targetPosition}%` } as CSSProperties}
-                />
+
+                {remainingWidth > 0 ? (
+                  <span
+                    className="cost-performance__remaining"
+                    style={
+                      {
+                        "--cost-left": String(remainingLeft) + "%",
+                        "--cost-width": String(remainingWidth) + "%",
+                      } as CSSProperties
+                    }
+                  />
+                ) : null}
+
+                {overrun > 0 ? (
+                  <span
+                    className="cost-performance__overrun"
+                    style={
+                      {
+                        "--cost-left": String(overrunLeft) + "%",
+                        "--cost-width": String(overrunWidth) + "%",
+                      } as CSSProperties
+                    }
+                  />
+                ) : null}
+
+                {targetPosition !== null ? (
+                  <span
+                    className="cost-performance__target"
+                    style={
+                      {
+                        "--target-position": String(targetPosition) + "%",
+                      } as CSSProperties
+                    }
+                  />
+                ) : null}
               </div>
+
               <div className="cost-performance__values">
                 <span>
-                  Actual <strong>{actualKnown ? compactCurrency(actual) : "Missing"}</strong>
+                  Actual
+                  <strong>{actualKnown ? compactCurrency(actual) : "Missing"}</strong>
                 </span>
+
                 <span>
-                  Forecast{" "}
-                  <strong>{forecastKnown ? compactCurrency(forecastValue) : "Missing"}</strong>
+                  Remaining
+                  <strong>{remainingKnown ? compactCurrency(remaining) : "Missing"}</strong>
                 </span>
+
                 <span>
-                  Target <strong>{compactCurrency(row.target)}</strong>
+                  Forecast
+                  <strong>{forecastKnown ? compactCurrency(forecast) : "Missing"}</strong>
+                </span>
+
+                <span>
+                  {partialTarget ? "Known target" : "Target"}
+                  <strong>
+                    {displayedTarget !== null ? compactCurrency(displayedTarget) : "N/A"}
+                  </strong>
                 </span>
               </div>
             </div>

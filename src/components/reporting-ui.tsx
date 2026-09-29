@@ -6,7 +6,8 @@ import {
   type HealthBand,
   type ProjectReportRow,
 } from "@/lib/reporting/dashboard-data";
-import { hours, money, percent } from "@/lib/reporting/format";
+import { hours, money } from "@/lib/reporting/format";
+import { marginTone } from "@/lib/reporting/margin-status";
 
 export function HealthBadge({ band, score }: { band: HealthBand; score: string | number | null }) {
   const parsed = score === null || score === "" ? null : Number(score);
@@ -26,6 +27,38 @@ export function HealthBadge({ band, score }: { band: HealthBand; score: string |
       {label}
     </span>
   );
+}
+
+export function MarginBadge({
+  value,
+  digits = 1,
+}: {
+  value: string | number | null | undefined;
+  digits?: number;
+}) {
+  const tone = marginTone(value);
+  const parsed = value === null || value === undefined || value === "" ? null : Number(value);
+  const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : "N/A";
+
+  return (
+    <span className={`margin-badge margin-badge--${tone}`} aria-label={`Margin ${label}`}>
+      {label}
+    </span>
+  );
+}
+
+export function MarginText({
+  value,
+  digits = 1,
+}: {
+  value: string | number | null | undefined;
+  digits?: number;
+}) {
+  const tone = marginTone(value);
+  const parsed = value === null || value === undefined || value === "" ? null : Number(value);
+  const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : "N/A";
+
+  return <span className={`margin-text margin-text--${tone}`}>{label}</span>;
 }
 
 export function CoverageBadge({ value }: { value: Coverage }) {
@@ -141,13 +174,12 @@ export function ProjectTable({
           <tr>
             {selectable ? <th aria-label="Select project">Select</th> : null}
             <th>Project</th>
-            <th>Health</th>
-            <th>Actual Cost</th>
-            <th>Remaining Work</th>
             <th>Forecasted Profit</th>
-            <th>Margin</th>
+            <th>Current Margin</th>
+            <th>Remaining Work</th>
+            <th>Actual Costs</th>
             <th>Hours</th>
-            <th>Quality</th>
+            <th>Data Issues</th>
           </tr>
         </thead>
         <tbody>
@@ -161,16 +193,14 @@ export function ProjectTable({
                 ? row.name.slice(projectPrefix.length)
                 : row.name;
             return (
-              <tr
-                className={`project-table__row project-table__row--${row.healthBand.toLowerCase()}`}
-                key={row.id}
-              >
+              <tr className="project-table__row" key={row.id}>
                 {selectable ? (
                   <td>
                     <input
                       type="checkbox"
                       name="project"
                       value={row.id}
+                      data-project-label={row.name}
                       defaultChecked={selectedProjectIds.includes(row.id)}
                       aria-label={`Select ${row.name}`}
                     />
@@ -198,17 +228,6 @@ export function ProjectTable({
                     ) : null}
                   </div>
                 </td>
-                <td>
-                  <HealthBadge band={row.healthBand} score={row.healthScore} />
-                </td>
-                <td className="project-table__money">
-                  <strong>{money(row.actualTotalCost)}</strong>
-                  <small className="table-subvalue">Cost to date</small>
-                </td>
-                <td className="project-table__money">
-                  <strong>{money(remaining)}</strong>
-                  <small className="table-subvalue">Costed work</small>
-                </td>
                 <td className={`project-table__money project-table__money--${profitTone}`}>
                   <strong>{money(row.forecastProfit)}</strong>
                   <small className="table-subvalue">
@@ -216,12 +235,20 @@ export function ProjectTable({
                   </small>
                 </td>
                 <td>
-                  <strong>{percent(row.forecastMarginPercent, 1)}</strong>
+                  <MarginBadge value={row.forecastMarginPercent} />
                   {row.isProvisional ? (
                     <small className="table-subvalue table-subvalue--warning">Ceiling</small>
                   ) : (
-                    <small className="table-subvalue">Forecast</small>
+                    <small className="table-subvalue">Current forecast</small>
                   )}
+                </td>
+                <td className="project-table__money">
+                  <strong>{money(remaining)}</strong>
+                  <small className="table-subvalue">Costed work</small>
+                </td>
+                <td className="project-table__money">
+                  <strong>{money(row.actualTotalCost)}</strong>
+                  <small className="table-subvalue">Cost to date</small>
                 </td>
                 <td>
                   {hours(row.loggedMinutes)}
@@ -230,20 +257,24 @@ export function ProjectTable({
                   </small>
                 </td>
                 <td>
-                  <span
-                    className={
-                      row.dataQualityIssueCount ? "issue-count issue-count--warning" : "issue-count"
-                    }
-                  >
-                    {row.dataQualityIssueCount}
-                  </span>
+                  {row.dataQualityIssueCount ? (
+                    <Link
+                      className="issue-count issue-count--warning issue-count--link"
+                      href={`/help/teamwork-issues?project=${row.id}&scope=DATA_ISSUES`}
+                      aria-label={`View ${row.dataQualityIssueCount} data issues for ${row.name}`}
+                    >
+                      {row.dataQualityIssueCount}
+                    </Link>
+                  ) : (
+                    <span className="issue-count">0</span>
+                  )}
                 </td>
               </tr>
             );
           })}
           {!rows.length ? (
             <tr>
-              <td colSpan={selectable ? 9 : 8} className="empty-state">
+              <td colSpan={selectable ? 8 : 7} className="empty-state">
                 No projects match these filters.
               </td>
             </tr>

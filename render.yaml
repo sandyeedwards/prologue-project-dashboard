@@ -47,3 +47,38 @@ services:
 
       - key: DASHBOARD_BOOTSTRAP_ADMIN_EMAILS
         sync: false
+
+      - key: HUBSPOT_ACCESS_TOKEN
+        sync: false
+
+      - key: HUBSPOT_PORTAL_ID
+        sync: false
+
+      - key: HUBSPOT_LIST_API_VERSION
+        value: "2026-03"
+
+  - type: cron
+    name: prologue-hosting-sync-staging
+    runtime: node
+    region: virginia
+    branch: develop
+    autoDeployTrigger: checksPass
+    schedule: "17 */6 * * *"
+    buildCommand: npm ci --include=dev
+    startCommand: npm run hosting:sync
+
+    envVars:
+      - key: APP_ENV
+        value: test
+
+      - key: DATABASE_URL
+        sync: false
+
+      - key: HUBSPOT_ACCESS_TOKEN
+        sync: false
+
+      - key: HUBSPOT_PORTAL_ID
+        sync: false
+
+      - key: HUBSPOT_LIST_API_VERSION
+        value: "2026-03"

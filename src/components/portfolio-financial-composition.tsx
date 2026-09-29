@@ -81,17 +81,18 @@ function CompositionRow({
   row,
   maximumOverrunRatio,
   hero = false,
+  showHeroMetrics = true,
 }: {
   row: ProfitabilityRow;
   maximumOverrunRatio: number;
   hero?: boolean;
+  showHeroMetrics?: boolean;
 }) {
   const tooltipId = useId();
   const plotRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
   const values = resolveRow(row);
-  const revenueBoundary =
-    maximumOverrunRatio > 0 ? Math.max(62, 100 / (1 + Math.min(maximumOverrunRatio, 0.6))) : 100;
+  const revenueBoundary = maximumOverrunRatio > 0 ? 94 : 100;
   const revenue = values.revenue;
   const actualRatio = revenue > 0 ? values.actual / revenue : 0;
   const remainingRatio = revenue > 0 ? values.remaining / revenue : 0;
@@ -149,25 +150,27 @@ function CompositionRow({
   };
 
   return (
-    <div className={`portfolio-composition__row${hero ? " portfolio-composition__row--hero" : ""}`}>
+    <div
+      className={`portfolio-composition__row${hero ? " portfolio-composition__row--hero" : ""}${hero && !showHeroMetrics ? " portfolio-composition__row--compact-hero" : ""}`}
+    >
       <div className="portfolio-composition__identity">
         <strong>{row.label}</strong>
         {row.detail ? <small>{row.detail}</small> : null}
       </div>
 
-      {hero ? (
+      {hero && showHeroMetrics ? (
         <div className="portfolio-composition__hero-metrics" aria-hidden="true">
           <span>
             <small>Actual Cost to Date</small>
-            <strong>{compactCurrency(values.actual)}</strong>
+            <strong>{fullCurrency(values.actual)}</strong>
           </span>
           <span>
             <small>Costed Remaining Work</small>
-            <strong>{compactCurrency(values.remaining)}</strong>
+            <strong>{fullCurrency(values.remaining)}</strong>
           </span>
           <span className={values.profit < 0 ? "is-loss" : "is-profit"}>
             <small>{values.profit < 0 ? "Forecast Loss" : "Forecasted Profit"}</small>
-            <strong>{compactCurrency(values.profit)}</strong>
+            <strong>{fullCurrency(values.profit)}</strong>
           </span>
           <span>
             <small>Forecast Margin</small>
@@ -272,10 +275,12 @@ function CompositionRow({
 export function PortfolioFinancialComposition({
   rows,
   variant = "groups",
+  showHeroMetrics = true,
   emptyMessage = "No complete financial position is available.",
 }: {
   rows: ProfitabilityRow[];
   variant?: "total" | "groups";
+  showHeroMetrics?: boolean;
   emptyMessage?: string;
 }) {
   const available = rows.filter(
@@ -319,6 +324,7 @@ export function PortfolioFinancialComposition({
             row={row}
             maximumOverrunRatio={maximumOverrunRatio}
             hero={variant === "total"}
+            showHeroMetrics={showHeroMetrics}
           />
         ))}
       </div>

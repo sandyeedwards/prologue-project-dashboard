@@ -21,7 +21,7 @@ const RANGE_OPTIONS: RangeOption[] = [
   { id: "3M", label: "3 months", months: 3 },
   { id: "6M", label: "6 months", months: 6 },
   { id: "1Y", label: "1 year", years: 1 },
-  { id: "LIFE", label: "Unlimited" },
+  { id: "LIFE", label: "All data" },
   { id: "CUSTOM", label: "Custom" },
 ];
 
@@ -157,18 +157,30 @@ function rangeBounds(
   const sorted = [...points].sort((left, right) => left.date.localeCompare(right.date));
   const latestDataDate = sorted[sorted.length - 1].date;
   const earliestEventDate = sorted[0].date;
+  const earliestMeaningfulDate =
+    sorted.find(
+      (point) =>
+        point.projectCount > 0 ||
+        point.grossRevenue !== 0 ||
+        point.actualCostToDate !== 0 ||
+        point.anticipatedCostToDate !== 0 ||
+        point.netProfitToDate !== 0 ||
+        point.forecastNetProfitToDate !== 0,
+    )?.date ?? earliestEventDate;
   const option = RANGE_OPTIONS.find((item) => item.id === range) ?? RANGE_OPTIONS[0];
   const to = option.id === "CUSTOM" && customRange ? customRange.to : latestDataDate;
   const from =
     option.id === "CUSTOM" && customRange
       ? customRange.from
-      : option.id === "LIFE" || option.id === "CUSTOM"
-        ? shiftDays(earliestEventDate, -1)
-        : option.months
-          ? subtractCalendarMonths(to, option.months)
-          : option.years
-            ? subtractCalendarYears(to, option.years)
-            : shiftDays(to, -(option.days ?? 30));
+      : option.id === "LIFE"
+        ? earliestMeaningfulDate
+        : option.id === "CUSTOM"
+          ? shiftDays(earliestEventDate, -1)
+          : option.months
+            ? subtractCalendarMonths(to, option.months)
+            : option.years
+              ? subtractCalendarYears(to, option.years)
+              : shiftDays(to, -(option.days ?? 30));
   return { from, to };
 }
 
@@ -378,7 +390,7 @@ export function HistoricalRevenueProfitChart({
     return (
       <div className="historical-profit-chart historical-profit-chart--empty">
         <div className="chart-empty">
-          No project financial history is available for the current portfolio selection.
+          No project financial history is available for the current selection.
         </div>
       </div>
     );
@@ -735,7 +747,7 @@ export function HistoricalRevenueProfitChart({
             className="historical-profit-chart__svg"
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             role="img"
-            aria-label={`Filtered portfolio gross revenue, actual cost to date, anticipated cost, net profit to date, and forecasted net profit from ${formatDate(visiblePoints[0].date)} through ${formatDate(visiblePoints[visiblePoints.length - 1].date)}`}
+            aria-label={`Filtered company gross revenue, actual cost to date, anticipated cost, net profit to date, and forecasted net profit from ${formatDate(visiblePoints[0].date)} through ${formatDate(visiblePoints[visiblePoints.length - 1].date)}`}
           >
             {model.yTicks.map((value) => {
               const y = model.y(value);
@@ -967,7 +979,7 @@ export function HistoricalRevenueProfitChart({
             >
               <div className="historical-profit-chart__tooltip-header">
                 <strong>{formatDate(hoveredPoint.date)}</strong>
-                <span>Filtered portfolio</span>
+                <span>Filtered company view</span>
               </div>
               <dl>
                 <div>

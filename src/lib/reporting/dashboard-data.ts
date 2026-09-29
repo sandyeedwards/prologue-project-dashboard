@@ -26,6 +26,7 @@ export type ProjectReportRow = {
   forecastProfit: string | null;
   forecastMarginPercent: string | null;
   canonicalEstimatedMinutes: number;
+  plannedLoggedMinutes: number | null;
   loggedMinutes: number;
   unplannedLoggedMinutes: number;
   completedTaskCount: number;
@@ -150,10 +151,132 @@ export type UnplannedWorkRow = {
   laborCost: string | null;
   firstLoggedDate: string | null;
   lastLoggedDate: string | null;
+  lastDetectedAt: Date;
   isDismissed: boolean;
   dismissedAt: Date | null;
   dismissedByName: string | null;
 };
+
+export type TeamworkIssueStatus = "OPEN" | "REVIEWED";
+export type TeamworkIssueResolutionPath = "TEAMWORK_REQUIRED" | "TEAMWORK_OR_REVIEW";
+
+export type TeamworkIssueCenterRow = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  projectNumber: string | null;
+  companyName: string | null;
+  projectStatus: string;
+  taskId: string | null;
+  taskListName: string | null;
+  taskName: string | null;
+  severity: "INFO" | "WARNING" | "ERROR";
+  code: string;
+  message: string;
+  lastDetectedAt: Date;
+  recommendedAction: string;
+  status: TeamworkIssueStatus;
+  resolutionPath: TeamworkIssueResolutionPath;
+  teamworkUrl: string | null;
+  details: Record<string, unknown> | null;
+  evidence: QualityIssueEvidenceRow[];
+  reviewedAt: Date | null;
+  reviewedByName: string | null;
+};
+export type TeamworkSyncDiagnosticRow = {
+  id: string;
+  syncRunId: string;
+  severity: "INFO" | "WARNING" | "ERROR";
+  entityType: string | null;
+  teamworkEntityId: number | null;
+  code: string;
+  message: string;
+  details: Record<string, unknown> | null;
+  createdAt: Date;
+};
+
+export type TeamworkSyncDiagnostics = {
+  runId: string;
+  kind: "INITIAL_IMPORT" | "NIGHTLY" | "MANUAL" | "SNAPSHOT";
+  status: "RUNNING" | "SUCCEEDED" | "SUCCEEDED_WITH_WARNINGS" | "FAILED";
+  startedAt: Date;
+  completedAt: Date | null;
+  recordsRead: number;
+  warnings: number;
+  errors: number;
+  diagnostics: TeamworkSyncDiagnosticRow[];
+};
+
+function teamworkIssueGuidance(code: string): {
+  recommendedAction: string;
+  resolutionPath: TeamworkIssueResolutionPath;
+} {
+  switch (code) {
+    case "UNPLANNED_ACTUAL_WORK":
+      return {
+        recommendedAction:
+          "Confirm the logged time is intentionally unplanned, or add a top-level estimate in Teamwork.",
+        resolutionPath: "TEAMWORK_OR_REVIEW",
+      };
+    case "MISSING_TASK_ASSIGNMENT":
+      return {
+        recommendedAction:
+          "Assign the remaining work to an individual or job role in Teamwork so forecast labor can be costed.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "NON_COSTED_ASSIGNMENT_UNRESOLVED":
+      return {
+        recommendedAction:
+          "Replace or supplement the team/company-only assignment with a costed individual or job role in Teamwork.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "MISSING_JOB_ROLE_COST_RATE":
+      return {
+        recommendedAction: "Add or correct the Teamwork cost rate for the assigned job role.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "MISSING_EMPLOYEE_COST_RATE":
+      return {
+        recommendedAction: "Add or correct the Teamwork cost rate for the assigned employee.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "TASK_LIST_BUDGET_COVERAGE_INCOMPLETE":
+      return {
+        recommendedAction:
+          "Complete the missing task-list target costs in the current Teamwork project budget.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "PROJECT_BUDGET_MISSING":
+      return {
+        recommendedAction:
+          "Create or correct the current fixed-fee project budget in Teamwork Finance.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "UNALLOCATED_PROJECT_TIME":
+      return {
+        recommendedAction:
+          "Move project-level time to the appropriate Teamwork task so it can be attributed to a task and operational group.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "ACTUAL_LABOR_COST_INCOMPLETE":
+      return {
+        recommendedAction:
+          "Correct the affected Teamwork cost data or underlying user cost rate, then rerun the sync.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    case "OUTSOURCED_EXPENSE_MISSING":
+      return {
+        recommendedAction: "Add the matching outsourced modeling expense in Teamwork Finance.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+    default:
+      return {
+        recommendedAction:
+          "Review the source record in Teamwork and correct the reported data issue.",
+        resolutionPath: "TEAMWORK_REQUIRED",
+      };
+  }
+}
 
 export type EmployeeLaborRow = {
   personId: string;
@@ -172,6 +295,10 @@ export type ProjectFilter = {
   health?: string;
   status?: string;
   type?: string;
+  clients?: string[];
+  healths?: string[];
+  statuses?: string[];
+  types?: string[];
   provisional?: string;
   sort?: string;
   projectIds?: string[];
@@ -180,7 +307,7 @@ export type ProjectFilter = {
 };
 
 export type PortfolioOperationalGroupRow = {
-  groupName: "Fieldwork" | "Mobilization" | "Modeling" | "Ready Set" | "DataHall" | "Other";
+  groupName: "Fieldwork" | "Mobilization" | "Modeling" | "Admin" | "Unclassified";
   projectCount: number;
   allocatedRevenue: number;
   actualCostToDate: number | null;
@@ -194,16 +321,28 @@ export type PortfolioOperationalGroupRow = {
   allocationMethods: string[];
 };
 
-export const PROJECT_TYPE_ORDER = ["Scanning", "Modeling", "Ready Set", "DataHall"] as const;
+export const PROJECT_TYPE_ORDER = [
+  "Scanning & Modeling",
+  "Scanning",
+  "Modeling",
+  "Ready Set",
+  "DataHall",
+] as const;
 
 export function getProjectTypeFacets(
   row: Pick<ProjectReportRow, "projectType" | "tags">,
 ): string[] {
+  const sourceTagKeys = new Set(
+    row.tags
+      .filter((value): value is string => Boolean(value))
+      .map((value) => normalizeTeamworkLabel(value)),
+  );
   const keys = new Set(
     [...row.tags, row.projectType]
       .filter((value): value is string => Boolean(value))
       .map((value) => normalizeTeamworkLabel(value)),
   );
+
   const isReadySet = keys.has("readyset");
   const isDataHall = keys.has("datahall");
   const hasScanning =
@@ -212,7 +351,13 @@ export function getProjectTypeFacets(
     keys.has("scanning") ||
     [...keys].some((key) => key.includes("scanning"));
   const hasModeling = keys.has("modeling") || [...keys].some((key) => key.includes("modeling"));
+
+  // The combined category is intentionally stricter than the individual
+  // facets: it must come from both explicit Teamwork source tags.
+  const hasScanningAndModeling = sourceTagKeys.has("scanning") && sourceTagKeys.has("modeling");
+
   const facets: string[] = [];
+  if (hasScanningAndModeling) facets.push("Scanning & Modeling");
   if (hasScanning) facets.push("Scanning");
   if (hasModeling) facets.push("Modeling");
   if (isReadySet) facets.push("Ready Set");
@@ -306,6 +451,7 @@ export async function getProjectRows(): Promise<ProjectReportRow[]> {
       pm.forecast_profit as "forecastProfit",
       pm.forecast_margin_percent as "forecastMarginPercent",
       pm.canonical_estimated_minutes as "canonicalEstimatedMinutes",
+      nullif(pm.details ->> 'plannedTaskLinkedMinutes', '')::int as "plannedLoggedMinutes",
       pm.logged_minutes as "loggedMinutes",
       pm.unestimated_logged_minutes as "unplannedLoggedMinutes",
       pm.completed_task_count as "completedTaskCount",
@@ -329,14 +475,9 @@ export async function getProjectRows(): Promise<ProjectReportRow[]> {
     left join lateral (
       select count(*)::int as issue_count
       from data_quality_issues dqi
-      left join unplanned_work_reviews uwr on uwr.task_id = dqi.task_id
       where dqi.project_id = p.id
         and dqi.resolved_at is null
-        and (
-          dqi.code <> 'UNPLANNED_ACTUAL_WORK'
-          or uwr.task_id is null
-          or coalesce((dqi.details ->> 'minutes')::int, 0) > uwr.dismissed_logged_minutes
-        )
+        and dqi.code <> 'UNPLANNED_ACTUAL_WORK'
     ) dq on true
     left join lateral (
       select array_agg(t.name order by t.name) as tags
@@ -369,6 +510,29 @@ function projectOverlapsDateRange(
   return true;
 }
 
+function normalizeProjectFilterSelection(value: string | string[] | undefined): string[] {
+  const selected = Array.isArray(value) ? value : value ? [value] : [];
+  return selected.filter((item) => item !== "ALL");
+}
+
+function matchesProjectFilterValue(
+  value: string | null | undefined,
+  selection: string | string[] | undefined,
+): boolean {
+  const selected = normalizeProjectFilterSelection(selection);
+  if (!selected.length) return true;
+  return value !== null && value !== undefined && selected.includes(value);
+}
+
+function matchesProjectFilterFacets(
+  facets: string[],
+  selection: string | string[] | undefined,
+): boolean {
+  const selected = normalizeProjectFilterSelection(selection);
+  if (!selected.length) return true;
+  return selected.some((value) => facets.includes(value));
+}
+
 export function filterAndSortProjects(
   rows: ProjectReportRow[],
   filter: ProjectFilter,
@@ -383,10 +547,10 @@ export function filterAndSortProjects(
     ) {
       return false;
     }
-    if (filter.client && filter.client !== "ALL" && row.companyName !== filter.client) return false;
-    if (filter.health && filter.health !== "ALL" && row.healthBand !== filter.health) return false;
-    if (filter.status && filter.status !== "ALL" && row.status !== filter.status) return false;
-    if (filter.type && filter.type !== "ALL" && !getProjectTypeFacets(row).includes(filter.type))
+    if (!matchesProjectFilterValue(row.companyName, filter.clients ?? filter.client)) return false;
+    if (!matchesProjectFilterValue(row.healthBand, filter.healths ?? filter.health)) return false;
+    if (!matchesProjectFilterValue(row.status, filter.statuses ?? filter.status)) return false;
+    if (!matchesProjectFilterFacets(getProjectTypeFacets(row), filter.types ?? filter.type))
       return false;
     if (filter.provisional === "YES" && !row.isProvisional) return false;
     if (filter.provisional === "NO" && row.isProvisional) return false;
@@ -884,24 +1048,33 @@ type GroupAccumulator = {
 };
 
 function portfolioGroupName(
-  project: ProjectReportRow,
+  _project: ProjectReportRow,
   groupName: string,
 ): PortfolioOperationalGroupRow["groupName"] {
-  const facets = getProjectTypeFacets(project);
-  if (facets.includes("DataHall")) return "DataHall";
-  if (facets.includes("Ready Set")) return "Ready Set";
   const normalized = normalizeTeamworkLabel(groupName);
-  if (normalized.includes("mobilization")) return "Mobilization";
-  if (normalized.includes("modeling") || normalized.includes("modelling")) return "Modeling";
+
+  if (normalized === "admin" || normalized.includes("administrative")) {
+    return "Admin";
+  }
+
+  if (normalized.includes("mobilization")) {
+    return "Mobilization";
+  }
+
+  if (normalized.includes("modeling") || normalized.includes("modelling")) {
+    return "Modeling";
+  }
+
   if (
     normalized.includes("fieldwork") ||
     normalized.includes("fieldoperations") ||
     normalized.includes("scanning")
-  )
+  ) {
     return "Fieldwork";
-  return "Other";
-}
+  }
 
+  return "Unclassified";
+}
 async function getOperationalGroupMetricRows(): Promise<RawPortfolioGroupMetric[]> {
   const sql = getSqlClient();
   return sql<RawPortfolioGroupMetric[]>`
@@ -996,9 +1169,9 @@ export async function getPortfolioOperationalGroups(
       }
     }
     if (!grouped.size) {
-      grouped.set("Other", {
+      grouped.set("Unclassified", {
         projectId: project.id,
-        groupName: "Other",
+        groupName: "Unclassified",
         targetCost: project.targetCost,
         estimatedMinutes: project.canonicalEstimatedMinutes,
         loggedMinutes: project.loggedMinutes,
@@ -1007,12 +1180,7 @@ export async function getPortfolioOperationalGroups(
         forecastCost: project.forecastCost,
       });
     } else {
-      const facets = getProjectTypeFacets(project);
-      const fallbackName: PortfolioOperationalGroupRow["groupName"] = facets.includes("DataHall")
-        ? "DataHall"
-        : facets.includes("Ready Set")
-          ? "Ready Set"
-          : "Other";
+      const fallbackName: PortfolioOperationalGroupRow["groupName"] = "Unclassified";
       const mappedEstimated = [...grouped.values()].reduce(
         (sum, group) => sum + group.estimatedMinutes,
         0,
@@ -1131,9 +1299,8 @@ export async function getPortfolioOperationalGroups(
     "Fieldwork",
     "Mobilization",
     "Modeling",
-    "Ready Set",
-    "DataHall",
-    "Other",
+    "Admin",
+    "Unclassified",
   ];
   return order
     .map((groupName) => output.get(groupName))
@@ -1426,7 +1593,12 @@ export async function getProjectQualityIssues(projectId: string): Promise<Qualit
 
 export async function getProjectUnplannedWork(projectId: string): Promise<UnplannedWorkRow[]> {
   const sql = getSqlClient();
-  const rows = await sql<(Omit<UnplannedWorkRow, "dismissedAt"> & { dismissedAt: unknown })[]>`
+  const rows = await sql<
+    (Omit<UnplannedWorkRow, "dismissedAt" | "lastDetectedAt"> & {
+      dismissedAt: unknown;
+      lastDetectedAt: unknown;
+    })[]
+  >`
     select
       dqi.id as "issueId",
       dqi.project_id as "projectId",
@@ -1434,6 +1606,7 @@ export async function getProjectUnplannedWork(projectId: string): Promise<Unplan
       nullif(dqi.details ->> 'teamworkTaskId', '')::bigint as "teamworkTaskId",
       t.name as "taskName",
       tl.name as "taskListName",
+      dqi.last_detected_at as "lastDetectedAt",
       coalesce((dqi.details ->> 'minutes')::int, 0) as "loggedMinutes",
       nullif(dqi.details ->> 'laborCost', '') as "laborCost",
       nullif(dqi.details ->> 'firstLoggedDate', '') as "firstLoggedDate",
@@ -1457,11 +1630,209 @@ export async function getProjectUnplannedWork(projectId: string): Promise<Unplan
   return rows.map((row) => ({
     ...row,
     teamworkTaskId: row.teamworkTaskId === null ? null : Number(row.teamworkTaskId),
+    lastDetectedAt: normalizeDatabaseDate(
+      row.lastDetectedAt,
+      `unplanned-work issue ${row.issueId} lastDetectedAt`,
+    ),
     dismissedAt: normalizeOptionalDatabaseDate(
       row.dismissedAt,
       `unplanned-work issue ${row.issueId} dismissedAt`,
     ),
   }));
+}
+
+export async function getTeamworkIssueCenterRows(): Promise<TeamworkIssueCenterRow[]> {
+  const sql = getSqlClient();
+  const [connection] = await sql<Array<{ apiEndpoint: string | null }>>`
+    select tc.api_endpoint as "apiEndpoint"
+    from teamwork_connections tc
+    where tc.is_active = true
+    order by tc.connected_at desc
+    limit 1
+  `;
+  const teamworkBase = connection?.apiEndpoint?.replace(/\/+$/, "") ?? null;
+  const projects = await getProjectRows();
+  const grouped = await Promise.all(
+    projects.map(async (project) => {
+      const [qualityIssues, unplannedWork] = await Promise.all([
+        getProjectQualityIssues(project.id),
+        getProjectUnplannedWork(project.id),
+      ]);
+
+      const qualityRows: TeamworkIssueCenterRow[] = qualityIssues.map((issue) => {
+        const guidance = teamworkIssueGuidance(issue.code);
+        return {
+          id: issue.id,
+          projectId: project.id,
+          projectName: project.name,
+          projectNumber: project.projectNumber,
+          companyName: project.companyName,
+          projectStatus: project.status,
+          taskId: issue.taskId,
+          taskListName: issue.taskListName,
+          taskName: issue.taskName,
+          severity: issue.severity,
+          code: issue.code,
+          message: issue.message,
+          lastDetectedAt: issue.lastDetectedAt,
+          recommendedAction: guidance.recommendedAction,
+          status: "OPEN",
+          resolutionPath: guidance.resolutionPath,
+          teamworkUrl: issue.teamworkUrl,
+          details: issue.details,
+          evidence: issue.evidence,
+          reviewedAt: null,
+          reviewedByName: null,
+        };
+      });
+
+      const unplannedRows: TeamworkIssueCenterRow[] = unplannedWork.map((issue) => {
+        const guidance = teamworkIssueGuidance("UNPLANNED_ACTUAL_WORK");
+        return {
+          id: issue.issueId,
+          projectId: project.id,
+          projectName: project.name,
+          projectNumber: project.projectNumber,
+          companyName: project.companyName,
+          projectStatus: project.status,
+          taskId: issue.taskId,
+          taskListName: issue.taskListName,
+          taskName: issue.taskName,
+          severity: "INFO",
+          code: "UNPLANNED_ACTUAL_WORK",
+          message:
+            "Time was logged to a top-level task without an estimate. Actual hours and historical labor cost remain included.",
+          lastDetectedAt: issue.lastDetectedAt,
+          recommendedAction: guidance.recommendedAction,
+          status: issue.isDismissed ? "REVIEWED" : "OPEN",
+          resolutionPath: guidance.resolutionPath,
+          teamworkUrl:
+            teamworkBase && issue.teamworkTaskId
+              ? `${teamworkBase}/app/tasks/${issue.teamworkTaskId}`
+              : teamworkBase
+                ? `${teamworkBase}/app/projects/${project.teamworkId}/time`
+                : null,
+          details: {
+            loggedMinutes: issue.loggedMinutes,
+            laborCost: issue.laborCost,
+            firstLoggedDate: issue.firstLoggedDate,
+            lastLoggedDate: issue.lastLoggedDate,
+            teamworkTaskId: issue.teamworkTaskId,
+          },
+          evidence: [],
+          reviewedAt: issue.dismissedAt,
+          reviewedByName: issue.dismissedByName,
+        };
+      });
+
+      return [...qualityRows, ...unplannedRows];
+    }),
+  );
+
+  const severityRank = { ERROR: 0, WARNING: 1, INFO: 2 } as const;
+  return grouped
+    .flat()
+    .sort(
+      (a, b) =>
+        Number(a.status === "REVIEWED") - Number(b.status === "REVIEWED") ||
+        severityRank[a.severity] - severityRank[b.severity] ||
+        a.projectName.localeCompare(b.projectName) ||
+        b.lastDetectedAt.getTime() - a.lastDetectedAt.getTime(),
+    );
+}
+
+export async function getOpenTeamworkIssueCount(): Promise<number> {
+  const sql = getSqlClient();
+  const [row] = await sql<Array<{ count: number }>>`
+    select count(*)::int as count
+    from data_quality_issues dqi
+    inner join projects p on p.id = dqi.project_id
+    where dqi.resolved_at is null
+      and p.excluded_from_reporting = false
+      and dqi.code <> 'UNPLANNED_ACTUAL_WORK'
+      and dqi.severity in ('ERROR', 'WARNING')
+  `;
+  return row?.count ?? 0;
+}
+
+export async function getLatestTeamworkSyncDiagnostics(): Promise<TeamworkSyncDiagnostics | null> {
+  const sql = getSqlClient();
+  const [run] = await sql<
+    Array<{
+      runId: string;
+      kind: TeamworkSyncDiagnostics["kind"];
+      status: TeamworkSyncDiagnostics["status"];
+      startedAt: unknown;
+      completedAt: unknown;
+      recordsRead: number;
+      warnings: number;
+      errors: number;
+    }>
+  >`
+    select
+      sr.id as "runId",
+      sr.kind,
+      sr.status,
+      sr.started_at as "startedAt",
+      sr.completed_at as "completedAt",
+      sr.records_read as "recordsRead",
+      sr.warnings,
+      sr.errors
+    from sync_runs sr
+    order by sr.started_at desc
+    limit 1
+  `;
+
+  if (!run) return null;
+
+  const diagnostics = await sql<
+    Array<{
+      id: string;
+      syncRunId: string;
+      severity: "INFO" | "WARNING" | "ERROR";
+      entityType: string | null;
+      teamworkEntityId: number | null;
+      code: string;
+      message: string;
+      details: Record<string, unknown> | null;
+      createdAt: unknown;
+    }>
+  >`
+    select
+      si.id,
+      si.sync_run_id as "syncRunId",
+      si.severity,
+      si.entity_type as "entityType",
+      si.teamwork_entity_id as "teamworkEntityId",
+      si.code,
+      si.message,
+      si.details,
+      si.created_at as "createdAt"
+    from sync_issues si
+    where si.sync_run_id = ${run.runId}
+    order by
+      case si.severity when 'ERROR' then 0 when 'WARNING' then 1 else 2 end,
+      si.code,
+      si.created_at desc
+  `;
+
+  return {
+    runId: run.runId,
+    kind: run.kind,
+    status: run.status,
+    startedAt: normalizeDatabaseDate(run.startedAt, `sync run ${run.runId} startedAt`),
+    completedAt: normalizeOptionalDatabaseDate(
+      run.completedAt,
+      `sync run ${run.runId} completedAt`,
+    ),
+    recordsRead: run.recordsRead,
+    warnings: run.warnings,
+    errors: run.errors,
+    diagnostics: diagnostics.map((row) => ({
+      ...row,
+      createdAt: normalizeDatabaseDate(row.createdAt, `sync diagnostic ${row.id} createdAt`),
+    })),
+  };
 }
 
 export async function getEmployeeLaborRows(): Promise<EmployeeLaborRow[]> {

@@ -11,6 +11,7 @@ import {
   type PointerEvent,
 } from "react";
 import type { PortfolioOperationalGroupRow } from "@/lib/reporting/dashboard-data";
+import { marginTone } from "@/lib/reporting/margin-status";
 
 export type ComparedProfitabilityPosition = {
   allocatedRevenue: number | null;
@@ -52,11 +53,8 @@ const groupOrder: PortfolioOperationalGroupRow["groupName"][] = [
   "Fieldwork",
   "Mobilization",
   "Modeling",
-  "Ready Set",
-  "DataHall",
-  "Other",
+  "Admin",
 ];
-
 function finite(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -75,7 +73,7 @@ function fullCurrency(value: number | null | undefined): string {
 }
 
 function formatMargin(value: number | null | undefined): string {
-  if (!finite(value)) return "—";
+  if (!finite(value)) return "N/A";
   return `${new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 1,
   }).format(value)}%`;
@@ -209,11 +207,11 @@ function ComparisonRow({
           No work allocated to this group
         </div>
         <div className="compare-profitability-rows__outcome">
-          <strong>—</strong>
+          <strong>{"\u2014"}</strong>
           <small>Forecast profit</small>
         </div>
-        <div className="compare-profitability-rows__margin">
-          <strong>—</strong>
+        <div className="compare-profitability-rows__margin compare-profitability-rows__margin--neutral">
+          <strong>N/A</strong>
           <small>Margin</small>
         </div>
       </div>
@@ -247,7 +245,7 @@ function ComparisonRow({
     const bounds = event.currentTarget.getBoundingClientRect();
     positionTooltip(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
   };
-  const revenueBoundary = 82;
+  const revenueBoundary = 94;
   const revenue = position.allocatedRevenue;
   const actualRatio = revenue > 0 ? position.actualCostToDate / revenue : 0;
   const remainingRatio = revenue > 0 ? position.remainingCost / revenue : 0;
@@ -278,6 +276,7 @@ function ComparisonRow({
     "--compare-loss-width": `${overrunWidth}%`,
   } as CSSProperties;
   const outcomeTone = position.forecastProfit < 0 ? "loss" : "profit";
+  const marginStatus = marginTone(position.marginPercent);
   const status = performanceStatus(position);
 
   return (
@@ -292,7 +291,7 @@ function ComparisonRow({
           </span>
         </div>
         <small>
-          {row.project.projectNumber ? `${row.project.projectNumber} · ` : ""}
+          {row.project.projectNumber ? `${row.project.projectNumber} \u00b7 ` : ""}
           {row.project.isProvisional ? "Provisional" : "Complete"}
         </small>
       </div>
@@ -346,7 +345,7 @@ function ComparisonRow({
               <strong>{row.project.projectName}</strong>
               <span>
                 {row.groupName ?? "Entire project"}
-                {row.project.projectNumber ? ` · ${row.project.projectNumber}` : ""}
+                {row.project.projectNumber ? ` \u00b7 ${row.project.projectNumber}` : ""}
               </span>
             </div>
             <dl>
@@ -390,7 +389,11 @@ function ComparisonRow({
               </div>
             </dl>
             <div className="compare-profitability-rows__tooltip-footer">
-              <span>{formatMargin(position.marginPercent)} margin</span>
+              <span
+                className={`compare-profitability-rows__tooltip-margin compare-profitability-rows__tooltip-margin--${marginStatus}`}
+              >
+                {formatMargin(position.marginPercent)} margin
+              </span>
               <span>{row.project.isProvisional ? "Provisional" : "Complete"}</span>
             </div>
           </div>
@@ -405,7 +408,7 @@ function ComparisonRow({
       </div>
 
       <div
-        className={`compare-profitability-rows__margin compare-profitability-rows__margin--${outcomeTone}`}
+        className={`compare-profitability-rows__margin compare-profitability-rows__margin--${marginStatus}`}
       >
         <strong>{formatMargin(position.marginPercent)}</strong>
         <small>Margin</small>

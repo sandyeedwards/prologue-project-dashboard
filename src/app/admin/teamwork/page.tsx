@@ -3,6 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/db/client";
 import { syncRuns, teamworkConnections } from "@/db/schema";
+import { TeamworkSyncControl } from "./sync-control";
 export const dynamic = "force-dynamic";
 export default async function TeamworkAdminPage({
   searchParams,
@@ -55,6 +56,7 @@ export default async function TeamworkAdminPage({
             <p>Authorization completed successfully. Run the initial import from PowerShell.</p>
           )}
           {params.error && <p>Authorization error: {params.error}</p>}
+          <TeamworkSyncControl disabled={!connection} />
         </section>
         <section className="panel">
           <h2>Recent sync runs</h2>

@@ -124,9 +124,10 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
       continue;
     }
     const status = textAtPaths(row, ["status"]) ?? "UNKNOWN";
+    const currentBudgetTeamworkId = currentBudgetByProjectTeamworkId.get(projectTeamworkId);
+
     const isCurrent =
-      currentBudgetByProjectTeamworkId.get(projectTeamworkId) === teamworkId ||
-      status.toUpperCase() === "ACTIVE";
+      currentBudgetTeamworkId !== undefined ? currentBudgetTeamworkId === teamworkId : false;
     await db
       .insert(projectBudgets)
       .values({

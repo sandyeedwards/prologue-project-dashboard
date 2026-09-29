@@ -1,3 +1,5 @@
+import type { CanonicalTaskMetric } from "./types";
+
 interface TaskHierarchyRecord {
   id: string;
   parentTaskId: string | null;
@@ -29,4 +31,20 @@ export function createOutsourcedBranchResolver(
     cache.set(taskId, false);
     return false;
   };
+}
+
+export function sumInternalCanonicalEstimatedMinutes(
+  taskIds: readonly string[],
+  metrics: ReadonlyMap<string, CanonicalTaskMetric>,
+  isOutsourcedBranch: (taskId: string) => boolean,
+): number {
+  return taskIds.reduce((sum, taskId) => {
+    const metric = metrics.get(taskId);
+
+    if (!metric?.isCanonicalHolder || isOutsourcedBranch(taskId)) {
+      return sum;
+    }
+
+    return sum + metric.countedEstimatedMinutes;
+  }, 0);
 }

@@ -1,5 +1,6 @@
 import { count, desc, eq } from "drizzle-orm";
 import { AppShell } from "@/components/app-shell";
+import { MarginText } from "@/components/reporting-ui";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/db/client";
 import { REPORTING_RULES } from "@/config/reporting-rules";
@@ -95,8 +96,7 @@ export default async function CalculationsAdminPage() {
               <li>Health band: {pilot.healthBand}</li>
               <li>Forecast cost: {money(pilot.forecastCost)}</li>
               <li>
-                Forecast margin: {pilot.forecastMarginPercent ?? "Missing"}
-                {pilot.forecastMarginPercent === null ? "" : "%"}
+                Forecast margin: <MarginText value={pilot.forecastMarginPercent} digits={4} />
               </li>
               <li>Provisional: {pilot.isProvisional ? "Yes" : "No"}</li>
               <li>

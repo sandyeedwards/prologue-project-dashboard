@@ -8,6 +8,7 @@ const dataHallTagKey = normalizeTeamworkLabel(REPORTING_RULES.dataHallProjectTag
 const readySetTagKey = normalizeTeamworkLabel(REPORTING_RULES.readySetProjectTag);
 const scanningTagKey = normalizeTeamworkLabel(REPORTING_RULES.projectTypeTags.scanning);
 const modelingTagKey = normalizeTeamworkLabel(REPORTING_RULES.projectTypeTags.modeling);
+const timeReportingProjectKey = REPORTING_RULES.timeReportingProjectName.trim().toLowerCase();
 
 function normalizedTagKeys(tagNames: readonly unknown[]): Set<string> {
   return new Set(
@@ -31,6 +32,12 @@ export function isExcludedProjectTag(tagName: unknown): boolean {
 
 export function isDataHallProjectTag(tagName: unknown): boolean {
   return normalizeTeamworkLabel(tagName) === dataHallTagKey;
+}
+
+export function isTimeReportingProjectName(projectName: unknown): boolean {
+  return (
+    typeof projectName === "string" && projectName.trim().toLowerCase() === timeReportingProjectKey
+  );
 }
 
 export function projectReportingPolicy(tagNames: readonly unknown[]): ProjectReportingPolicy {
