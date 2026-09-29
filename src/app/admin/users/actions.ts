@@ -70,4 +70,6 @@ export async function updateUserAccess(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/admin/users");
+  revalidatePath("/help");
+  revalidatePath("/teamwork-issues");
 }
