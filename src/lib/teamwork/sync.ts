@@ -953,6 +953,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         id: taskLists.id,
         projectId: taskLists.projectId,
         name: taskLists.name,
+        status: taskLists.status,
         operationalGroup: taskLists.operationalGroup,
       })
       .from(taskLists)
@@ -998,7 +999,14 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
           .where(eq(taskLists.id, taskList.id));
       }
 
-      if (operationalGroup === "Unclassified") {
+      const taskListStatus = (taskList.status ?? "").trim().toLowerCase();
+      const taskListName = taskList.name.trim().toLowerCase();
+      const intentionallyIgnored =
+        taskListName.startsWith("modeling request") ||
+        taskListStatus === "complete" ||
+        taskListStatus === "completed";
+
+      if (operationalGroup === "Unclassified" && !intentionallyIgnored) {
         issues.warn(
           "TASK_LIST_OPERATIONAL_GROUP_UNCLASSIFIED",
           "Task-list service could not be classified confidently from its name and tasks.",

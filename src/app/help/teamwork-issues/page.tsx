@@ -47,6 +47,14 @@ function issueLocation(code: string): string {
   return "The affected Teamwork task or project record";
 }
 
+function diagnosticContext(details: Record<string, unknown> | null): string | null {
+  const taskListName = details?.taskListName;
+  if (typeof taskListName === "string" && taskListName.trim()) {
+    return `Task list: ${taskListName}`;
+  }
+  return null;
+}
+
 export default async function TeamworkIssuesPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireUser("/help/teamwork-issues");
   const isAdmin = session.user.role === "ADMIN";
@@ -542,6 +550,11 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                       <span>{diagnostic.severity}</span>
                     </div>
                     <p>{diagnostic.message}</p>
+                    {diagnosticContext(diagnostic.details) ? (
+                      <p>
+                        <strong>{diagnosticContext(diagnostic.details)}</strong>
+                      </p>
+                    ) : null}
                     <small>
                       {[diagnostic.entityType, diagnostic.teamworkEntityId]
                         .filter((value) => value !== null)
