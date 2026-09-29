@@ -1073,17 +1073,21 @@ export function HistoricalRevenueProfitChart({
           verification commands before relying on this historical result.
         </p>
       ) : null}
-      <p className="historical-profit-chart__note">
-        Gross revenue is recognized on each project start date. Actual labor cost is recognized on
-        each valid Teamwork time-entry date using the historical cost total, or logged hours
-        multiplied by the historical cost rate when a total is unavailable. Invalid legacy dates
-        such as 1970 are excluded and reassigned to the project start date until the next Teamwork
-        refresh repairs them. Expenses are recognized on their expense date; expenses without one
-        use their import date or project start and are identified in the tooltip. Net profit to date
-        equals gross revenue minus actual cost. Anticipated cost and forecasted net profit use the
-        latest project forecast for every project started by the selected date; they are current
-        projections arranged by project start date, not archived historical forecast snapshots.
-      </p>
+      <details className="historical-profit-chart__methodology">
+        <summary>About this chart</summary>
+        <p>
+          Gross revenue is recognized on each project start date. Actual labor cost is recognized on
+          each valid Teamwork time-entry date using the historical cost total, or logged hours
+          multiplied by the historical cost rate when a total is unavailable. Invalid legacy dates
+          such as 1970 are excluded and reassigned to the project start date until the next Teamwork
+          refresh repairs them. Expenses are recognized on their expense date; expenses without one
+          use their import date or project start and are identified in the tooltip. Net profit to
+          date equals gross revenue minus actual cost. Anticipated cost and forecasted net profit
+          use the latest project forecast for every project started by the selected date; they are
+          current projections arranged by project start date, not archived historical forecast
+          snapshots.
+        </p>
+      </details>
     </div>
   );
 }

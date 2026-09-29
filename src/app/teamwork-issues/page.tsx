@@ -391,15 +391,15 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
 
                       <div className="issue-card__explanation">
                         <p>
-                          <strong>What’s wrong</strong>
+                          <strong>Issue</strong>
                           <span>{conciseIssueMessage(issue.code, issue.message)}</span>
                         </p>
                         <p>
-                          <strong>How to fix it</strong>
+                          <strong>Action</strong>
                           <span>{conciseIssueAction(issue.code, issue.recommendedAction)}</span>
                         </p>
                         <p>
-                          <strong>Where to fix it</strong>
+                          <strong>Location</strong>
                           <span>{issueLocation(issue.code)}</span>
                         </p>
                       </div>

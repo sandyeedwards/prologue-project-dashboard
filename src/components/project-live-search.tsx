@@ -35,12 +35,12 @@ export function ProjectLiveSearch({ initialQuery = "" }: { initialQuery?: string
 
   return (
     <label className="project-live-search">
-      <span className="sr-only">Search projects</span>
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="10.5" cy="10.5" r="6.5" />
         <path d="m15.5 15.5 5 5" />
       </svg>
       <input
+        aria-label="Search projects"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search projects, clients, numbers, or tags"

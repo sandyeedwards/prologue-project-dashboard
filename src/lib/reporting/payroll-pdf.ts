@@ -14,7 +14,8 @@ type Period = { startDate: string; endDate: string };
 type FontSet = { regular: PDFFont; bold: PDFFont };
 const PAGE: [number, number] = [842, 595];
 const NAVY = rgb(0.05, 0.16, 0.29);
-const BLUE = rgb(0.12, 0.4, 0.72);
+const BLUE = rgb(0.04, 0.48, 0.75);
+const SKY = rgb(0.38, 0.76, 0.94);
 const PALE = rgb(0.95, 0.97, 0.99);
 const LINE = rgb(0.82, 0.87, 0.92);
 const MUTED = rgb(0.34, 0.43, 0.54);
@@ -51,16 +52,26 @@ function header(
   subtitle: string,
 ) {
   page.drawRectangle({ x: 0, y: 507, width: PAGE[0], height: 88, color: NAVY });
-  if (logo) page.drawImage(logo, { x: 34, y: 528, width: 31, height: 42 });
-  drawText(page, fonts.bold, "PROLOGUE", 76, 561, 13, rgb(1, 1, 1));
-  drawText(page, fonts.bold, "PROJECT INTELLIGENCE", 76, 548, 6.5, rgb(0.48, 0.75, 1));
-  drawText(page, fonts.bold, title, 300, 552, 20, rgb(1, 1, 1), 505);
-  drawText(page, fonts.regular, subtitle, 300, 531, 8, rgb(0.83, 0.89, 0.96), 505);
+  page.drawRectangle({ x: 0, y: 589, width: PAGE[0], height: 6, color: BLUE });
+  page.drawRectangle({ x: 0, y: 507, width: 7, height: 82, color: SKY });
+  if (logo) page.drawImage(logo, { x: 36, y: 524, width: 34, height: 47 });
+  drawText(page, fonts.bold, "PROLOGUE", 84, 561, 14, rgb(1, 1, 1));
+  drawText(page, fonts.bold, "PROJECT INTELLIGENCE", 84, 547, 6.8, SKY);
+  page.drawLine({
+    start: { x: 262, y: 526 },
+    end: { x: 262, y: 572 },
+    thickness: 0.8,
+    color: rgb(0.27, 0.42, 0.57),
+  });
+  drawText(page, fonts.bold, title, 286, 553, 19, rgb(1, 1, 1), 520);
+  drawText(page, fonts.regular, subtitle, 286, 532, 8, rgb(0.83, 0.89, 0.96), 520);
+  if (logo) page.drawImage(logo, { x: 710, y: 54, width: 87, height: 116, opacity: 0.035 });
 }
 
 function footer(page: PDFPage, fonts: FontSet, index: number, total: number) {
   page.drawLine({ start: { x: 34, y: 27 }, end: { x: 808, y: 27 }, thickness: 0.7, color: LINE });
-  drawText(page, fonts.regular, "Confidential | Payroll administration", 34, 14, 7, MUTED);
+  page.drawRectangle({ x: 34, y: 27, width: 82, height: 1.8, color: BLUE });
+  drawText(page, fonts.bold, "PROLOGUE PROJECT INTELLIGENCE | CONFIDENTIAL", 34, 14, 6.8, MUTED);
   drawText(page, fonts.regular, `Page ${index} of ${total}`, 760, 14, 7, MUTED);
 }
 
@@ -74,6 +85,7 @@ function stat(page: PDFPage, fonts: FontSet, x: number, label: string, value: st
     borderColor: LINE,
     borderWidth: 0.7,
   });
+  page.drawRectangle({ x, y: 483, width, height: 4, color: BLUE });
   drawText(page, fonts.bold, label.toUpperCase(), x + 12, 469, 7, MUTED, width - 24);
   drawText(page, fonts.bold, value, x + 12, 446, 17, NAVY, width - 24);
 }
@@ -234,6 +246,9 @@ export async function payrollPdf(
 ) {
   const doc = await PDFDocument.create();
   doc.setTitle(`Prologue ${ptoOnly ? "PTO Export" : "Time Insights"} ${today}`);
+  doc.setAuthor("Prologue Project Intelligence");
+  doc.setSubject(ptoOnly ? "PTO payroll export" : "Time and utilization report");
+  doc.setProducer("Prologue Project Intelligence reporting");
   const fonts = {
     regular: await doc.embedFont(StandardFonts.Helvetica),
     bold: await doc.embedFont(StandardFonts.HelveticaBold),
