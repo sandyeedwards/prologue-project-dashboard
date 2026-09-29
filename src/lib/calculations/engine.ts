@@ -29,7 +29,11 @@ import { resolveForecastAssignment } from "./forecast-assignment";
 import { calculateHealth } from "./health";
 import { resolveExpenseCoverage } from "./expense-coverage";
 import { createOutsourcedBranchResolver, sumInternalCanonicalEstimatedMinutes } from "./outsourced";
-import { calculatePlannedFinancials, calculateTaskListBudgetCoverage } from "./planned-financials";
+import {
+  calculatePlannedFinancials,
+  calculateTaskListBudgetCoverage,
+  taskListRequiresBudget,
+} from "./planned-financials";
 import type { CalculationTaskInput, Coverage } from "./types";
 import { identifyUnplannedTopLevelTasks } from "./unplanned-work";
 
@@ -494,9 +498,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       const remainingOutsourced = Math.max(projectedOutsourced - actualOutsourced, 0);
 
       const budgetRequiredTaskListIds = new Set(
-        projectTaskLists
-          .filter((taskList) => taskList.operationalGroup !== "Admin")
-          .map((taskList) => taskList.id),
+        projectTaskLists.filter(taskListRequiresBudget).map((taskList) => taskList.id),
       );
 
       const budgetedRequiredTaskListIds = new Set(
@@ -516,7 +518,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           severity: "WARNING",
           code: "TASK_LIST_BUDGET_COVERAGE_INCOMPLETE",
           message:
-            "No complete set of Teamwork task-list target budgets was returned across the project Finance budgets.",
+            "One or more active delivery task lists has no target cost across the project's Teamwork Finance budgets.",
           details: {
             budgetRequiredTaskLists: budgetRequiredTaskListIds.size,
             taskListsWithTargetBudget: budgetedRequiredTaskListIds.size,

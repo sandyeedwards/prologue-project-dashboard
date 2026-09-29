@@ -20,6 +20,33 @@ function ageInDays(value: Date): number {
   return Math.max(0, Math.floor((Date.now() - value.getTime()) / 86_400_000));
 }
 
+function plainIssueTitle(code: string): string {
+  const titles: Record<string, string> = {
+    UNPLANNED_ACTUAL_WORK: "Unplanned time needs review",
+    OUTSOURCED_EXPENSE_MISSING: "Outsourced expense is missing",
+    PROJECT_BUDGET_MISSING: "Project budget is missing",
+    TASK_LIST_BUDGET_COVERAGE_INCOMPLETE: "Some task-list budgets are incomplete",
+    MISSING_TASK_ASSIGNMENT: "Remaining work needs an assignment",
+    NON_COSTED_ASSIGNMENT_UNRESOLVED: "An assignment cannot be costed",
+    MISSING_JOB_ROLE_COST_RATE: "A job role is missing its cost rate",
+    MISSING_EMPLOYEE_COST_RATE: "An employee is missing a cost rate",
+    UNALLOCATED_PROJECT_TIME: "Logged time needs a task",
+    ACTUAL_LABOR_COST_INCOMPLETE: "Labor cost information is incomplete",
+  };
+  return titles[code] ?? code.replaceAll("_", " ").toLowerCase();
+}
+
+function issueLocation(code: string): string {
+  if (code === "PROJECT_BUDGET_MISSING" || code === "TASK_LIST_BUDGET_COVERAGE_INCOMPLETE") {
+    return "Teamwork Finance → Budgets";
+  }
+  if (code === "OUTSOURCED_EXPENSE_MISSING") return "Teamwork Finance → Expenses";
+  if (code.includes("COST_RATE")) return "Teamwork → People or job-role cost rates";
+  if (code === "UNPLANNED_ACTUAL_WORK") return "The Teamwork task estimate, or confirm it here";
+  if (code === "UNALLOCATED_PROJECT_TIME") return "Teamwork → Project time entries";
+  return "The affected Teamwork task or project record";
+}
+
 export default async function TeamworkIssuesPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireUser("/help/teamwork-issues");
   const isAdmin = session.user.role === "ADMIN";
@@ -101,6 +128,34 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
   const unplannedReviewIssues = openIssues.filter(
     (issue) => issue.code === "UNPLANNED_ACTUAL_WORK",
   );
+  const issueGroups = [
+    ...issues
+      .reduce(
+        (groups, issue) => {
+          const group = groups.get(issue.projectId) ?? {
+            projectId: issue.projectId,
+            projectName: issue.projectName,
+            projectNumber: issue.projectNumber,
+            companyName: issue.companyName,
+            issues: [] as typeof issues,
+          };
+          group.issues.push(issue);
+          groups.set(issue.projectId, group);
+          return groups;
+        },
+        new Map<
+          string,
+          {
+            projectId: string;
+            projectName: string;
+            projectNumber: string | null;
+            companyName: string | null;
+            issues: typeof issues;
+          }
+        >(),
+      )
+      .values(),
+  ];
 
   return (
     <AppShell user={session.user}>
@@ -264,164 +319,186 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
           </form>
 
           <div className="issue-list">
-            {issues.map((issue) => (
-              <article
-                key={issue.id}
-                className={`issue-card issue-card--${issue.severity.toLowerCase()}`}
-              >
-                <div>
-                  <strong>
-                    {issue.projectNumber ? `${issue.projectNumber} \u00b7 ` : ""}
-                    {issue.projectName}
-                  </strong>
+            {issueGroups.map((group) => (
+              <section className="issue-project-group" key={group.projectId}>
+                <header className="issue-project-group__header">
+                  <div>
+                    <strong>
+                      {group.projectNumber ? `${group.projectNumber} · ` : ""}
+                      {group.projectName}
+                    </strong>
+                    {group.companyName ? <span>{group.companyName}</span> : null}
+                  </div>
                   <span>
-                    {issue.code === "UNPLANNED_ACTUAL_WORK" && issue.status === "OPEN"
-                      ? "AWAITING REVIEW"
-                      : issue.status}
+                    {group.issues.length} issue{group.issues.length === 1 ? "" : "s"}
                   </span>
-                </div>
-
-                <p>
-                  <strong>{issue.code.replaceAll("_", " ")}</strong>
-                  {" \u00b7 "}
-                  {issue.message}
-                </p>
-
-                {issue.companyName || issue.taskListName || issue.taskName ? (
-                  <small>
-                    {[issue.companyName, issue.taskListName, issue.taskName]
-                      .filter(Boolean)
-                      .join(" \u00b7 ")}
-                  </small>
-                ) : null}
-
-                <p>
-                  <strong>Recommended action:</strong> {issue.recommendedAction}
-                </p>
-
-                <p>
-                  <strong>Correction path:</strong>{" "}
-                  {issue.resolutionPath === "TEAMWORK_OR_REVIEW"
-                    ? "Teamwork correction or Admin review"
-                    : "Teamwork correction required"}
-                </p>
-
-                <small>
-                  {issue.code === "UNPLANNED_ACTUAL_WORK" ? "REVIEW" : issue.severity} {"\u00b7"}{" "}
-                  Project status {issue.projectStatus} {"\u00b7"} Age{" "}
-                  {ageInDays(issue.lastDetectedAt)} days {"\u00b7"} Last detected{" "}
-                  {dateLabel(issue.lastDetectedAt)}
-                  {issue.reviewedAt
-                    ? ` \u00b7 Reviewed ${dateLabel(issue.reviewedAt)} by ${issue.reviewedByName ?? "Admin"}`
-                    : ""}
-                </small>
-
-                <div className="issue-card__actions">
-                  <Link
-                    className="button button--secondary button--small"
-                    href={`/projects/${issue.projectId}`}
-                  >
-                    Open project
-                  </Link>
-                  {issue.teamworkUrl ? (
-                    <a
-                      className="button button--secondary button--small"
-                      href={issue.teamworkUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                </header>
+                <div className="issue-project-group__list">
+                  {group.issues.map((issue) => (
+                    <article
+                      key={issue.id}
+                      className={`issue-card issue-card--simple issue-card--${issue.severity.toLowerCase()}`}
                     >
-                      Open in Teamwork
-                    </a>
-                  ) : null}
-                  {isAdmin && issue.code === "UNPLANNED_ACTUAL_WORK" && issue.taskId ? (
-                    issue.status === "REVIEWED" ? (
-                      <form action={reopenUnplannedWork}>
-                        <input type="hidden" name="projectId" value={issue.projectId} />
-                        <input type="hidden" name="taskId" value={issue.taskId} />
-                        <button className="button button--secondary button--small" type="submit">
-                          Reopen
-                        </button>
-                      </form>
-                    ) : (
-                      <form action={dismissUnplannedWork}>
-                        <input type="hidden" name="projectId" value={issue.projectId} />
-                        <input type="hidden" name="issueId" value={issue.id} />
-                        <button className="button button--primary button--small" type="submit">
-                          Confirm &amp; close
-                        </button>
-                      </form>
-                    )
-                  ) : null}
+                      <div className="issue-card__simple-heading">
+                        <div>
+                          <strong>{plainIssueTitle(issue.code)}</strong>
+                          {issue.taskListName || issue.taskName ? (
+                            <span>
+                              {[issue.taskListName, issue.taskName].filter(Boolean).join(" · ")}
+                            </span>
+                          ) : null}
+                        </div>
+                        <span>
+                          {issue.code === "UNPLANNED_ACTUAL_WORK" && issue.status === "OPEN"
+                            ? "AWAITING REVIEW"
+                            : issue.status}
+                        </span>
+                      </div>
+
+                      <div className="issue-card__explanation">
+                        <p>
+                          <strong>What’s wrong</strong>
+                          <span>{issue.message}</span>
+                        </p>
+                        <p>
+                          <strong>How to fix it</strong>
+                          <span>{issue.recommendedAction}</span>
+                        </p>
+                        <p>
+                          <strong>Where to fix it</strong>
+                          <span>{issueLocation(issue.code)}</span>
+                        </p>
+                      </div>
+
+                      <div className="issue-card__actions">
+                        {issue.teamworkUrl ? (
+                          <a
+                            className="button button--primary button--small"
+                            href={issue.teamworkUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Fix in Teamwork
+                          </a>
+                        ) : (
+                          <Link
+                            className="button button--secondary button--small"
+                            href={`/projects/${issue.projectId}`}
+                          >
+                            View report details
+                          </Link>
+                        )}
+                        {isAdmin && issue.code === "UNPLANNED_ACTUAL_WORK" && issue.taskId ? (
+                          issue.status === "REVIEWED" ? (
+                            <form action={reopenUnplannedWork}>
+                              <input type="hidden" name="projectId" value={issue.projectId} />
+                              <input type="hidden" name="taskId" value={issue.taskId} />
+                              <button
+                                className="button button--secondary button--small"
+                                type="submit"
+                              >
+                                Reopen
+                              </button>
+                            </form>
+                          ) : (
+                            <form action={dismissUnplannedWork}>
+                              <input type="hidden" name="projectId" value={issue.projectId} />
+                              <input type="hidden" name="issueId" value={issue.id} />
+                              <button
+                                className="button button--secondary button--small"
+                                type="submit"
+                              >
+                                Confirm and close
+                              </button>
+                            </form>
+                          )
+                        ) : null}
+                      </div>
+
+                      <details className="issue-technical-details">
+                        <summary>
+                          Technical details
+                          {issue.evidence.length
+                            ? ` · ${issue.evidence.length} affected records`
+                            : ""}
+                        </summary>
+                        <small>
+                          {issue.code.replaceAll("_", " ")} · {issue.severity} · Project status{" "}
+                          {issue.projectStatus} · Age {ageInDays(issue.lastDetectedAt)} days · Last
+                          detected {dateLabel(issue.lastDetectedAt)}
+                          {issue.reviewedAt
+                            ? ` · Reviewed ${dateLabel(issue.reviewedAt)} by ${issue.reviewedByName ?? "Admin"}`
+                            : ""}
+                        </small>
+                        {issue.code === "UNPLANNED_ACTUAL_WORK" && issue.details ? (
+                          <dl>
+                            <div>
+                              <dt>Unplanned hours</dt>
+                              <dd>{hours(Number(issue.details.loggedMinutes ?? 0))}</dd>
+                            </div>
+                            <div>
+                              <dt>Historical labor</dt>
+                              <dd>{money(String(issue.details.laborCost ?? ""))}</dd>
+                            </div>
+                          </dl>
+                        ) : null}
+                        {issue.evidence.length ? (
+                          <div className="issue-evidence__table-wrap">
+                            <table className="data-table issue-evidence__table">
+                              <thead>
+                                <tr>
+                                  <th>Source record</th>
+                                  <th>Person / date</th>
+                                  <th>Hours</th>
+                                  <th>Labor cost</th>
+                                  <th>Teamwork</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {issue.evidence.map((item) => (
+                                  <tr key={item.id}>
+                                    <td>
+                                      <strong>{item.label}</strong>
+                                      {item.description ? (
+                                        <small className="table-subvalue">{item.description}</small>
+                                      ) : null}
+                                    </td>
+                                    <td>
+                                      {item.personName ?? "—"}
+                                      <small className="table-subvalue">
+                                        {dateLabel(item.loggedDate)}
+                                      </small>
+                                    </td>
+                                    <td>{item.minutes === null ? "—" : hours(item.minutes)}</td>
+                                    <td>{money(item.laborCost)}</td>
+                                    <td>
+                                      {item.teamworkUrl ? (
+                                        <a href={item.teamworkUrl} target="_blank" rel="noreferrer">
+                                          Open
+                                        </a>
+                                      ) : (
+                                        "—"
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : null}
+                      </details>
+                    </article>
+                  ))}
                 </div>
-
-                {issue.code === "UNPLANNED_ACTUAL_WORK" && issue.details ? (
-                  <dl>
-                    <div>
-                      <dt>Unplanned hours</dt>
-                      <dd>{hours(Number(issue.details.loggedMinutes ?? 0))}</dd>
-                    </div>
-                    <div>
-                      <dt>Historical labor</dt>
-                      <dd>{money(String(issue.details.laborCost ?? ""))}</dd>
-                    </div>
-                  </dl>
-                ) : null}
-
-                {issue.evidence.length ? (
-                  <details className="issue-evidence">
-                    <summary>
-                      View {issue.evidence.length} affected source{" "}
-                      {issue.evidence.length === 1 ? "record" : "records"}
-                    </summary>
-                    <div className="issue-evidence__table-wrap">
-                      <table className="data-table issue-evidence__table">
-                        <thead>
-                          <tr>
-                            <th>Source record</th>
-                            <th>Person / date</th>
-                            <th>Hours</th>
-                            <th>Labor cost</th>
-                            <th>Teamwork</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {issue.evidence.map((item) => (
-                            <tr key={item.id}>
-                              <td>
-                                <strong>{item.label}</strong>
-                                {item.description ? (
-                                  <small className="table-subvalue">{item.description}</small>
-                                ) : null}
-                              </td>
-                              <td>
-                                {item.personName ?? "\u2014"}
-                                <small className="table-subvalue">
-                                  {dateLabel(item.loggedDate)}
-                                </small>
-                              </td>
-                              <td>{item.minutes === null ? "\u2014" : hours(item.minutes)}</td>
-                              <td>{money(item.laborCost)}</td>
-                              <td>
-                                {item.teamworkUrl ? (
-                                  <a href={item.teamworkUrl} target="_blank" rel="noreferrer">
-                                    Open
-                                  </a>
-                                ) : (
-                                  "\u2014"
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </details>
-                ) : null}
-              </article>
+              </section>
             ))}
 
             {!issues.length ? (
-              <div className="empty-panel">No current Teamwork data-quality issues.</div>
+              <div className="empty-panel">
+                {view === "REVIEW_UNPLANNED"
+                  ? "No unplanned-time items are waiting for review."
+                  : "No current Teamwork data-quality issues."}
+              </div>
             ) : null}
           </div>
         </section>

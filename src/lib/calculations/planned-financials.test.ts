@@ -297,6 +297,62 @@ describe("calculateTaskListBudgetCoverage", () => {
 
     expect(result).toBe("NOT_EXPECTED");
   });
+
+  it("ignores the Modeling Requests intake task list", () => {
+    const result = calculateTaskListBudgetCoverage(
+      [
+        {
+          id: "modeling-requests",
+          name: "Modeling Requests",
+          status: "new",
+          operationalGroup: "Modeling",
+        },
+        {
+          id: "active-modeling",
+          name: "Modeling - Priority 2 & 3 Areas",
+          status: "new",
+          operationalGroup: "Modeling",
+        },
+      ],
+      [
+        {
+          projectBudgetId: "change-order",
+          taskListId: "active-modeling",
+          targetCost: "3000.00",
+        },
+      ],
+    );
+
+    expect(result).toBe("COMPLETE");
+  });
+
+  it("does not require completed task lists in current budget coverage", () => {
+    const result = calculateTaskListBudgetCoverage(
+      [
+        {
+          id: "original-scope",
+          name: "Modeling - Original Scope",
+          status: "completed",
+          operationalGroup: "Modeling",
+        },
+        {
+          id: "added-scope",
+          name: "Modeling - Added Scope",
+          status: "active",
+          operationalGroup: "Modeling",
+        },
+      ],
+      [
+        {
+          projectBudgetId: "change-order",
+          taskListId: "added-scope",
+          targetCost: "4500.00",
+        },
+      ],
+    );
+
+    expect(result).toBe("COMPLETE");
+  });
 });
 
 describe("fixed-fee-only revenue fallback", () => {

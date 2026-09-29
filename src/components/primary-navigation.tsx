@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/dashboard", label: "Company Overview", shortLabel: "At a glance" },
-  { href: "/profit-forecast", label: "Profit Forecast", shortLabel: "Expected outcome" },
   { href: "/revenue-trends", label: "Revenue Trends", shortLabel: "History over time" },
   {
     href: "/operational-performance",
