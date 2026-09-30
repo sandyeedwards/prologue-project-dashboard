@@ -454,6 +454,72 @@ export function hasBenacoHosting(deal: HostingDealRow): boolean {
   );
 }
 
+export type HostingTermSummary = {
+  start: string | null;
+  end: string | null;
+  kind: "paid" | "complimentary";
+  expired: boolean;
+};
+
+export function isHostingTermExpired(end: string | null, target = new Date()): boolean {
+  if (!end) return false;
+  const parsedEnd = dateValue(end);
+  if (!parsedEnd) return false;
+  const targetDay = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  return parsedEnd.getTime() <= targetDay;
+}
+
+export function hostingDealTermSummary(
+  deal: HostingDealRow,
+  view: HostingView = "combined",
+  target = new Date(),
+): HostingTermSummary | null {
+  const candidates: Array<Omit<HostingTermSummary, "expired">> = [];
+
+  if (view !== "benaco") {
+    candidates.push(
+      { start: deal.ivion_hosting_start, end: deal.ivion_hosting_end, kind: "paid" },
+      { start: deal.ivion_comp_start, end: deal.ivion_comp_end, kind: "complimentary" },
+    );
+  }
+  if (view !== "ivion") {
+    candidates.push(
+      { start: deal.benaco_hosting_start, end: deal.benaco_hosting_end, kind: "paid" },
+      { start: deal.benaco_comp_start, end: deal.benaco_comp_end, kind: "complimentary" },
+    );
+  }
+
+  const available = candidates.filter((candidate) => candidate.start || candidate.end);
+  if (!available.length) return null;
+
+  const targetDay = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  const timestamp = (value: string | null, fallback: number) =>
+    value ? (dateValue(value)?.getTime() ?? fallback) : fallback;
+  const isActive = (candidate: (typeof available)[number]) =>
+    timestamp(candidate.start, Number.NEGATIVE_INFINITY) <= targetDay &&
+    timestamp(candidate.end, Number.POSITIVE_INFINITY) > targetDay;
+
+  const selected =
+    available.find(isActive) ??
+    available
+      .filter((candidate) => timestamp(candidate.start, Number.POSITIVE_INFINITY) > targetDay)
+      .sort(
+        (left, right) =>
+          timestamp(left.start, Number.POSITIVE_INFINITY) -
+          timestamp(right.start, Number.POSITIVE_INFINITY),
+      )[0] ??
+    [...available].sort(
+      (left, right) =>
+        timestamp(right.end, Number.NEGATIVE_INFINITY) -
+        timestamp(left.end, Number.NEGATIVE_INFINITY),
+    )[0];
+
+  return {
+    ...selected,
+    expired: isHostingTermExpired(selected.end, target),
+  };
+}
+
 export function buildHostingReport(
   deals: HostingDealRow[],
   grouping: HostingGrouping,

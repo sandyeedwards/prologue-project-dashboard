@@ -1665,6 +1665,103 @@ textarea {
   background: #fff5f4;
 }
 
+.hours-completion__disclosure {
+  border-bottom: 1px solid #e8edf3;
+}
+
+.hours-completion__disclosure > summary {
+  cursor: pointer;
+  list-style: none;
+  border-bottom: 0;
+}
+
+.hours-completion__disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.hours-completion__disclosure > summary .hours-completion__meta > strong::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 0 2px 7px;
+  border-right: 1.5px solid #6e8095;
+  border-bottom: 1.5px solid #6e8095;
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
+}
+
+.hours-completion__disclosure[open] > summary .hours-completion__meta > strong::after {
+  transform: rotate(225deg);
+}
+
+.hours-completion__breakdown {
+  display: grid;
+  gap: 0;
+  margin: 0 0 10px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.hours-completion__project {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(110px, 0.55fr));
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e3eaf2;
+  color: #596b80;
+  font-size: 0.63rem;
+}
+
+.hours-completion__project:last-child {
+  border-bottom: 0;
+}
+
+.hours-completion__project > div {
+  display: grid;
+  gap: 2px;
+}
+
+.hours-completion__project a,
+.hours-completion__project > div > strong {
+  color: var(--navy-strong);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.hours-completion__project small {
+  color: #77879a;
+}
+
+.hours-completion__project > strong {
+  justify-self: end;
+  color: var(--red);
+}
+
+@media (max-width: 900px) {
+  .hours-completion__project {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px 12px;
+  }
+
+  .hours-completion__project > div {
+    grid-column: 1 / -1;
+  }
+
+  .hours-completion__project > strong {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .hours-completion__project {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Historical chart refinements */
 .historical-profit-chart__controls {
   align-items: flex-end;
@@ -8733,6 +8830,102 @@ textarea {
   padding: 18px;
 }
 
+.portfolio-standouts {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.portfolio-standouts__heading {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.portfolio-standouts__heading p {
+  margin: 0;
+}
+
+.portfolio-standouts__heading p:last-child {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.portfolio-standouts__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.portfolio-standout {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: 13px 15px;
+  border-right: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
+}
+
+.portfolio-standout:last-child {
+  border-right: 0;
+}
+
+.portfolio-standout:hover {
+  background: #f7faff;
+}
+
+.portfolio-standout > span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.portfolio-standout > strong {
+  color: var(--navy-strong);
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.portfolio-standout--margin > strong,
+.portfolio-standout--accuracy > strong {
+  color: #087455;
+}
+
+.portfolio-standout > small {
+  overflow: hidden;
+  color: var(--navy-800);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portfolio-standout > em {
+  color: var(--muted);
+  font-size: 0.67rem;
+  font-style: normal;
+}
+
+@media (max-width: 960px) {
+  .portfolio-standouts__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portfolio-standout:nth-child(2) {
+    border-right: 0;
+  }
+
+  .portfolio-standout:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+}
+
 @media (max-width: 760px) {
   .company-watchlist__heading {
     align-items: flex-start;
@@ -8744,5 +8937,27 @@ textarea {
   }
   .company-watchlist__table {
     min-width: 680px;
+  }
+
+  .portfolio-standouts__heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+}
+
+@media (max-width: 520px) {
+  .portfolio-standouts__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-standout,
+  .portfolio-standout:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .portfolio-standout:last-child {
+    border-bottom: 0;
   }
 }

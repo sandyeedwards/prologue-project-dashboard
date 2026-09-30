@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { UnplannedReviewForm } from "@/components/unplanned-review-form";
 import { requireRole } from "@/lib/auth/session";
 import {
   getLatestTeamworkSyncDiagnostics,
+  getTeamworkIssueCenterCounts,
   getTeamworkIssueCenterRows,
+  getTeamworkUnplannedIssueCenterRows,
 } from "@/lib/reporting/dashboard-data";
 import { dateLabel, hours, money } from "@/lib/reporting/format";
 import { dismissUnplannedWork, reopenUnplannedWork } from "@/app/projects/[projectId]/actions";
@@ -91,11 +94,6 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
   const session = await requireRole("ADMIN", "/teamwork-issues");
   const isAdmin = true;
   const params = await searchParams;
-  const [allIssues, syncDiagnostics] = await Promise.all([
-    getTeamworkIssueCenterRows(),
-    getLatestTeamworkSyncDiagnostics(),
-  ]);
-
   const query = one(params.q)?.trim() ?? "";
   const view = one(params.view) ?? "ATTENTION";
   const status = one(params.status) ?? "ALL";
@@ -105,6 +103,20 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
   const projectId = one(params.project);
   const scope = one(params.scope) ?? "ALL";
   const normalizedQuery = query.toLowerCase();
+  const useUnplannedFastPath =
+    (view === "REVIEW_UNPLANNED" || view === "REVIEWED") &&
+    !query &&
+    status === "ALL" &&
+    severity === "ALL" &&
+    code === "ALL" &&
+    correctionPath === "ALL" &&
+    !projectId &&
+    scope === "ALL";
+  const [allIssues, syncDiagnostics, fastCounts] = await Promise.all([
+    useUnplannedFastPath ? getTeamworkUnplannedIssueCenterRows() : getTeamworkIssueCenterRows(),
+    getLatestTeamworkSyncDiagnostics(),
+    useUnplannedFastPath ? getTeamworkIssueCenterCounts() : Promise.resolve(null),
+  ]);
 
   const scopedIssues =
     scope === "DATA_ISSUES"
@@ -224,8 +236,9 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               </p>
             </div>
             <span className="section-meta">
-              {attentionIssues.length} need attention {"\u00b7"} {unplannedReviewIssues.length}{" "}
-              awaiting review {"\u00b7"} {reviewedIssues.length} reviewed
+              {fastCounts?.attention ?? attentionIssues.length} need attention {"\u00b7"}{" "}
+              {fastCounts?.unplannedOpen ?? unplannedReviewIssues.length} awaiting review {"\u00b7"}{" "}
+              {fastCounts?.reviewed ?? reviewedIssues.length} reviewed
             </span>
           </div>
 
@@ -248,22 +261,23 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               className={view === "ATTENTION" ? "is-active" : ""}
               href="/teamwork-issues?view=ATTENTION"
             >
-              Needs Attention <b>{attentionIssues.length}</b>
+              Needs Attention <b>{fastCounts?.attention ?? attentionIssues.length}</b>
             </Link>
             <Link
               className={view === "REVIEW_UNPLANNED" ? "is-active" : ""}
               href="/teamwork-issues?view=REVIEW_UNPLANNED"
             >
-              Review Unplanned Time <b>{unplannedReviewIssues.length}</b>
+              Review Unplanned Time{" "}
+              <b>{fastCounts?.unplannedOpen ?? unplannedReviewIssues.length}</b>
             </Link>
             <Link
               className={view === "REVIEWED" ? "is-active" : ""}
               href="/teamwork-issues?view=REVIEWED"
             >
-              Reviewed <b>{reviewedIssues.length}</b>
+              Reviewed <b>{fastCounts?.reviewed ?? reviewedIssues.length}</b>
             </Link>
             <Link className={view === "ALL" ? "is-active" : ""} href="/teamwork-issues?view=ALL">
-              All Issues <b>{statusScopedIssues.length}</b>
+              All Issues <b>{fastCounts?.total ?? statusScopedIssues.length}</b>
             </Link>
           </nav>
 
@@ -424,27 +438,19 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                         )}
                         {isAdmin && issue.code === "UNPLANNED_ACTUAL_WORK" && issue.taskId ? (
                           issue.status === "REVIEWED" ? (
-                            <form action={reopenUnplannedWork}>
-                              <input type="hidden" name="projectId" value={issue.projectId} />
-                              <input type="hidden" name="taskId" value={issue.taskId} />
-                              <button
-                                className="button button--secondary button--small"
-                                type="submit"
-                              >
-                                Reopen
-                              </button>
-                            </form>
+                            <UnplannedReviewForm
+                              action={reopenUnplannedWork}
+                              projectId={issue.projectId}
+                              taskId={issue.taskId}
+                              label="Reopen"
+                            />
                           ) : (
-                            <form action={dismissUnplannedWork}>
-                              <input type="hidden" name="projectId" value={issue.projectId} />
-                              <input type="hidden" name="taskId" value={issue.taskId} />
-                              <button
-                                className="button button--secondary button--small"
-                                type="submit"
-                              >
-                                Confirm and close
-                              </button>
-                            </form>
+                            <UnplannedReviewForm
+                              action={dismissUnplannedWork}
+                              projectId={issue.projectId}
+                              taskId={issue.taskId}
+                              label="Confirm and close"
+                            />
                           )
                         ) : null}
                       </div>

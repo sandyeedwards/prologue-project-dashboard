@@ -14,8 +14,10 @@ import {
   getHostingDashboardData,
   hasBenacoHosting,
   hasIvionHosting,
+  hostingDealTermSummary,
   hostingRowForView,
   isHostingDealActiveOn,
+  isHostingTermExpired,
   type HostingDealRow,
   type HostingGrouping,
   type HostingRange,
@@ -199,6 +201,11 @@ function DetailItem({ label, children }: { label: string; children: ReactNode })
 function dateRangeLabel(start: string | null, end: string | null): string {
   if (!start && !end) return "Not available";
   return `${dateLabel(start)} – ${end ? dateLabel(end) : "Ongoing"}`;
+}
+
+function termDateRangeLabel(start: string | null, end: string | null): string {
+  if (isHostingTermExpired(end)) return "Expired";
+  return dateRangeLabel(start, end);
 }
 
 export default async function HostingPage({ searchParams }: { searchParams: SearchParams }) {
@@ -645,6 +652,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               const fee =
                 Number(deal.ivion_contracted_fee ?? 0) + Number(deal.benaco_contracted_fee ?? 0);
               const annualBenacoRunRate = basis.count * BENACO_ANNUAL_PANO_COST;
+              const term = hostingDealTermSummary(deal, view);
 
               return (
                 <details className="hosting-deal-disclosure" key={deal.id}>
@@ -664,9 +672,11 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                     <span>
                       <small>Term</small>
                       <strong>
-                        {hasBenaco
-                          ? dateRangeLabel(deal.benaco_hosting_start, deal.benaco_hosting_end)
-                          : dateRangeLabel(deal.ivion_hosting_start, deal.ivion_hosting_end)}
+                        {term?.expired
+                          ? "Expired"
+                          : term
+                            ? dateRangeLabel(term.start, term.end)
+                            : "Not available"}
                       </strong>
                     </span>
                     <span>
@@ -704,10 +714,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                             )}
                           </DetailItem>
                           <DetailItem label="Paid hosting term">
-                            {dateRangeLabel(deal.ivion_hosting_start, deal.ivion_hosting_end)}
+                            {termDateRangeLabel(deal.ivion_hosting_start, deal.ivion_hosting_end)}
                           </DetailItem>
                           <DetailItem label="Complimentary term">
-                            {dateRangeLabel(deal.ivion_comp_start, deal.ivion_comp_end)}
+                            {termDateRangeLabel(deal.ivion_comp_start, deal.ivion_comp_end)}
                           </DetailItem>
                           <DetailItem label="Date added">
                             {dateLabel(deal.ivion_date_added)}
@@ -750,10 +760,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                             )}
                           </DetailItem>
                           <DetailItem label="Paid hosting term">
-                            {dateRangeLabel(deal.benaco_hosting_start, deal.benaco_hosting_end)}
+                            {termDateRangeLabel(deal.benaco_hosting_start, deal.benaco_hosting_end)}
                           </DetailItem>
                           <DetailItem label="Complimentary term">
-                            {dateRangeLabel(deal.benaco_comp_start, deal.benaco_comp_end)}
+                            {termDateRangeLabel(deal.benaco_comp_start, deal.benaco_comp_end)}
                           </DetailItem>
                           <DetailItem label="Total panos">
                             {optionalNumber(deal.benaco_total_panos)}
