@@ -31,4 +31,16 @@ describe("unplanned-work classification", () => {
     );
     expect(result).toEqual([]);
   });
+
+  it("treats time on an unestimated subtask as planned when its top-level task is estimated", () => {
+    const parent = { id: "estimated-parent", parentTaskId: null, estimatedMinutes: 480 };
+    const child = { id: "unestimated-child", parentTaskId: parent.id, estimatedMinutes: 0 };
+    const result = identifyUnplannedTopLevelTasks(
+      [parent, child],
+      new Map([[child.id, 180]]),
+      new Set([parent.id, child.id]),
+    );
+
+    expect(result).toEqual([]);
+  });
 });

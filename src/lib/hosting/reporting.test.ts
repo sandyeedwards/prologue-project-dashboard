@@ -5,7 +5,9 @@ import {
   BENACO_MONTHLY_OVERHEAD,
   benacoPanoBasis,
   buildHostingReport,
+  hostingDealTermSummary,
   isHostingDealActiveOn,
+  isHostingTermExpired,
   type HostingDealRow,
   type HostingIvionSite,
 } from "./reporting";
@@ -206,5 +208,48 @@ describe("buildHostingReport", () => {
 
     expect(june?.revenue).toBe(600);
     expect(june?.netProfit).toBeCloseTo((june?.revenue ?? 0) - (june?.costs ?? 0), 8);
+  });
+
+  it("uses a complimentary term when a paid term is unavailable", () => {
+    const summary = hostingDealTermSummary(
+      deal({ ivion_comp_start: "2026-06-01", ivion_comp_end: "2026-12-01" }),
+      "ivion",
+      new Date("2026-09-30T12:00:00.000Z"),
+    );
+
+    expect(summary).toEqual({
+      start: "2026-06-01",
+      end: "2026-12-01",
+      kind: "complimentary",
+      expired: false,
+    });
+  });
+
+  it("marks the latest ended hosting term as expired", () => {
+    const summary = hostingDealTermSummary(
+      deal({ ivion_comp_start: "2026-03-19", ivion_comp_end: "2026-06-19" }),
+      "combined",
+      new Date("2026-09-30T12:00:00.000Z"),
+    );
+
+    expect(summary?.expired).toBe(true);
+    expect(summary?.kind).toBe("complimentary");
+    expect(isHostingTermExpired("2026-07-02", new Date("2026-09-30T12:00:00.000Z"))).toBe(true);
+  });
+
+  it("prefers a current complimentary term over an expired paid term", () => {
+    const summary = hostingDealTermSummary(
+      deal({
+        ivion_hosting_start: "2025-01-01",
+        ivion_hosting_end: "2026-01-01",
+        ivion_comp_start: "2026-09-01",
+        ivion_comp_end: "2026-12-01",
+      }),
+      "ivion",
+      new Date("2026-09-30T12:00:00.000Z"),
+    );
+
+    expect(summary?.kind).toBe("complimentary");
+    expect(summary?.expired).toBe(false);
   });
 });

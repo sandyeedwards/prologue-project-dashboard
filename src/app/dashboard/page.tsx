@@ -12,6 +12,7 @@ import {
   type ProjectFilter,
 } from "@/lib/reporting/dashboard-data";
 import { hours, money } from "@/lib/reporting/format";
+import { getPortfolioStandouts } from "@/lib/reporting/portfolio-standouts";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +125,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       return right.dataQualityIssueCount - left.dataQualityIssueCount;
     })
     .slice(0, 5);
+  const portfolioStandouts = getPortfolioStandouts(projects);
   const companyProfitabilityRow = summary.projectCount
     ? {
         label: "Company forecast",
@@ -319,6 +321,28 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               No projects in this view currently need attention.
             </p>
           )}
+          {portfolioStandouts.length ? (
+            <div className="portfolio-standouts">
+              <div className="portfolio-standouts__heading">
+                <p className="eyebrow">Portfolio standouts</p>
+                <p>Noteworthy performance from the projects in this view.</p>
+              </div>
+              <div className="portfolio-standouts__grid">
+                {portfolioStandouts.map((standout) => (
+                  <Link
+                    className={`portfolio-standout portfolio-standout--${standout.key}`}
+                    href={`/projects/${standout.project.id}`}
+                    key={standout.key}
+                  >
+                    <span>{standout.label}</span>
+                    <strong>{standout.value}</strong>
+                    <small>{standout.project.name}</small>
+                    <em>{standout.detail}</em>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <footer className="report-footer">
