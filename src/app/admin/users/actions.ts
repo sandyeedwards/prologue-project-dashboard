@@ -2,6 +2,7 @@
 
 import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { appSessions, appUsers, auditLog } from "@/db/schema";
@@ -72,4 +73,5 @@ export async function updateUserAccess(formData: FormData): Promise<void> {
   revalidatePath("/admin/users");
   revalidatePath("/help");
   revalidatePath("/teamwork-issues");
+  redirect("/admin/users?updated=1");
 }

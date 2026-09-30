@@ -8592,24 +8592,8 @@ textarea {
 }
 
 .hosting-chart__net-line,
-.hosting-chart__net-point,
-.hosting-chart__annotation {
+.hosting-chart__net-point {
   pointer-events: none;
-}
-
-.hosting-chart__annotation {
-  fill: #147657;
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  paint-order: stroke;
-  stroke: #fff;
-  stroke-linejoin: round;
-  stroke-width: 3px;
-}
-
-.hosting-chart__annotation--negative {
-  fill: #b43731;
 }
 
 .hosting-chart__tooltip .hosting-chart__tooltip-key--cost,
