@@ -1,21 +1,21 @@
-name: Staging Teamwork sync
-run-name: "Staging sync - ${{ github.event_name }} - ${{ github.event.schedule || 'manual' }}"
+name: Production Teamwork sync
+run-name: "Production sync - ${{ github.event_name }} - ${{ github.event.schedule || 'manual' }}"
 
 on:
   workflow_dispatch:
 
   schedule:
-    - cron: "0 8 * * *"
+    - cron: "0 7 * * *"
       timezone: "America/New_York"
 
-    - cron: "0 17 * * *"
+    - cron: "0 16 * * *"
       timezone: "America/New_York"
 
 permissions:
   contents: read
 
 concurrency:
-  group: staging-teamwork-sync
+  group: production-teamwork-sync
   cancel-in-progress: false
 
 jobs:
@@ -25,12 +25,14 @@ jobs:
 
     env:
       NODE_ENV: production
-      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-      TEAMWORK_TOKEN_ENCRYPTION_KEY: ${{ secrets.STAGING_TEAMWORK_TOKEN_ENCRYPTION_KEY }}
+      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      TEAMWORK_TOKEN_ENCRYPTION_KEY: ${{ secrets.PRODUCTION_TEAMWORK_TOKEN_ENCRYPTION_KEY }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Use Node.js 24
         uses: actions/setup-node@v4
@@ -47,8 +49,8 @@ jobs:
           test -n "$DATABASE_URL"
           test -n "$TEAMWORK_TOKEN_ENCRYPTION_KEY"
 
-      - name: Check staging database
+      - name: Check production database
         run: npm run db:check
 
-      - name: Synchronize Teamwork data
+      - name: Synchronize production Teamwork data
         run: npm run job:nightly-sync
