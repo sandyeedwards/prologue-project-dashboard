@@ -3,6 +3,9 @@ import { getSqlClient } from "@/db/client";
 export type HostingGrouping = "month" | "quarter" | "half" | "year";
 export type HostingView = "combined" | "ivion" | "benaco";
 export type HostingRange = "12m" | "ytd" | "prior-year" | "all" | "custom";
+export type HostingDealPlatformFilter = "all" | "ivion" | "benaco" | "both";
+export type HostingDealTermFilter = "all" | "current" | "expired" | "missing";
+export type HostingDealFeeFilter = "all" | "with-fee" | "no-fee";
 
 export const BENACO_MONTHLY_OVERHEAD = 100;
 export const BENACO_ANNUAL_PANO_COST = 0.38;
@@ -555,6 +558,67 @@ export function hostingDealTermSummary(
     ...selected,
     expired: isHostingTermExpired(selected.end, target),
   };
+}
+
+export function filterHostingDeals(
+  deals: readonly HostingDealRow[],
+  filters: {
+    query?: string | null;
+    platform?: HostingDealPlatformFilter;
+    term?: HostingDealTermFilter;
+    fee?: HostingDealFeeFilter;
+    view?: HostingView;
+    target?: Date;
+  } = {},
+): HostingDealRow[] {
+  const query = filters.query?.trim().toLowerCase() ?? "";
+  const platform = filters.platform ?? "all";
+  const termFilter = filters.term ?? "all";
+  const feeFilter = filters.fee ?? "all";
+  const view = filters.view ?? "combined";
+  const target = filters.target ?? new Date();
+
+  return deals.filter((deal) => {
+    const hasIvion = hasIvionHosting(deal);
+    const hasBenaco = hasBenacoHosting(deal);
+    const matchesPlatform =
+      platform === "all" ||
+      (platform === "ivion" && hasIvion) ||
+      (platform === "benaco" && hasBenaco) ||
+      (platform === "both" && hasIvion && hasBenaco);
+
+    if (!matchesPlatform) return false;
+
+    const term = hostingDealTermSummary(deal, view, target);
+    const matchesTerm =
+      termFilter === "all" ||
+      (termFilter === "current" && Boolean(term && !term.expired)) ||
+      (termFilter === "expired" && Boolean(term?.expired)) ||
+      (termFilter === "missing" && !term);
+
+    if (!matchesTerm) return false;
+
+    const contractedFee = numeric(deal.ivion_contracted_fee) + numeric(deal.benaco_contracted_fee);
+    const matchesFee =
+      feeFilter === "all" ||
+      (feeFilter === "with-fee" && contractedFee > 0) ||
+      (feeFilter === "no-fee" && contractedFee <= 0);
+
+    if (!matchesFee) return false;
+    if (!query) return true;
+
+    return [
+      deal.site_name,
+      deal.deal_name,
+      deal.hubspot_deal_id,
+      deal.ivion_instance,
+      deal.benaco_url,
+      deal.hosting_communications_contact,
+      deal.hosting_notes,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .some((value) => value.toLowerCase().includes(query));
+  });
 }
 
 export function buildHostingReport(

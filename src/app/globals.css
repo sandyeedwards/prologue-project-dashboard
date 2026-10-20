@@ -10654,6 +10654,58 @@ body {
   padding: 0 14px 14px;
 }
 
+.hosting-deal-filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.5fr) minmax(135px, 0.6fr) minmax(175px, 1fr) minmax(
+      160px,
+      0.55fr
+    ) auto;
+  gap: 10px;
+  align-items: end;
+  margin: 0 14px 12px;
+  padding: 12px;
+  border: 1px solid #d9e3ee;
+  border-radius: 9px;
+  background: #f7fafe;
+}
+
+.hosting-deal-filters label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.hosting-deal-filters label > span {
+  color: #65768c;
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.hosting-deal-filters input,
+.hosting-deal-filters select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cbd7e5;
+  border-radius: 6px;
+  color: #173455;
+  background: #fff;
+  font: inherit;
+  font-size: 0.72rem;
+}
+
+.hosting-deal-filters__actions {
+  display: flex;
+  gap: 7px;
+}
+
+.hosting-deal-filters__actions .button {
+  min-height: 38px;
+  white-space: nowrap;
+}
+
 .hosting-deal-disclosure {
   overflow: hidden;
   border: 1px solid #d5e0eb;
@@ -10865,6 +10917,15 @@ body {
 }
 
 @media (max-width: 1100px) {
+  .hosting-deal-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hosting-deal-filters__search,
+  .hosting-deal-filters__actions {
+    grid-column: 1 / -1;
+  }
+
   .hosting-benaco-bill-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -10875,6 +10936,20 @@ body {
 }
 
 @media (max-width: 680px) {
+  .hosting-deal-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .hosting-deal-filters__search,
+  .hosting-deal-filters__actions {
+    grid-column: auto;
+  }
+
+  .hosting-deal-filters__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .hosting-benaco-bill-form {
     grid-template-columns: 1fr;
   }
