@@ -1,6 +1,7 @@
 import {
   filterAndSortProjects,
   getAvailableProjectTypes,
+  getComparedProjectOperationalGroups,
   getPortfolioHistoricalProfitSeries,
   getPortfolioOperationalGroups,
   getProjectRows,
@@ -34,7 +35,10 @@ export async function getFinancialPageData(
   };
   const projects = filterAndSortProjects(allProjects, filter);
   const summary = summarizeProjects(projects);
-  const operationalGroups = await getPortfolioOperationalGroups(projects);
+  const [operationalGroups, projectOperationalGroups] = await Promise.all([
+    getPortfolioOperationalGroups(projects),
+    getComparedProjectOperationalGroups(projects),
+  ]);
   const historicalProfitSeries = options.includeHistory
     ? await getPortfolioHistoricalProfitSeries(projects)
     : undefined;
@@ -50,6 +54,34 @@ export async function getFinancialPageData(
     projectCount: group.projectCount,
   }));
   const profitabilityRows = reconciliationRows.filter((row) => row.label !== "Unclassified");
+  const projectById = new Map(projects.map((project) => [project.id, project]));
+  const effortBreakdownByGroup = new Map<
+    string,
+    Array<{
+      label: string;
+      detail: string;
+      href: string;
+      values: { estimated: number; logged: number };
+    }>
+  >();
+  for (const entry of projectOperationalGroups) {
+    const project = projectById.get(entry.projectId);
+    if (!project) continue;
+    for (const group of entry.groups) {
+      if (group.groupName === "Unclassified") continue;
+      const rows = effortBreakdownByGroup.get(group.groupName) ?? [];
+      rows.push({
+        label: project.name,
+        detail: [project.projectNumber, project.companyName].filter(Boolean).join(" · "),
+        href: `/projects/${project.id}`,
+        values: {
+          estimated: group.estimatedMinutes / 60,
+          logged: group.loggedMinutes / 60,
+        },
+      });
+      effortBreakdownByGroup.set(group.groupName, rows);
+    }
+  }
   const effortRows = operationalGroups
     .filter((group) => group.groupName !== "Unclassified")
     .map((group) => ({
@@ -59,6 +91,7 @@ export async function getFinancialPageData(
         estimated: group.estimatedMinutes / 60,
         logged: group.loggedMinutes / 60,
       },
+      breakdown: effortBreakdownByGroup.get(group.groupName) ?? [],
     }));
   const totalRevenue = reconciliationRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
   const totalForecastCost = reconciliationRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);

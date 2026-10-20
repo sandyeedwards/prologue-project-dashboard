@@ -4,6 +4,12 @@ type HoursSummaryRow = {
   label: string;
   detail?: string;
   values: Record<string, number | null>;
+  breakdown?: Array<{
+    label: string;
+    detail?: string;
+    href?: string;
+    values: Record<string, number | null>;
+  }>;
 };
 
 function finite(value: number | null | undefined): value is number {
@@ -57,6 +63,26 @@ export function HoursCompletionSummary({
             : percent !== null && percent >= 90
               ? "near"
               : "on-track";
+      const breakdown = (row.breakdown ?? [])
+        .map((item) => {
+          const itemEstimatedValue = finite(item.values.estimated)
+            ? Math.max(item.values.estimated ?? 0, 0)
+            : null;
+          const itemEstimated =
+            itemEstimatedValue !== null && itemEstimatedValue > 0 ? itemEstimatedValue : null;
+          const itemLogged = finite(item.values.logged)
+            ? Math.max(item.values.logged ?? 0, 0)
+            : null;
+          const exposure =
+            itemLogged === null
+              ? 0
+              : itemEstimated === null
+                ? itemLogged
+                : Math.max(itemLogged - itemEstimated, 0);
+          return { ...item, estimated: itemEstimated, logged: itemLogged, exposure };
+        })
+        .filter((item) => item.exposure > 0)
+        .sort((left, right) => right.exposure - left.exposure);
 
       return {
         ...row,
@@ -65,6 +91,7 @@ export function HoursCompletionSummary({
         percent,
         overrunHours,
         tone,
+        breakdown,
       };
     })
     .filter((row) => row.estimated !== null || row.logged !== null);
@@ -81,7 +108,7 @@ export function HoursCompletionSummary({
   return (
     <div
       className="hours-completion"
-      role="img"
+      role="group"
       aria-label="Logged hours compared with estimated hours on a compressed shared hours scale"
     >
       <div className="chart-legend hours-completion__legend" aria-hidden="true">
@@ -132,8 +159,8 @@ export function HoursCompletionSummary({
                 ? "Over estimate"
                 : "Of estimate";
 
-          return (
-            <div className="hours-completion__row" key={row.label}>
+          const rowContent = (
+            <>
               <div className="hours-completion__meta">
                 <strong>{row.label}</strong>
                 {row.detail ? <small>{row.detail}</small> : null}
@@ -179,6 +206,41 @@ export function HoursCompletionSummary({
                   </>
                 )}
               </div>
+            </>
+          );
+
+          return row.breakdown.length ? (
+            <details className="hours-completion__disclosure" key={row.label}>
+              <summary className="hours-completion__row">{rowContent}</summary>
+              <div className="hours-completion__breakdown">
+                {row.breakdown.map((item) => (
+                  <div className="hours-completion__project" key={`${row.label}-${item.label}`}>
+                    <div>
+                      {item.href ? (
+                        <a href={item.href}>{item.label}</a>
+                      ) : (
+                        <strong>{item.label}</strong>
+                      )}
+                      {item.detail ? <small>{item.detail}</small> : null}
+                    </div>
+                    <span>{formatHours(item.logged)} logged</span>
+                    <span>
+                      {item.estimated === null
+                        ? "No estimate"
+                        : `${formatHours(item.estimated)} estimated`}
+                    </span>
+                    <strong>
+                      {item.estimated === null
+                        ? `${formatHours(item.exposure)} unestimated`
+                        : `+${formatHours(item.exposure)} over`}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : (
+            <div className="hours-completion__row" key={row.label}>
+              {rowContent}
             </div>
           );
         })}

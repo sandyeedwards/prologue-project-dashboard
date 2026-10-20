@@ -60,4 +60,40 @@ describe("HoursCompletionSummary", () => {
     expect(markup).toContain("Logged 20 h");
     expect(markup).not.toContain("hours-completion__target");
   });
+
+  it("expands project estimate issues with the largest exposure first", () => {
+    const markup = renderToStaticMarkup(
+      createElement(HoursCompletionSummary, {
+        rows: [
+          {
+            label: "Admin",
+            values: { estimated: 20, logged: 35 },
+            breakdown: [
+              {
+                label: "Smaller overrun",
+                href: "/projects/smaller",
+                values: { estimated: 5, logged: 8 },
+              },
+              {
+                label: "Missing estimate",
+                href: "/projects/missing",
+                values: { estimated: 0, logged: 12 },
+              },
+              {
+                label: "On plan",
+                href: "/projects/on-plan",
+                values: { estimated: 10, logged: 7 },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(markup).toContain("hours-completion__disclosure");
+    expect(markup).toContain("12 h unestimated");
+    expect(markup).toContain("+3 h over");
+    expect(markup).not.toContain("On plan");
+    expect(markup.indexOf("Missing estimate")).toBeLessThan(markup.indexOf("Smaller overrun"));
+  });
 });

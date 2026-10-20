@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     return new Response(Buffer.from(bytes), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="Prologue_${report.ptoOnly ? "PTO" : "Time"}_Export_${report.today}.pdf"`,
+        "Content-Disposition": `attachment; filename="Prologue_${report.ptoOnly ? "PTO" : "Time"}_Summary_${report.period.startDate}_to_${report.period.endDate}.pdf"`,
         "Cache-Control": "private, no-store",
       },
     });
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   return new Response(payrollCsv(report.rows, report.today, report.period), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="Prologue_${report.ptoOnly ? "PTO" : "Time"}_Export_${report.today}.csv"`,
+      "Content-Disposition": `attachment; filename="Prologue_${report.ptoOnly ? "PTO" : "Time"}_ADP_Prep_${report.period.startDate}_to_${report.period.endDate}.csv"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

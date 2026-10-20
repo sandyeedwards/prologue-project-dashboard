@@ -56,44 +56,40 @@ export function payrollStatus(row: PayrollRow, today: string) {
 
 export function payrollCsv(
   rows: PayrollRow[],
-  today: string,
+  _today: string,
   period: { startDate: string; endDate: string },
 ) {
   const headers = [
-    "Period start",
-    "Period end",
-    "Employee",
-    "Teamwork employee ID",
+    "Employee Name",
+    "Source Employee ID",
     "Work date",
     "Hours",
     "Minutes",
-    "Type",
+    "Earnings Code",
     "Project",
     "Task",
     "Description",
-    "Teamwork entry ID",
-    "Payroll status",
-    "PTO lock date",
+    "Source Entry ID",
+    "Period Start",
+    "Period End",
   ];
   return (
     "\uFEFF" +
     [
       headers,
       ...rows.map((row) => [
-        period.startDate,
-        period.endDate,
         row.employee_name,
         row.employee_teamwork_id,
         row.logged_date,
         (row.minutes / 60).toFixed(4),
         row.minutes,
-        row.is_pto ? "PTO" : row.is_billable ? "Billable" : "Non-billable",
+        row.is_pto ? "PTO" : row.is_billable ? "REGULAR" : "NON-BILLABLE",
         row.project_name,
         row.task_name,
         row.description,
         row.teamwork_id,
-        payrollStatus(row, today),
-        row.lock_on,
+        period.startDate,
+        period.endDate,
       ]),
     ]
       .map((cells) => cells.map(csvCell).join(","))

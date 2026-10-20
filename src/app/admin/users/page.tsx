@@ -7,8 +7,13 @@ import { updateUserAccess } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function UsersAdminPage() {
+export default async function UsersAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const session = await requireRole("ADMIN", "/admin/users");
+  const params = await searchParams;
   const users = await getDb().select().from(appUsers).orderBy(asc(appUsers.displayName));
   return (
     <AppShell user={session.user}>
@@ -22,6 +27,11 @@ export default async function UsersAdminPage() {
             The final active administrator cannot be removed.
           </p>
         </section>
+        {params.updated ? (
+          <p className="notice" role="status">
+            Access updated successfully.
+          </p>
+        ) : null}
         <section className="panel panel--single">
           <div className="table-wrap">
             <table className="data-table">

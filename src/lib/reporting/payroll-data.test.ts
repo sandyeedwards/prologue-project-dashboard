@@ -27,16 +27,18 @@ describe("payroll exports", () => {
     );
   });
 
-  it("emits a general CSV with exact minutes and stable identifiers", () => {
+  it("emits an ADP preparation CSV with earning codes and stable source identifiers", () => {
     const csv = payrollCsv([row], "2026-09-18", {
       startDate: "2026-07-01",
       endDate: "2026-07-14",
     });
 
-    expect(csv).toContain('"Teamwork employee ID"');
+    expect(csv).toContain('"Source Employee ID"');
+    expect(csv).toContain('"Earnings Code"');
     expect(csv).toContain('"501"');
     expect(csv).toContain('"480"');
     expect(csv).toContain('"42"');
-    expect(csv).toContain('"Locked"');
+    expect(csv).toContain('"PTO"');
+    expect(csv).not.toContain('"Payroll status"');
   });
 });

@@ -353,6 +353,84 @@ describe("calculateTaskListBudgetCoverage", () => {
 
     expect(result).toBe("COMPLETE");
   });
+
+  it("uses a positive allocation from any historical budget even when a later budget has zero", () => {
+    const result = calculateTaskListBudgetCoverage(
+      [
+        {
+          id: "original-scope",
+          name: "Modeling - Original Scope",
+          status: "active",
+          operationalGroup: "Modeling",
+        },
+      ],
+      [
+        {
+          projectBudgetId: "original-budget",
+          taskListId: "original-scope",
+          targetCost: "5000.00",
+        },
+        {
+          projectBudgetId: "latest-add-on",
+          taskListId: "original-scope",
+          targetCost: "0.00",
+        },
+      ],
+    );
+
+    expect(result).toBe("COMPLETE");
+  });
+
+  it("does not count a zero-only allocation as budget coverage", () => {
+    const result = calculateTaskListBudgetCoverage(
+      [
+        {
+          id: "new-scope",
+          name: "Modeling - New Add-on Scope",
+          status: "active",
+          operationalGroup: "Modeling",
+        },
+      ],
+      [
+        {
+          projectBudgetId: "latest-add-on",
+          taskListId: "new-scope",
+          targetCost: "0.00",
+        },
+      ],
+    );
+
+    expect(result).toBe("MISSING");
+  });
+
+  it("does not require a list whose tasks are all completed even if the list status remains active", () => {
+    const result = calculateTaskListBudgetCoverage(
+      [
+        {
+          id: "completed-scope",
+          name: "Modeling - Prior Add-on",
+          status: "active",
+          operationalGroup: "Modeling",
+        },
+        {
+          id: "current-scope",
+          name: "Modeling - Current Add-on",
+          status: "active",
+          operationalGroup: "Modeling",
+        },
+      ],
+      [
+        {
+          projectBudgetId: "current-budget",
+          taskListId: "current-scope",
+          targetCost: "3000.00",
+        },
+      ],
+      new Set(["completed-scope"]),
+    );
+
+    expect(result).toBe("COMPLETE");
+  });
 });
 
 describe("fixed-fee-only revenue fallback", () => {

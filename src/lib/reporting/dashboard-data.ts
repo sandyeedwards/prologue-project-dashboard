@@ -1750,6 +1750,153 @@ export async function getTeamworkIssueCenterRows(): Promise<TeamworkIssueCenterR
     );
 }
 
+export type TeamworkIssueCenterCounts = {
+  attention: number;
+  unplannedOpen: number;
+  reviewed: number;
+  total: number;
+};
+
+export async function getTeamworkIssueCenterCounts(): Promise<TeamworkIssueCenterCounts> {
+  const sql = getSqlClient();
+  const [row] = await sql<TeamworkIssueCenterCounts[]>`
+    select
+      count(*) filter (
+        where dqi.code <> 'UNPLANNED_ACTUAL_WORK'
+          and dqi.severity in ('ERROR', 'WARNING')
+      )::int as attention,
+      count(*) filter (
+        where dqi.code = 'UNPLANNED_ACTUAL_WORK'
+          and not (
+            uwr.task_id is not null
+            and coalesce((dqi.details ->> 'minutes')::int, 0) <= uwr.dismissed_logged_minutes
+          )
+      )::int as "unplannedOpen",
+      count(*) filter (
+        where dqi.code = 'UNPLANNED_ACTUAL_WORK'
+          and uwr.task_id is not null
+          and coalesce((dqi.details ->> 'minutes')::int, 0) <= uwr.dismissed_logged_minutes
+      )::int as reviewed,
+      count(*)::int as total
+    from data_quality_issues dqi
+    inner join projects p on p.id = dqi.project_id
+    left join unplanned_work_reviews uwr on uwr.task_id = dqi.task_id
+    where dqi.resolved_at is null
+      and p.excluded_from_reporting = false
+  `;
+  return row ?? { attention: 0, unplannedOpen: 0, reviewed: 0, total: 0 };
+}
+
+export async function getTeamworkUnplannedIssueCenterRows(): Promise<TeamworkIssueCenterRow[]> {
+  const sql = getSqlClient();
+  const rows = await sql<
+    Array<{
+      id: string;
+      projectId: string;
+      projectName: string;
+      projectNumber: string | null;
+      companyName: string | null;
+      projectStatus: string;
+      projectTeamworkId: number;
+      taskId: string;
+      taskListName: string;
+      taskName: string;
+      teamworkTaskId: number | null;
+      message: string;
+      lastDetectedAt: unknown;
+      details: Record<string, unknown> | null;
+      isReviewed: boolean;
+      reviewedAt: unknown;
+      reviewedByName: string | null;
+      teamworkBase: string | null;
+    }>
+  >`
+    select
+      dqi.id,
+      p.id as "projectId",
+      p.name as "projectName",
+      p.project_number as "projectNumber",
+      c.name as "companyName",
+      p.status as "projectStatus",
+      p.teamwork_id as "projectTeamworkId",
+      dqi.task_id as "taskId",
+      tl.name as "taskListName",
+      t.name as "taskName",
+      t.teamwork_id as "teamworkTaskId",
+      dqi.message,
+      dqi.last_detected_at as "lastDetectedAt",
+      dqi.details,
+      (
+        uwr.task_id is not null
+        and coalesce((dqi.details ->> 'minutes')::int, 0) <= uwr.dismissed_logged_minutes
+      ) as "isReviewed",
+      uwr.dismissed_at as "reviewedAt",
+      au.display_name as "reviewedByName",
+      (
+        select tc.api_endpoint
+        from teamwork_connections tc
+        where tc.is_active = true
+        order by tc.connected_at desc
+        limit 1
+      ) as "teamworkBase"
+    from data_quality_issues dqi
+    inner join projects p on p.id = dqi.project_id
+    left join companies c on c.id = p.company_id
+    inner join tasks t on t.id = dqi.task_id
+    inner join task_lists tl on tl.id = t.task_list_id
+    left join unplanned_work_reviews uwr on uwr.task_id = dqi.task_id
+    left join app_users au on au.id = uwr.dismissed_by_user_id
+    where dqi.resolved_at is null
+      and dqi.code = 'UNPLANNED_ACTUAL_WORK'
+      and p.excluded_from_reporting = false
+    order by "isReviewed" asc, p.name asc, tl.name asc, t.name asc
+  `;
+  const guidance = teamworkIssueGuidance("UNPLANNED_ACTUAL_WORK");
+  return rows.map((row) => {
+    const teamworkBase = row.teamworkBase?.replace(/\/+$/, "") ?? null;
+    return {
+      id: row.id,
+      projectId: row.projectId,
+      projectName: row.projectName,
+      projectNumber: row.projectNumber,
+      companyName: row.companyName,
+      projectStatus: row.projectStatus,
+      taskId: row.taskId,
+      taskListName: row.taskListName,
+      taskName: row.taskName,
+      severity: "INFO",
+      code: "UNPLANNED_ACTUAL_WORK",
+      message: row.message,
+      lastDetectedAt: normalizeDatabaseDate(
+        row.lastDetectedAt,
+        `unplanned-work issue ${row.id} lastDetectedAt`,
+      ),
+      recommendedAction: guidance.recommendedAction,
+      status: row.isReviewed ? "REVIEWED" : "OPEN",
+      resolutionPath: guidance.resolutionPath,
+      teamworkUrl:
+        teamworkBase && row.teamworkTaskId
+          ? `${teamworkBase}/app/tasks/${row.teamworkTaskId}`
+          : teamworkBase
+            ? `${teamworkBase}/app/projects/${row.projectTeamworkId}/time`
+            : null,
+      details: {
+        loggedMinutes: row.details?.minutes ?? 0,
+        laborCost: row.details?.laborCost ?? null,
+        firstLoggedDate: row.details?.firstLoggedDate ?? null,
+        lastLoggedDate: row.details?.lastLoggedDate ?? null,
+        teamworkTaskId: row.teamworkTaskId,
+      },
+      evidence: [],
+      reviewedAt: normalizeOptionalDatabaseDate(
+        row.reviewedAt,
+        `unplanned-work issue ${row.id} reviewedAt`,
+      ),
+      reviewedByName: row.reviewedByName,
+    };
+  });
+}
+
 export async function getOpenTeamworkIssueCount(): Promise<number> {
   const sql = getSqlClient();
   const [row] = await sql<Array<{ count: number }>>`

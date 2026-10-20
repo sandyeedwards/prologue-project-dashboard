@@ -12,6 +12,7 @@ import {
   type ProjectFilter,
 } from "@/lib/reporting/dashboard-data";
 import { hours, money } from "@/lib/reporting/format";
+import { getPortfolioStandouts } from "@/lib/reporting/portfolio-standouts";
 
 export const dynamic = "force-dynamic";
 
@@ -108,33 +109,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       : summary.amberCount
         ? `The portfolio is generally healthy, with ${summary.amberCount} project${summary.amberCount === 1 ? "" : "s"} to watch.`
         : "The current portfolio is healthy with no projects flagged at risk or unhealthy.";
-  const today = new Date();
-  const completedThisYear = projects.filter(
-    (project) => project.completedAt?.getUTCFullYear() === today.getUTCFullYear(),
-  ).length;
-  const largestProject = projects
-    .map((project) => ({ project, fee: numberValue(project.clientFee) }))
+  const healthPriority = { RED: 0, AMBER: 1, GRAY: 2, GREEN: 3 } as const;
+  const projectsToWatch = projects
     .filter(
-      (item): item is { project: (typeof projects)[number]; fee: number } => item.fee !== null,
+      (project) =>
+        project.healthBand === "RED" ||
+        project.healthBand === "AMBER" ||
+        project.isProvisional ||
+        project.dataQualityIssueCount > 0,
     )
-    .sort((left, right) => right.fee - left.fee)[0];
-  const highestForecastProfit = projects
-    .map((project) => ({ project, profit: numberValue(project.forecastProfit) }))
-    .filter(
-      (item): item is { project: (typeof projects)[number]; profit: number } =>
-        item.profit !== null,
-    )
-    .sort((left, right) => right.profit - left.profit)[0];
-  const strongestForecastMargin = projects
-    .map((project) => ({ project, margin: numberValue(project.forecastMarginPercent) }))
-    .filter(
-      (item): item is { project: (typeof projects)[number]; margin: number } =>
-        item.margin !== null,
-    )
-    .sort((left, right) => right.margin - left.margin)[0];
-  const mostWorkedProject = [...projects].sort(
-    (left, right) => right.loggedMinutes - left.loggedMinutes,
-  )[0];
+    .sort((left, right) => {
+      const healthDifference = healthPriority[left.healthBand] - healthPriority[right.healthBand];
+      if (healthDifference) return healthDifference;
+      if (left.isProvisional !== right.isProvisional) return left.isProvisional ? -1 : 1;
+      return right.dataQualityIssueCount - left.dataQualityIssueCount;
+    })
+    .slice(0, 5);
+  const portfolioStandouts = getPortfolioStandouts(projects);
   const companyProfitabilityRow = summary.projectCount
     ? {
         label: "Company forecast",
@@ -183,15 +174,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </div>
         </section>
 
-        <nav className="company-section-nav" aria-label="Company overview sections">
-          <a href="#company-snapshot">Company snapshot</a>
-          <a href="#profit-forecast">Profit forecast</a>
-          <a href="#portfolio-highlights">Portfolio highlights</a>
-        </nav>
-
         <section
           id="company-snapshot"
-          className="company-pulse"
+          className="company-pulse company-pulse--executive"
           aria-label="Company performance at a glance"
         >
           <div className="company-pulse__summary">
@@ -253,11 +238,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         >
           <div className="company-forecast-strip__heading">
             <div>
-              <p className="eyebrow">Company financial outlook</p>
+              <p className="eyebrow">Financial outlook</p>
               <h2>Profit Forecast</h2>
               <p>
-                Expected profit, current cost, remaining work, and margin for the active company
-                view.
+                How current cost and remaining work translate into the company&apos;s expected
+                outcome.
               </p>
             </div>
             <span>Every figure reflects the active filters.</span>
@@ -273,80 +258,92 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           )}
         </section>
 
-        <section
-          id="portfolio-highlights"
-          className="company-highlights"
-          aria-label="Company highlights"
-        >
-          <div className="company-highlights__intro">
-            <p className="eyebrow">Around the company</p>
-            <h2>Portfolio highlights</h2>
-            <p>Useful milestones and standouts from the projects currently in view.</p>
+        <section id="projects-to-watch" className="report-section company-watchlist">
+          <div className="company-watchlist__heading">
+            <div>
+              <p className="eyebrow">Portfolio exceptions</p>
+              <h2>Projects to watch</h2>
+              <p>
+                Only projects with delivery risk, provisional forecasts, or data issues appear here.
+              </p>
+            </div>
+            <Link href="/projects?health=AMBER&health=RED">View flagged projects</Link>
           </div>
-          <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">
-              ✓
-            </span>
-            <small>Completed this year</small>
-            <strong>{completedThisYear}</strong>
-            <p>projects reached completion in {today.getUTCFullYear()}</p>
-          </article>
-          <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">
-              ◆
-            </span>
-            <small>Largest project</small>
-            <strong>{largestProject ? money(largestProject.fee) : "No data"}</strong>
-            <p>{largestProject?.project.name ?? "No project revenue available"}</p>
-          </article>
-          <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">
-              $
-            </span>
-            <small>Highest forecast profit</small>
-            <strong>
-              {highestForecastProfit ? money(highestForecastProfit.profit) : "No data"}
-            </strong>
-            <p>{highestForecastProfit?.project.name ?? "No project forecast available"}</p>
-          </article>
-          <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">
-              %
-            </span>
-            <small>Strongest forecast margin</small>
-            <strong>
-              {strongestForecastMargin ? percent(strongestForecastMargin.margin) : "No data"}
-            </strong>
-            <p>{strongestForecastMargin?.project.name ?? "No project margin available"}</p>
-          </article>
-          <article className="company-highlight-card">
-            <span className="company-highlight-card__icon" aria-hidden="true">
-              ⚡
-            </span>
-            <small>Most project hours</small>
-            <strong>
-              {mostWorkedProject ? hours(mostWorkedProject.loggedMinutes) : "No data"}
-            </strong>
-            <p>{mostWorkedProject?.name ?? "No logged project time"}</p>
-          </article>
+          {projectsToWatch.length ? (
+            <div className="company-watchlist__table-wrap">
+              <table className="company-watchlist__table">
+                <thead>
+                  <tr>
+                    <th>Project</th>
+                    <th>Forecast profit</th>
+                    <th>Forecast margin</th>
+                    <th>Hours used</th>
+                    <th>Signal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectsToWatch.map((project) => {
+                    const projectHours = project.canonicalEstimatedMinutes
+                      ? (project.loggedMinutes / project.canonicalEstimatedMinutes) * 100
+                      : null;
+                    const signal =
+                      project.healthBand === "RED"
+                        ? "Unhealthy"
+                        : project.healthBand === "AMBER"
+                          ? "At risk"
+                          : project.isProvisional
+                            ? "Forecast provisional"
+                            : `${project.dataQualityIssueCount} data issue${project.dataQualityIssueCount === 1 ? "" : "s"}`;
+                    return (
+                      <tr key={project.id}>
+                        <td>
+                          <Link href={`/projects/${project.id}`}>{project.name}</Link>
+                          <small>{project.companyName ?? project.projectNumber ?? "Project"}</small>
+                        </td>
+                        <td>{money(project.forecastProfit)}</td>
+                        <td>{percent(numberValue(project.forecastMarginPercent))}</td>
+                        <td>{percent(projectHours)}</td>
+                        <td>
+                          <span
+                            className={`company-watchlist__signal company-watchlist__signal--${project.healthBand.toLowerCase()}`}
+                          >
+                            {signal}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="company-watchlist__empty">
+              No projects in this view currently need attention.
+            </p>
+          )}
+          {portfolioStandouts.length ? (
+            <div className="portfolio-standouts">
+              <div className="portfolio-standouts__heading">
+                <p className="eyebrow">Portfolio standouts</p>
+                <p>Noteworthy performance from the projects in this view.</p>
+              </div>
+              <div className="portfolio-standouts__grid">
+                {portfolioStandouts.map((standout) => (
+                  <Link
+                    className={`portfolio-standout portfolio-standout--${standout.key}`}
+                    href={`/projects/${standout.project.id}`}
+                    key={standout.key}
+                  >
+                    <span>{standout.label}</span>
+                    <strong>{standout.value}</strong>
+                    <small>{standout.project.name}</small>
+                    <em>{standout.detail}</em>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
-
-        <nav className="report-launch-grid" aria-label="Detailed company reports">
-          <Link href="/revenue-trends">
-            <span>History over time</span>
-            <strong>
-              Go to Revenue Trends <b aria-hidden="true">→</b>
-            </strong>
-            <small>Revenue, actual cost, and net profit from January 2025 onward.</small>
-          </Link>
-          <Link href="/operational-performance">
-            <span>Delivery groups</span>
-            <strong>
-              Go to Operational Performance <b aria-hidden="true">→</b>
-            </strong>
-            <small>Compare financial performance across each kind of work.</small>
-          </Link>
-        </nav>
 
         <footer className="report-footer">
           <span>Currency: USD</span>

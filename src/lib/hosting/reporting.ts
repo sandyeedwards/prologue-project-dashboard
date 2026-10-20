@@ -8,6 +8,7 @@ export const BENACO_MONTHLY_OVERHEAD = 100;
 export const BENACO_ANNUAL_PANO_COST = 0.38;
 export const BENACO_GRID_ESTIMATE_RATE = 0.28;
 export const BENACO_SUBSCRIPTION_START = "2023-09-01";
+export const HOSTING_REPORT_START = "2023-01-01";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -72,8 +73,22 @@ export type HostingReportRow = {
   benacoOverhead: number;
   benacoPanoCosts: number;
   benacoEstimatedPanoCosts: number;
+  benacoBilledCost: number;
+  benacoEstimatedCost: number;
+  benacoBilledMonths: number;
+  benacoEstimatedMonths: number;
   benacoCost: number;
   benacoNet: number;
+};
+
+export type HostingBenacoMonthlyBill = {
+  id: string;
+  billing_month: string | Date;
+  billed_amount: string | number;
+  active_panos: string | number;
+  notes: string | null;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 export type HostingSyncRun = {
@@ -106,6 +121,22 @@ export type BenacoPanoBasis = {
   count: number;
   source: "actual" | "estimated" | "missing";
 };
+
+export function benacoBillCostPerActivePano(
+  billedAmount: string | number,
+  activePanos: string | number,
+): number {
+  const panos = numeric(activePanos);
+  return panos > 0 ? numeric(billedAmount) / panos : 0;
+}
+
+export function allocateBenacoTourCost(
+  tourActivePanos: string | number,
+  billedAmount: string | number,
+  totalActivePanos: string | number,
+): number {
+  return numeric(tourActivePanos) * benacoBillCostPerActivePano(billedAmount, totalActivePanos);
+}
 
 function numeric(value: unknown): number {
   if (value === null || value === undefined || value === "") return 0;
@@ -220,35 +251,42 @@ function reportBounds(
   custom: { from?: string | null; to?: string | null } = {},
   earliestDate = dateValue(BENACO_SUBSCRIPTION_START)!,
 ): ReportBounds {
+  const historyStart = startOfPeriod(dateValue(HOSTING_REPORT_START)!, grouping);
+  const from2023 = (bounds: ReportBounds): ReportBounds => ({
+    ...bounds,
+    start: new Date(Math.max(bounds.start.getTime(), historyStart.getTime())),
+  });
+
   if (range === "custom") {
-    return (
+    return from2023(
       parsedCustomBounds(grouping, custom.from, custom.to) ??
-      defaultReportBounds(grouping, referenceDate)
+        defaultReportBounds(grouping, referenceDate),
     );
   }
   if (range === "all") {
-    return {
+    return from2023({
       start: startOfPeriod(earliestDate, grouping),
       endExclusive: futureReportEnd(grouping, referenceDate),
-    };
+    });
   }
   if (range === "ytd") {
-    return {
+    return from2023({
       start: startOfPeriod(utcDate(referenceDate.getUTCFullYear(), 0), grouping),
       endExclusive: futureReportEnd(grouping, referenceDate),
-    };
+    });
   }
   if (range === "prior-year") {
-    return {
+    return from2023({
       start: startOfPeriod(utcDate(referenceDate.getUTCFullYear() - 1, 0), grouping),
       endExclusive: utcDate(referenceDate.getUTCFullYear(), 0),
-    };
+    });
   }
-  return defaultReportBounds(grouping, referenceDate);
+  return from2023(defaultReportBounds(grouping, referenceDate));
 }
 
 function earliestReportDate(deals: HostingDealRow[], sites: HostingIvionSite[]): Date {
-  const candidates: Date[] = [dateValue(BENACO_SUBSCRIPTION_START)!];
+  const historyStart = dateValue(HOSTING_REPORT_START)!;
+  const candidates: Date[] = [historyStart];
   for (const deal of deals) {
     for (const value of [
       deal.ivion_hosting_start,
@@ -268,9 +306,11 @@ function earliestReportDate(deals: HostingDealRow[], sites: HostingIvionSite[]):
       if (effectiveOn) candidates.push(effectiveOn);
     }
   }
-  return candidates.reduce((earliest, candidate) =>
-    candidate.getTime() < earliest.getTime() ? candidate : earliest,
-  );
+  return candidates
+    .filter((candidate) => candidate.getTime() >= historyStart.getTime())
+    .reduce((earliest, candidate) =>
+      candidate.getTime() < earliest.getTime() ? candidate : earliest,
+    );
 }
 
 export function makeHostingPeriods(
@@ -424,9 +464,6 @@ function annualSiteCost(site: HostingIvionSite, period: Period): number {
 }
 
 export function benacoPanoBasis(deal: HostingDealRow): BenacoPanoBasis {
-  const countedGridPanos = numeric(deal.ivion_total_panos);
-  if (countedGridPanos > 0) return { count: countedGridPanos, source: "actual" };
-
   const totalPanos = numeric(deal.benaco_total_panos);
   if (totalPanos > 0) {
     return { count: totalPanos * BENACO_GRID_ESTIMATE_RATE, source: "estimated" };
@@ -454,6 +491,72 @@ export function hasBenacoHosting(deal: HostingDealRow): boolean {
   );
 }
 
+export type HostingTermSummary = {
+  start: string | null;
+  end: string | null;
+  kind: "paid" | "complimentary";
+  expired: boolean;
+};
+
+export function isHostingTermExpired(end: string | null, target = new Date()): boolean {
+  if (!end) return false;
+  const parsedEnd = dateValue(end);
+  if (!parsedEnd) return false;
+  const targetDay = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  return parsedEnd.getTime() <= targetDay;
+}
+
+export function hostingDealTermSummary(
+  deal: HostingDealRow,
+  view: HostingView = "combined",
+  target = new Date(),
+): HostingTermSummary | null {
+  const candidates: Array<Omit<HostingTermSummary, "expired">> = [];
+
+  if (view !== "benaco") {
+    candidates.push(
+      { start: deal.ivion_hosting_start, end: deal.ivion_hosting_end, kind: "paid" },
+      { start: deal.ivion_comp_start, end: deal.ivion_comp_end, kind: "complimentary" },
+    );
+  }
+  if (view !== "ivion") {
+    candidates.push(
+      { start: deal.benaco_hosting_start, end: deal.benaco_hosting_end, kind: "paid" },
+      { start: deal.benaco_comp_start, end: deal.benaco_comp_end, kind: "complimentary" },
+    );
+  }
+
+  const available = candidates.filter((candidate) => candidate.start || candidate.end);
+  if (!available.length) return null;
+
+  const targetDay = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  const timestamp = (value: string | null, fallback: number) =>
+    value ? (dateValue(value)?.getTime() ?? fallback) : fallback;
+  const isActive = (candidate: (typeof available)[number]) =>
+    timestamp(candidate.start, Number.NEGATIVE_INFINITY) <= targetDay &&
+    timestamp(candidate.end, Number.POSITIVE_INFINITY) > targetDay;
+
+  const selected =
+    available.find(isActive) ??
+    available
+      .filter((candidate) => timestamp(candidate.start, Number.POSITIVE_INFINITY) > targetDay)
+      .sort(
+        (left, right) =>
+          timestamp(left.start, Number.POSITIVE_INFINITY) -
+          timestamp(right.start, Number.POSITIVE_INFINITY),
+      )[0] ??
+    [...available].sort(
+      (left, right) =>
+        timestamp(right.end, Number.NEGATIVE_INFINITY) -
+        timestamp(left.end, Number.NEGATIVE_INFINITY),
+    )[0];
+
+  return {
+    ...selected,
+    expired: isHostingTermExpired(selected.end, target),
+  };
+}
+
 export function buildHostingReport(
   deals: HostingDealRow[],
   grouping: HostingGrouping,
@@ -461,6 +564,7 @@ export function buildHostingReport(
   referenceDate = new Date(),
   range: HostingRange = "12m",
   customRange: { from?: string | null; to?: string | null } = {},
+  benacoBills: HostingBenacoMonthlyBill[] = [],
 ): HostingReportRow[] {
   const bounds = reportBounds(
     grouping,
@@ -470,11 +574,22 @@ export function buildHostingReport(
     earliestReportDate(deals, ivionSites),
   );
 
+  const benacoBillsByMonth = new Map(
+    benacoBills.map((bill) => [
+      isoDate(startOfPeriod(dateValue(bill.billing_month)!, "month")).slice(0, 7),
+      bill,
+    ]),
+  );
+
   return makeHostingPeriods(grouping, referenceDate, bounds).map((period) => {
     let ivionRevenue = 0;
     let benacoRevenue = 0;
     let benacoPanoCosts = 0;
     let benacoEstimatedPanoCosts = 0;
+    let benacoOverhead = 0;
+    let benacoBilledCost = 0;
+    let benacoBilledMonths = 0;
+    let benacoEstimatedMonths = 0;
 
     for (const deal of deals) {
       const ivionStart = dateValue(deal.ivion_hosting_start);
@@ -496,20 +611,55 @@ export function buildHostingReport(
         period,
         grouping,
       );
+    }
 
-      if (hasBenacoHosting(deal)) {
-        const activeDays = activeDaysInPeriod(
-          [
-            { start: benacoStart, end: benacoEnd },
-            { start: dateValue(deal.benaco_comp_start), end: dateValue(deal.benaco_comp_end) },
-          ],
-          period,
-        );
-        const basis = benacoPanoBasis(deal);
-        const panoCost = basis.count * (BENACO_ANNUAL_PANO_COST / 365) * activeDays;
-        benacoPanoCosts += panoCost;
-        if (basis.source === "estimated") benacoEstimatedPanoCosts += panoCost;
+    let monthStart = startOfPeriod(period.start, "month");
+    while (monthStart.getTime() < period.endExclusive.getTime()) {
+      const monthEnd = addMonths(monthStart, 1);
+      const monthPeriod: Period = {
+        key: periodLabel(monthStart, "month"),
+        start: monthStart,
+        endExclusive: monthEnd,
+        forecast: monthStart.getTime() > referenceDate.getTime(),
+      };
+      const bill = benacoBillsByMonth.get(monthPeriod.key);
+
+      if (bill) {
+        benacoBilledCost += numeric(bill.billed_amount);
+        benacoBilledMonths += 1;
+      } else {
+        const monthlyOverhead = subscriptionMonthsInPeriod(monthPeriod) * BENACO_MONTHLY_OVERHEAD;
+        let monthlyPanoCosts = 0;
+        let monthlyEstimatedPanoCosts = 0;
+
+        for (const deal of deals) {
+          if (!hasBenacoHosting(deal)) continue;
+          const activeDays = activeDaysInPeriod(
+            [
+              {
+                start: dateValue(deal.benaco_hosting_start),
+                end: dateValue(deal.benaco_hosting_end),
+              },
+              {
+                start: dateValue(deal.benaco_comp_start),
+                end: dateValue(deal.benaco_comp_end),
+              },
+            ],
+            monthPeriod,
+          );
+          const basis = benacoPanoBasis(deal);
+          const panoCost = basis.count * (BENACO_ANNUAL_PANO_COST / 365) * activeDays;
+          monthlyPanoCosts += panoCost;
+          if (basis.source === "estimated") monthlyEstimatedPanoCosts += panoCost;
+        }
+
+        benacoOverhead += monthlyOverhead;
+        benacoPanoCosts += monthlyPanoCosts;
+        benacoEstimatedPanoCosts += monthlyEstimatedPanoCosts;
+        if (monthlyOverhead > 0 || monthlyPanoCosts > 0) benacoEstimatedMonths += 1;
       }
+
+      monthStart = monthEnd;
     }
 
     const ivionCost = ivionSites.reduce((sum, site) => {
@@ -517,8 +667,8 @@ export function buildHostingReport(
       if (!siteOverlapsPeriod(site, period)) return sum;
       return sum + annualSiteCost(site, period) * periodFraction(grouping);
     }, 0);
-    const benacoOverhead = subscriptionMonthsInPeriod(period) * BENACO_MONTHLY_OVERHEAD;
-    const benacoCost = benacoOverhead + benacoPanoCosts;
+    const benacoEstimatedCost = benacoOverhead + benacoPanoCosts;
+    const benacoCost = benacoBilledCost + benacoEstimatedCost;
     const revenue = ivionRevenue + benacoRevenue;
     const costs = ivionCost + benacoCost;
 
@@ -537,6 +687,10 @@ export function buildHostingReport(
       benacoOverhead,
       benacoPanoCosts,
       benacoEstimatedPanoCosts,
+      benacoBilledCost,
+      benacoEstimatedCost,
+      benacoBilledMonths,
+      benacoEstimatedMonths,
       benacoCost,
       benacoNet: benacoRevenue - benacoCost,
     };
@@ -588,7 +742,7 @@ export async function getHostingDashboardData({
   dateTo?: string | null;
 }) {
   const sql = getSqlClient();
-  const [deals, sites, syncRuns] = await Promise.all([
+  const [deals, sites, syncRuns, benacoBills] = await Promise.all([
     sql<HostingDealRow[]>`
       select
         id,
@@ -664,6 +818,19 @@ export async function getHostingDashboardData({
       order by started_at desc
       limit 10
     `,
+    sql<HostingBenacoMonthlyBill[]>`
+      select
+        id,
+        billing_month,
+        billed_amount,
+        active_panos,
+        notes,
+        created_at,
+        updated_at
+      from hosting_benaco_monthly_bills
+      where billing_month >= date '2023-01-01'
+      order by billing_month desc
+    `,
   ]);
 
   const referenceDate = new Date();
@@ -680,11 +847,20 @@ export async function getHostingDashboardData({
   return {
     deals: dealRows,
     ivionSites: siteRows,
+    benacoBills: [...benacoBills],
     syncRuns: [...syncRuns],
-    report: buildHostingReport(dealRows, grouping, siteRows, referenceDate, range, {
-      from: dateFrom,
-      to: dateTo,
-    }),
+    report: buildHostingReport(
+      dealRows,
+      grouping,
+      siteRows,
+      referenceDate,
+      range,
+      {
+        from: dateFrom,
+        to: dateTo,
+      },
+      [...benacoBills],
+    ),
     range: {
       from: isoDate(bounds.start),
       to: isoDate(addDays(bounds.endExclusive, -1)),

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getDb } from "@/db/client";
@@ -9,7 +9,7 @@ import { requireRole } from "@/lib/auth/session";
 
 const issueSchema = z.object({
   projectId: z.string().uuid(),
-  issueId: z.string().uuid(),
+  taskId: z.string().uuid(),
 });
 
 const projectSchema = z.object({ projectId: z.string().uuid() });
@@ -70,7 +70,7 @@ function refreshProject(projectId: string) {
 export async function dismissUnplannedWork(formData: FormData): Promise<void> {
   const input = issueSchema.parse({
     projectId: formData.get("projectId"),
-    issueId: formData.get("issueId"),
+    taskId: formData.get("taskId"),
   });
   const session = await requireRole("ADMIN", `/projects/${input.projectId}`);
   const db = getDb();
@@ -79,11 +79,13 @@ export async function dismissUnplannedWork(formData: FormData): Promise<void> {
     .from(dataQualityIssues)
     .where(
       and(
-        eq(dataQualityIssues.id, input.issueId),
         eq(dataQualityIssues.projectId, input.projectId),
+        eq(dataQualityIssues.taskId, input.taskId),
         eq(dataQualityIssues.code, "UNPLANNED_ACTUAL_WORK"),
+        isNull(dataQualityIssues.resolvedAt),
       ),
     )
+    .orderBy(desc(dataQualityIssues.lastDetectedAt))
     .limit(1);
   if (!issue) throw new Error("The unplanned-work item is no longer current.");
   await dismissIssue(issue, session.user.id);

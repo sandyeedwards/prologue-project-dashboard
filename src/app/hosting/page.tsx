@@ -4,24 +4,27 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { HostingFinancialChart } from "@/components/hosting-financial-chart";
 import { HostingSyncControl } from "@/components/hosting-sync-control";
-import { MetricCard } from "@/components/reporting-ui";
 import { requireUser } from "@/lib/auth/session";
 import {
   BENACO_ANNUAL_PANO_COST,
   BENACO_GRID_ESTIMATE_RATE,
   BENACO_MONTHLY_OVERHEAD,
   BENACO_SUBSCRIPTION_START,
+  benacoBillCostPerActivePano,
   benacoPanoBasis,
   getHostingDashboardData,
   hasBenacoHosting,
   hasIvionHosting,
+  hostingDealTermSummary,
   hostingRowForView,
   isHostingDealActiveOn,
+  isHostingTermExpired,
   type HostingDealRow,
   type HostingGrouping,
   type HostingRange,
   type HostingView,
 } from "@/lib/hosting/reporting";
+import { saveBenacoMonthlyBill } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -202,6 +205,11 @@ function dateRangeLabel(start: string | null, end: string | null): string {
   return `${dateLabel(start)} – ${end ? dateLabel(end) : "Ongoing"}`;
 }
 
+function termDateRangeLabel(start: string | null, end: string | null): string {
+  if (isHostingTermExpired(end)) return "Expired";
+  return dateRangeLabel(start, end);
+}
+
 export default async function HostingPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireUser("/hosting");
   const params = await searchParams;
@@ -213,7 +221,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const dateTo = one(params.dateTo);
   const data = await getHostingDashboardData({ grouping, range, dateFrom, dateTo });
   const latestSync = data.syncRuns[0] ?? null;
-  const hasSourceData = Boolean(latestSync || data.deals.length || data.ivionSites.length);
+  const hasSourceData = Boolean(
+    latestSync || data.deals.length || data.ivionSites.length || data.benacoBills.length,
+  );
   const actualRows = data.report.filter((row) => !row.forecast);
   const displayedRows = showForecast ? data.report : actualRows;
   const selectedRows = actualRows.map((row) => hostingRowForView(row, view));
@@ -252,13 +262,15 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   );
   const benacoPanoBases = benacoDeals.map(benacoPanoBasis);
   const benacoCountedPanos = benacoPanoBases.reduce((sum, basis) => sum + basis.count, 0);
-  const estimatedBenacoRecords = benacoPanoBases.filter(
-    (basis) => basis.source === "estimated",
-  ).length;
   const estimatedCost = actualRows.reduce((sum, row) => sum + row.benacoEstimatedPanoCosts, 0);
+  const billedCost = actualRows.reduce((sum, row) => sum + row.benacoBilledCost, 0);
+  const billedMonths = actualRows.reduce((sum, row) => sum + row.benacoBilledMonths, 0);
+  const estimatedMonths = actualRows.reduce((sum, row) => sum + row.benacoEstimatedMonths, 0);
   const viewLabel = views.find((option) => option.value === view)?.label ?? "Combined";
   const rangeLabel = ranges.find((option) => option.value === range)?.label ?? "Rolling 12 months";
   const syncTone = latestSync?.status === "FAILED" ? "hosting-status--failed" : "";
+  const contributionMargin = totals.revenue ? totals.netProfit / totals.revenue : null;
+  const costShare = totals.revenue ? Math.min(Math.max(totals.costs / totals.revenue, 0), 1) : 0;
 
   return (
     <AppShell user={session.user} contentTone="portfolio">
@@ -268,8 +280,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <p className="eyebrow">Hosting revenue &amp; platform economics</p>
             <h1>Hosting Reporting</h1>
             <p>
-              Track paid IVION and Benaco hosting revenue, direct platform costs, pano usage, and
-              term coverage from the HubSpot hosting records.
+              A focused view of hosting revenue, direct costs, net contribution, and platform scale.
             </p>
             <div className="report-titlebar__status" aria-label="Hosting data status">
               <span className="portfolio-status-dot portfolio-status-dot--green" />
@@ -388,13 +399,12 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               ) : null}
             </div>
           </details>
+          <p className="hosting-range-summary">
+            <strong>{rangeLabel}</strong> · {dateLabel(data.range.from)} through{" "}
+            {dateLabel(data.range.to)}
+            {showForecast ? " · Forecast visible" : " · Actual periods"}
+          </p>
         </section>
-
-        <p className="hosting-range-summary">
-          <strong>{rangeLabel}</strong> · {dateLabel(data.range.from)} through{" "}
-          {dateLabel(data.range.to)}
-          {showForecast ? " · Forecast is visible" : " · Actual periods only"}
-        </p>
 
         {!latestSync ? (
           <section className="notice hosting-status-banner" aria-live="polite">
@@ -411,79 +421,101 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </section>
         ) : null}
 
-        {estimatedBenacoRecords ? (
+        {estimatedMonths ? (
           <section className="notice hosting-status-banner" aria-live="polite">
             <strong>
-              {estimatedBenacoRecords} Benaco record{estimatedBenacoRecords === 1 ? "" : "s"} use a
+              {estimatedMonths} displayed Benaco month{estimatedMonths === 1 ? "" : "s"} use a
               planning estimate.
             </strong>
             <span>
-              Ivion Total Panos is missing, so counted panos are estimated at{" "}
-              {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos. Approximately{" "}
-              {currency(estimatedCost, 2)} of displayed historical cost is estimated.
+              Until a monthly bill is entered, active panos are estimated at{" "}
+              {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos and cost is calculated
+              at {currency(BENACO_ANNUAL_PANO_COST, 2)} per active pano per year plus the monthly
+              subscription. Approximately {currency(estimatedCost, 2)} of the pano cost shown is
+              estimated.
             </span>
           </section>
         ) : null}
 
-        <section className="metric-grid metric-grid--executive" aria-label="Hosting summary">
-          <MetricCard
-            label={`${viewLabel} Paid Revenue`}
-            value={hasSourceData ? currency(totals.revenue) : "No data"}
-            detail="Contracted hosting fees allocated across term periods"
-            accent="blue"
-            priority="primary"
-          />
-          <MetricCard
-            label={`${viewLabel} Direct Costs`}
-            value={hasSourceData ? currency(totals.costs) : "No data"}
-            detail="Platform, subscription, and daily pano hosting costs"
-            accent="red"
-            priority="primary"
-          />
-          <MetricCard
-            label={`${viewLabel} Net Revenue`}
-            value={hasSourceData ? currency(totals.netProfit) : "No data"}
-            detail="Paid revenue less direct hosting costs"
-            accent={hasSourceData && totals.netProfit < 0 ? "red" : "green"}
-            priority="primary"
-          />
-          <MetricCard
-            label="Active Hosting Deals"
-            value={hasSourceData ? number(activeDeals.length) : "No data"}
-            detail={`${filteredDeals.length} records contribute to this view and range`}
-            accent="navy"
-          />
-          {view === "benaco" ? (
-            <>
-              <MetricCard
-                label="Benaco Total Panos"
-                value={hasSourceData ? number(benacoTotalPanos) : "No data"}
-                detail="Complete site panos from Benaco Total Panos"
-                accent="navy"
-              />
-              <MetricCard
-                label="Benaco Counted Panos"
-                value={hasSourceData ? number(benacoCountedPanos) : "No data"}
-                detail="Ivion Total Panos; estimated at 28% only when missing"
-                accent="gray"
-              />
-            </>
-          ) : (
-            <>
-              <MetricCard
-                label="IVION Active Panos"
-                value={hasSourceData ? number(ivionActivePanos) : "No data"}
-                detail={`${number(ivionTotalPanos)} total IVION panos in this range`}
-                accent="navy"
-              />
-              <MetricCard
-                label="Benaco Counted Panos"
-                value={hasSourceData ? number(benacoCountedPanos) : "No data"}
-                detail={`${number(benacoTotalPanos)} total Benaco panos in this range`}
-                accent="gray"
-              />
-            </>
-          )}
+        {billedMonths ? (
+          <section className="notice hosting-status-banner" aria-live="polite">
+            <strong>
+              {billedMonths} displayed Benaco month{billedMonths === 1 ? "" : "s"} use actual bills.
+            </strong>
+            <span>
+              {currency(billedCost, 2)} of displayed Benaco cost comes directly from saved bills.
+            </span>
+          </section>
+        ) : null}
+
+        <section className="hosting-overview" aria-label="Hosting financial summary">
+          <article
+            className={`hosting-contribution${hasSourceData && totals.netProfit < 0 ? " hosting-contribution--loss" : ""}`}
+          >
+            <div className="hosting-contribution__heading">
+              <div>
+                <p className="eyebrow">{viewLabel} contribution</p>
+                <h2>Net hosting revenue</h2>
+              </div>
+              <span>
+                {contributionMargin === null
+                  ? "No margin"
+                  : `${wholePercent(contributionMargin)} margin`}
+              </span>
+            </div>
+            <strong className="hosting-contribution__value">
+              {hasSourceData ? currency(totals.netProfit) : "No data"}
+            </strong>
+            <p>Revenue remaining after direct platform, subscription, and pano costs.</p>
+            <div className="hosting-contribution__split" aria-label="Revenue and cost totals">
+              <div>
+                <span>Paid revenue</span>
+                <strong>{hasSourceData ? currency(totals.revenue) : "No data"}</strong>
+              </div>
+              <div>
+                <span>Direct costs</span>
+                <strong>{hasSourceData ? currency(totals.costs) : "No data"}</strong>
+              </div>
+            </div>
+            <div className="hosting-contribution__bar" aria-hidden="true">
+              <span style={{ width: `${costShare * 100}%` }} />
+            </div>
+          </article>
+
+          <div className="hosting-scale" aria-label="Hosting operating scale">
+            <article className="hosting-scale__card hosting-scale__card--deals">
+              <span>Active hosting deals</span>
+              <strong>{hasSourceData ? number(activeDeals.length) : "No data"}</strong>
+              <small>{filteredDeals.length} records in this reporting range</small>
+            </article>
+            {view === "benaco" ? (
+              <>
+                <article className="hosting-scale__card">
+                  <span>Benaco total panos</span>
+                  <strong>{hasSourceData ? number(benacoTotalPanos) : "No data"}</strong>
+                  <small>Complete site pano inventory</small>
+                </article>
+                <article className="hosting-scale__card">
+                  <span>Benaco counted panos</span>
+                  <strong>{hasSourceData ? number(benacoCountedPanos) : "No data"}</strong>
+                  <small>Billable basis after approved estimates</small>
+                </article>
+              </>
+            ) : (
+              <>
+                <article className="hosting-scale__card">
+                  <span>IVION active panos</span>
+                  <strong>{hasSourceData ? number(ivionActivePanos) : "No data"}</strong>
+                  <small>{number(ivionTotalPanos)} total in this range</small>
+                </article>
+                <article className="hosting-scale__card">
+                  <span>Benaco counted panos</span>
+                  <strong>{hasSourceData ? number(benacoCountedPanos) : "No data"}</strong>
+                  <small>{number(benacoTotalPanos)} total in this range</small>
+                </article>
+              </>
+            )}
+          </div>
         </section>
 
         <section className="report-section hosting-report-section hosting-chart-section">
@@ -492,17 +524,19 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <p className="eyebrow">Company hosting timeline</p>
               <h2>{viewLabel} financial performance</h2>
             </div>
-            <p>
-              Paid revenue, direct cost composition, and net revenue across the selected history.
-            </p>
+            <p>Monthly paid revenue, direct platform costs, and resulting net hosting revenue.</p>
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
-          <p className="hosting-calculation-note">
-            <strong>Calculation check:</strong> complimentary hosting never creates a revenue
-            deduction. Net revenue is paid contracted hosting revenue minus IVION platform cost,
-            Benaco pano cost, and the Benaco subscription. A period can fall sharply when a paid
-            term ends while its site remains active and continues to incur direct hosting cost.
-          </p>
+          <details className="hosting-methodology">
+            <summary>How net revenue is calculated</summary>
+            <p>
+              <strong>
+                Paid revenue – IVION costs – Benaco pano and subscription costs = Net revenue.
+              </strong>{" "}
+              Complimentary hosting never reduces paid revenue. A period can fall when a paid term
+              ends while its site continues to incur direct hosting cost.
+            </p>
+          </details>
         </section>
 
         <details className="report-section hosting-report-section hosting-table-disclosure">
@@ -595,22 +629,95 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               </div>
             </div>
             <dl className="hosting-cost-model">
+              <DetailItem label="Actual monthly bill">
+                Bill total ÷ total active panos = effective monthly cost per active pano
+              </DetailItem>
+              <DetailItem label="Tour allocation">
+                Tour active panos × effective monthly cost per active pano
+              </DetailItem>
               <DetailItem label="Subscription overhead">
-                {currency(BENACO_MONTHLY_OVERHEAD)} per month since{" "}
-                {dateLabel(BENACO_SUBSCRIPTION_START)}
+                Included in the actual bill. Estimates use {currency(BENACO_MONTHLY_OVERHEAD)} per
+                month since {dateLabel(BENACO_SUBSCRIPTION_START)}.
               </DetailItem>
-              <DetailItem label="Counted pano rate">
-                {currency(BENACO_ANNUAL_PANO_COST, 2)} per Ivion Total Pano per year
+              <DetailItem label="Estimated active panos">
+                {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos
               </DetailItem>
-              <DetailItem label="Daily calculation">
-                Counted panos × $0.38 ÷ 365 × active days
+              <DetailItem label="Estimate when no bill exists">
+                Estimated active panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} ÷ 365 × active days
               </DetailItem>
-              <DetailItem label="Missing counted panos">
-                Estimate at {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos and
-                label it
-              </DetailItem>
+              <DetailItem label="History start">January 2023</DetailItem>
             </dl>
           </article>
+        </section>
+
+        <section className="report-section hosting-report-section hosting-benaco-bills">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Actual cost source</p>
+              <h2>Benaco monthly bills</h2>
+            </div>
+            <p>Saved bill totals replace the estimate for the matching month.</p>
+          </div>
+
+          {session.user.role === "ADMIN" ? (
+            <form className="hosting-benaco-bill-form" action={saveBenacoMonthlyBill}>
+              <label>
+                <span>Billing month</span>
+                <input type="month" name="billingMonth" min="2023-01" required />
+              </label>
+              <label>
+                <span>Bill total</span>
+                <input type="number" name="billedAmount" min="0" step="0.01" required />
+              </label>
+              <label>
+                <span>Total active panos</span>
+                <input type="number" name="activePanos" min="0.01" step="0.01" required />
+              </label>
+              <label className="hosting-benaco-bill-form__notes">
+                <span>Notes</span>
+                <input type="text" name="notes" maxLength={1000} />
+              </label>
+              <button className="button button--primary" type="submit">
+                Save monthly bill
+              </button>
+            </form>
+          ) : null}
+
+          <div className="table-wrap report-table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Bill total</th>
+                  <th>Active panos</th>
+                  <th>Cost per active pano</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.benacoBills.map((bill) => {
+                  const activePanos = Number(bill.active_panos);
+                  const billedAmount = Number(bill.billed_amount);
+                  return (
+                    <tr key={bill.id}>
+                      <td>
+                        <strong>{dateLabel(bill.billing_month)}</strong>
+                      </td>
+                      <td>{currency(billedAmount, 2)}</td>
+                      <td>{number(activePanos)}</td>
+                      <td>{currency(benacoBillCostPerActivePano(billedAmount, activePanos), 4)}</td>
+                      <td>{bill.notes || "—"}</td>
+                    </tr>
+                  );
+                })}
+                {!data.benacoBills.length ? (
+                  <tr>
+                    <td colSpan={5}>No Benaco bills have been entered yet.</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="report-section hosting-report-section">
@@ -635,6 +742,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               const fee =
                 Number(deal.ivion_contracted_fee ?? 0) + Number(deal.benaco_contracted_fee ?? 0);
               const annualBenacoRunRate = basis.count * BENACO_ANNUAL_PANO_COST;
+              const term = hostingDealTermSummary(deal, view);
 
               return (
                 <details className="hosting-deal-disclosure" key={deal.id}>
@@ -654,9 +762,11 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                     <span>
                       <small>Term</small>
                       <strong>
-                        {hasBenaco
-                          ? dateRangeLabel(deal.benaco_hosting_start, deal.benaco_hosting_end)
-                          : dateRangeLabel(deal.ivion_hosting_start, deal.ivion_hosting_end)}
+                        {term?.expired
+                          ? "Expired"
+                          : term
+                            ? dateRangeLabel(term.start, term.end)
+                            : "Not available"}
                       </strong>
                     </span>
                     <span>
@@ -694,10 +804,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                             )}
                           </DetailItem>
                           <DetailItem label="Paid hosting term">
-                            {dateRangeLabel(deal.ivion_hosting_start, deal.ivion_hosting_end)}
+                            {termDateRangeLabel(deal.ivion_hosting_start, deal.ivion_hosting_end)}
                           </DetailItem>
                           <DetailItem label="Complimentary term">
-                            {dateRangeLabel(deal.ivion_comp_start, deal.ivion_comp_end)}
+                            {termDateRangeLabel(deal.ivion_comp_start, deal.ivion_comp_end)}
                           </DetailItem>
                           <DetailItem label="Date added">
                             {dateLabel(deal.ivion_date_added)}
@@ -740,10 +850,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                             )}
                           </DetailItem>
                           <DetailItem label="Paid hosting term">
-                            {dateRangeLabel(deal.benaco_hosting_start, deal.benaco_hosting_end)}
+                            {termDateRangeLabel(deal.benaco_hosting_start, deal.benaco_hosting_end)}
                           </DetailItem>
                           <DetailItem label="Complimentary term">
-                            {dateRangeLabel(deal.benaco_comp_start, deal.benaco_comp_end)}
+                            {termDateRangeLabel(deal.benaco_comp_start, deal.benaco_comp_end)}
                           </DetailItem>
                           <DetailItem label="Total panos">
                             {optionalNumber(deal.benaco_total_panos)}

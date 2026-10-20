@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { UnplannedReviewForm } from "@/components/unplanned-review-form";
 import { requireRole } from "@/lib/auth/session";
 import {
   getLatestTeamworkSyncDiagnostics,
+  getTeamworkIssueCenterCounts,
   getTeamworkIssueCenterRows,
+  getTeamworkUnplannedIssueCenterRows,
 } from "@/lib/reporting/dashboard-data";
 import { dateLabel, hours, money } from "@/lib/reporting/format";
 import { dismissUnplannedWork, reopenUnplannedWork } from "@/app/projects/[projectId]/actions";
@@ -47,6 +50,38 @@ function issueLocation(code: string): string {
   return "The affected Teamwork task or project record";
 }
 
+function conciseIssueMessage(code: string, fallback: string): string {
+  const messages: Record<string, string> = {
+    UNPLANNED_ACTUAL_WORK: "Logged time is above plan or the task has no estimate.",
+    OUTSOURCED_EXPENSE_MISSING: "An outsourced task has no matching Finance expense.",
+    PROJECT_BUDGET_MISSING: "No current fixed-fee project budget was found.",
+    TASK_LIST_BUDGET_COVERAGE_INCOMPLETE: "Active delivery task lists are missing budget targets.",
+    MISSING_TASK_ASSIGNMENT: "Remaining work has no assigned person or role.",
+    NON_COSTED_ASSIGNMENT_UNRESOLVED: "An assignment has no usable cost rate.",
+    MISSING_JOB_ROLE_COST_RATE: "The assigned job role has no cost rate.",
+    MISSING_EMPLOYEE_COST_RATE: "The assigned employee has no cost rate.",
+    UNALLOCATED_PROJECT_TIME: "Logged time is not attached to a task.",
+    ACTUAL_LABOR_COST_INCOMPLETE: "Some logged time is missing labor cost.",
+  };
+  return messages[code] ?? fallback;
+}
+
+function conciseIssueAction(code: string, fallback: string): string {
+  const actions: Record<string, string> = {
+    UNPLANNED_ACTUAL_WORK: "Confirm the work or correct the task estimate.",
+    OUTSOURCED_EXPENSE_MISSING: "Add the matching outsourced expense.",
+    PROJECT_BUDGET_MISSING: "Create or correct the current project budget.",
+    TASK_LIST_BUDGET_COVERAGE_INCOMPLETE: "Add a target cost to each active delivery task list.",
+    MISSING_TASK_ASSIGNMENT: "Assign the remaining work to a person or role.",
+    NON_COSTED_ASSIGNMENT_UNRESOLVED: "Add a valid cost rate to the assignment.",
+    MISSING_JOB_ROLE_COST_RATE: "Add the missing job-role cost rate.",
+    MISSING_EMPLOYEE_COST_RATE: "Add the employee's cost rate.",
+    UNALLOCATED_PROJECT_TIME: "Move the time entry to the correct task.",
+    ACTUAL_LABOR_COST_INCOMPLETE: "Complete the missing employee or role cost rate.",
+  };
+  return actions[code] ?? fallback;
+}
+
 function diagnosticContext(details: Record<string, unknown> | null): string | null {
   const taskListName = details?.taskListName;
   if (typeof taskListName === "string" && taskListName.trim()) {
@@ -59,11 +94,6 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
   const session = await requireRole("ADMIN", "/teamwork-issues");
   const isAdmin = true;
   const params = await searchParams;
-  const [allIssues, syncDiagnostics] = await Promise.all([
-    getTeamworkIssueCenterRows(),
-    getLatestTeamworkSyncDiagnostics(),
-  ]);
-
   const query = one(params.q)?.trim() ?? "";
   const view = one(params.view) ?? "ATTENTION";
   const status = one(params.status) ?? "ALL";
@@ -73,6 +103,20 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
   const projectId = one(params.project);
   const scope = one(params.scope) ?? "ALL";
   const normalizedQuery = query.toLowerCase();
+  const useUnplannedFastPath =
+    (view === "REVIEW_UNPLANNED" || view === "REVIEWED") &&
+    !query &&
+    status === "ALL" &&
+    severity === "ALL" &&
+    code === "ALL" &&
+    correctionPath === "ALL" &&
+    !projectId &&
+    scope === "ALL";
+  const [allIssues, syncDiagnostics, fastCounts] = await Promise.all([
+    useUnplannedFastPath ? getTeamworkUnplannedIssueCenterRows() : getTeamworkIssueCenterRows(),
+    getLatestTeamworkSyncDiagnostics(),
+    useUnplannedFastPath ? getTeamworkIssueCenterCounts() : Promise.resolve(null),
+  ]);
 
   const scopedIssues =
     scope === "DATA_ISSUES"
@@ -192,8 +236,9 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               </p>
             </div>
             <span className="section-meta">
-              {attentionIssues.length} need attention {"\u00b7"} {unplannedReviewIssues.length}{" "}
-              awaiting review {"\u00b7"} {reviewedIssues.length} reviewed
+              {fastCounts?.attention ?? attentionIssues.length} need attention {"\u00b7"}{" "}
+              {fastCounts?.unplannedOpen ?? unplannedReviewIssues.length} awaiting review {"\u00b7"}{" "}
+              {fastCounts?.reviewed ?? reviewedIssues.length} reviewed
             </span>
           </div>
 
@@ -216,22 +261,23 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               className={view === "ATTENTION" ? "is-active" : ""}
               href="/teamwork-issues?view=ATTENTION"
             >
-              Needs Attention <b>{attentionIssues.length}</b>
+              Needs Attention <b>{fastCounts?.attention ?? attentionIssues.length}</b>
             </Link>
             <Link
               className={view === "REVIEW_UNPLANNED" ? "is-active" : ""}
               href="/teamwork-issues?view=REVIEW_UNPLANNED"
             >
-              Review Unplanned Time <b>{unplannedReviewIssues.length}</b>
+              Review Unplanned Time{" "}
+              <b>{fastCounts?.unplannedOpen ?? unplannedReviewIssues.length}</b>
             </Link>
             <Link
               className={view === "REVIEWED" ? "is-active" : ""}
               href="/teamwork-issues?view=REVIEWED"
             >
-              Reviewed <b>{reviewedIssues.length}</b>
+              Reviewed <b>{fastCounts?.reviewed ?? reviewedIssues.length}</b>
             </Link>
             <Link className={view === "ALL" ? "is-active" : ""} href="/teamwork-issues?view=ALL">
-              All Issues <b>{statusScopedIssues.length}</b>
+              All Issues <b>{fastCounts?.total ?? statusScopedIssues.length}</b>
             </Link>
           </nav>
 
@@ -359,15 +405,15 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
 
                       <div className="issue-card__explanation">
                         <p>
-                          <strong>What’s wrong</strong>
-                          <span>{issue.message}</span>
+                          <strong>Issue</strong>
+                          <span>{conciseIssueMessage(issue.code, issue.message)}</span>
                         </p>
                         <p>
-                          <strong>How to fix it</strong>
-                          <span>{issue.recommendedAction}</span>
+                          <strong>Action</strong>
+                          <span>{conciseIssueAction(issue.code, issue.recommendedAction)}</span>
                         </p>
                         <p>
-                          <strong>Where to fix it</strong>
+                          <strong>Location</strong>
                           <span>{issueLocation(issue.code)}</span>
                         </p>
                       </div>
@@ -392,27 +438,19 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                         )}
                         {isAdmin && issue.code === "UNPLANNED_ACTUAL_WORK" && issue.taskId ? (
                           issue.status === "REVIEWED" ? (
-                            <form action={reopenUnplannedWork}>
-                              <input type="hidden" name="projectId" value={issue.projectId} />
-                              <input type="hidden" name="taskId" value={issue.taskId} />
-                              <button
-                                className="button button--secondary button--small"
-                                type="submit"
-                              >
-                                Reopen
-                              </button>
-                            </form>
+                            <UnplannedReviewForm
+                              action={reopenUnplannedWork}
+                              projectId={issue.projectId}
+                              taskId={issue.taskId}
+                              label="Reopen"
+                            />
                           ) : (
-                            <form action={dismissUnplannedWork}>
-                              <input type="hidden" name="projectId" value={issue.projectId} />
-                              <input type="hidden" name="issueId" value={issue.id} />
-                              <button
-                                className="button button--secondary button--small"
-                                type="submit"
-                              >
-                                Confirm and close
-                              </button>
-                            </form>
+                            <UnplannedReviewForm
+                              action={dismissUnplannedWork}
+                              projectId={issue.projectId}
+                              taskId={issue.taskId}
+                              label="Confirm and close"
+                            />
                           )
                         ) : null}
                       </div>

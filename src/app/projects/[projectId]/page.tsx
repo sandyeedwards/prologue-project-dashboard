@@ -750,9 +750,9 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                   {isAdmin ? (
                     <form action={dismissUnplannedWork}>
                       <input type="hidden" name="projectId" value={project.id} />
-                      <input type="hidden" name="issueId" value={item.issueId} />
+                      <input type="hidden" name="taskId" value={item.taskId} />
                       <button className="button button--secondary" type="submit">
-                        Reviewed — leave unplanned
+                        Mark reviewed — leave unplanned
                       </button>
                     </form>
                   ) : null}
