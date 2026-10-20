@@ -10,6 +10,7 @@ import {
   BENACO_GRID_ESTIMATE_RATE,
   BENACO_MONTHLY_OVERHEAD,
   BENACO_SUBSCRIPTION_START,
+  benacoBillCostPerActivePano,
   benacoPanoBasis,
   getHostingDashboardData,
   hasBenacoHosting,
@@ -23,6 +24,7 @@ import {
   type HostingRange,
   type HostingView,
 } from "@/lib/hosting/reporting";
+import { saveBenacoMonthlyBill } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -219,7 +221,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const dateTo = one(params.dateTo);
   const data = await getHostingDashboardData({ grouping, range, dateFrom, dateTo });
   const latestSync = data.syncRuns[0] ?? null;
-  const hasSourceData = Boolean(latestSync || data.deals.length || data.ivionSites.length);
+  const hasSourceData = Boolean(
+    latestSync || data.deals.length || data.ivionSites.length || data.benacoBills.length,
+  );
   const actualRows = data.report.filter((row) => !row.forecast);
   const displayedRows = showForecast ? data.report : actualRows;
   const selectedRows = actualRows.map((row) => hostingRowForView(row, view));
@@ -258,10 +262,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   );
   const benacoPanoBases = benacoDeals.map(benacoPanoBasis);
   const benacoCountedPanos = benacoPanoBases.reduce((sum, basis) => sum + basis.count, 0);
-  const estimatedBenacoRecords = benacoPanoBases.filter(
-    (basis) => basis.source === "estimated",
-  ).length;
   const estimatedCost = actualRows.reduce((sum, row) => sum + row.benacoEstimatedPanoCosts, 0);
+  const billedCost = actualRows.reduce((sum, row) => sum + row.benacoBilledCost, 0);
+  const billedMonths = actualRows.reduce((sum, row) => sum + row.benacoBilledMonths, 0);
+  const estimatedMonths = actualRows.reduce((sum, row) => sum + row.benacoEstimatedMonths, 0);
   const viewLabel = views.find((option) => option.value === view)?.label ?? "Combined";
   const rangeLabel = ranges.find((option) => option.value === range)?.label ?? "Rolling 12 months";
   const syncTone = latestSync?.status === "FAILED" ? "hosting-status--failed" : "";
@@ -417,16 +421,29 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </section>
         ) : null}
 
-        {estimatedBenacoRecords ? (
+        {estimatedMonths ? (
           <section className="notice hosting-status-banner" aria-live="polite">
             <strong>
-              {estimatedBenacoRecords} Benaco record{estimatedBenacoRecords === 1 ? "" : "s"} use a
+              {estimatedMonths} displayed Benaco month{estimatedMonths === 1 ? "" : "s"} use a
               planning estimate.
             </strong>
             <span>
-              Ivion Total Panos is missing, so counted panos are estimated at{" "}
-              {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos. Approximately{" "}
-              {currency(estimatedCost, 2)} of displayed historical cost is estimated.
+              Until a monthly bill is entered, active panos are estimated at{" "}
+              {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos and cost is calculated
+              at {currency(BENACO_ANNUAL_PANO_COST, 2)} per active pano per year plus the monthly
+              subscription. Approximately {currency(estimatedCost, 2)} of the pano cost shown is
+              estimated.
+            </span>
+          </section>
+        ) : null}
+
+        {billedMonths ? (
+          <section className="notice hosting-status-banner" aria-live="polite">
+            <strong>
+              {billedMonths} displayed Benaco month{billedMonths === 1 ? "" : "s"} use actual bills.
+            </strong>
+            <span>
+              {currency(billedCost, 2)} of displayed Benaco cost comes directly from saved bills.
             </span>
           </section>
         ) : null}
@@ -612,22 +629,95 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               </div>
             </div>
             <dl className="hosting-cost-model">
+              <DetailItem label="Actual monthly bill">
+                Bill total ÷ total active panos = effective monthly cost per active pano
+              </DetailItem>
+              <DetailItem label="Tour allocation">
+                Tour active panos × effective monthly cost per active pano
+              </DetailItem>
               <DetailItem label="Subscription overhead">
-                {currency(BENACO_MONTHLY_OVERHEAD)} per month since{" "}
-                {dateLabel(BENACO_SUBSCRIPTION_START)}
+                Included in the actual bill. Estimates use {currency(BENACO_MONTHLY_OVERHEAD)} per
+                month since {dateLabel(BENACO_SUBSCRIPTION_START)}.
               </DetailItem>
-              <DetailItem label="Counted pano rate">
-                {currency(BENACO_ANNUAL_PANO_COST, 2)} per Ivion Total Pano per year
+              <DetailItem label="Estimated active panos">
+                {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos
               </DetailItem>
-              <DetailItem label="Daily calculation">
-                Counted panos × $0.38 ÷ 365 × active days
+              <DetailItem label="Estimate when no bill exists">
+                Estimated active panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} ÷ 365 × active days
               </DetailItem>
-              <DetailItem label="Missing counted panos">
-                Estimate at {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos and
-                label it
-              </DetailItem>
+              <DetailItem label="History start">January 2023</DetailItem>
             </dl>
           </article>
+        </section>
+
+        <section className="report-section hosting-report-section hosting-benaco-bills">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Actual cost source</p>
+              <h2>Benaco monthly bills</h2>
+            </div>
+            <p>Saved bill totals replace the estimate for the matching month.</p>
+          </div>
+
+          {session.user.role === "ADMIN" ? (
+            <form className="hosting-benaco-bill-form" action={saveBenacoMonthlyBill}>
+              <label>
+                <span>Billing month</span>
+                <input type="month" name="billingMonth" min="2023-01" required />
+              </label>
+              <label>
+                <span>Bill total</span>
+                <input type="number" name="billedAmount" min="0" step="0.01" required />
+              </label>
+              <label>
+                <span>Total active panos</span>
+                <input type="number" name="activePanos" min="0.01" step="0.01" required />
+              </label>
+              <label className="hosting-benaco-bill-form__notes">
+                <span>Notes</span>
+                <input type="text" name="notes" maxLength={1000} />
+              </label>
+              <button className="button button--primary" type="submit">
+                Save monthly bill
+              </button>
+            </form>
+          ) : null}
+
+          <div className="table-wrap report-table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Bill total</th>
+                  <th>Active panos</th>
+                  <th>Cost per active pano</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.benacoBills.map((bill) => {
+                  const activePanos = Number(bill.active_panos);
+                  const billedAmount = Number(bill.billed_amount);
+                  return (
+                    <tr key={bill.id}>
+                      <td>
+                        <strong>{dateLabel(bill.billing_month)}</strong>
+                      </td>
+                      <td>{currency(billedAmount, 2)}</td>
+                      <td>{number(activePanos)}</td>
+                      <td>{currency(benacoBillCostPerActivePano(billedAmount, activePanos), 4)}</td>
+                      <td>{bill.notes || "—"}</td>
+                    </tr>
+                  );
+                })}
+                {!data.benacoBills.length ? (
+                  <tr>
+                    <td colSpan={5}>No Benaco bills have been entered yet.</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="report-section hosting-report-section">
