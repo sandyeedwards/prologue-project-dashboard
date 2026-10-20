@@ -967,6 +967,36 @@ export const hostingSyncRuns = pgTable(
       .where(sql`${table.status} = 'RUNNING'`),
   ],
 );
+
+export const hostingBenacoMonthlyBills = pgTable(
+  "hosting_benaco_monthly_bills",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    billingMonth: date("billing_month").notNull(),
+    billedAmount: numeric("billed_amount", {
+      precision: 16,
+      scale: 2,
+    }).notNull(),
+    activePanos: numeric("active_panos", {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    notes: text("notes"),
+    enteredByUserId: uuid("entered_by_user_id").references(() => appUsers.id, {
+      onDelete: "set null",
+    }),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex("hosting_benaco_monthly_bills_month_unique").on(table.billingMonth),
+    check(
+      "hosting_benaco_monthly_bills_month_check",
+      sql`${table.billingMonth} >= DATE '2023-01-01'`,
+    ),
+    check("hosting_benaco_monthly_bills_amount_check", sql`${table.billedAmount} >= 0`),
+    check("hosting_benaco_monthly_bills_panos_check", sql`${table.activePanos} > 0`),
+  ],
+);
 export const auditLog = pgTable(
   "audit_log",
   {
