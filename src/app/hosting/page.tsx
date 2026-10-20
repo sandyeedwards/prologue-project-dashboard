@@ -656,7 +656,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <p className="eyebrow">Actual cost source</p>
               <h2>Benaco monthly bills</h2>
             </div>
-            <p>Saved bill totals replace the estimate for the matching month.</p>
+            <p>
+              Copy the month, invoice total, and active-pano total from the Benaco bill. Saving a
+              month that already exists updates that month instead of creating a duplicate.
+            </p>
           </div>
 
           {session.user.role === "ADMIN" ? (
@@ -674,8 +677,13 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 <input type="number" name="activePanos" min="0.01" step="0.01" required />
               </label>
               <label className="hosting-benaco-bill-form__notes">
-                <span>Notes</span>
-                <input type="text" name="notes" maxLength={1000} />
+                <span>Invoice / reference (optional)</span>
+                <input
+                  type="text"
+                  name="notes"
+                  maxLength={1000}
+                  placeholder="Invoice number or source note"
+                />
               </label>
               <button className="button button--primary" type="submit">
                 Save monthly bill

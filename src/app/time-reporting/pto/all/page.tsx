@@ -1,25 +1,14 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { requireRole } from "@/lib/auth/session";
+import { ptoDays, ptoDaysLabel, ptoHoursLabel } from "@/lib/reporting/pto-display";
 import { getTimeReportingReport } from "@/lib/reporting/time-reporting-data";
 import { updatePtoAllowance } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const PTO_DAY_MINUTES = 8 * 60;
-
-function hoursLabel(minutes: number): string {
-  const value = minutes / 60;
-
-  return Number.isInteger(value) ? `${value.toFixed(0)}h` : `${value.toFixed(1)}h`;
-}
-
-function daysValue(minutes: number): number {
-  return minutes / PTO_DAY_MINUTES;
-}
-
 function allowanceDaysInput(minutes: number): string {
-  const days = minutes / PTO_DAY_MINUTES;
+  const days = ptoDays(minutes);
 
   return Number.isInteger(days) ? String(days) : days.toFixed(1);
 }
@@ -110,7 +99,9 @@ export default async function AllPtoPage() {
                         : "pto-admin-card__balance"
                     }
                   >
-                    {daysValue(employee.ptoRemainingMinutes).toFixed(1)}d remaining
+                    {overAllowance
+                      ? `${ptoDaysLabel(Math.abs(employee.ptoRemainingMinutes))} over allowance`
+                      : `${ptoDaysLabel(employee.ptoRemainingMinutes)} remaining`}
                   </div>
                 </header>
 
@@ -130,20 +121,24 @@ export default async function AllPtoPage() {
                 <div className="pto-admin-card__metrics">
                   <div>
                     <span>Used</span>
-                    <strong>{daysValue(employee.ptoUsedMinutes).toFixed(1)}d</strong>
-                    <small>{hoursLabel(employee.ptoUsedMinutes)}</small>
+                    <strong className={overAllowance ? "pto-value--warning" : undefined}>
+                      {ptoDaysLabel(employee.ptoUsedMinutes)}
+                    </strong>
+                    <small>{ptoHoursLabel(employee.ptoUsedMinutes)}</small>
                   </div>
 
                   <div>
                     <span>Allowance</span>
-                    <strong>{daysValue(employee.ptoAllowanceMinutes).toFixed(1)}d</strong>
-                    <small>{hoursLabel(employee.ptoAllowanceMinutes)}</small>
+                    <strong>{ptoDaysLabel(employee.ptoAllowanceMinutes)}</strong>
+                    <small>{ptoHoursLabel(employee.ptoAllowanceMinutes)}</small>
                   </div>
 
                   <div>
-                    <span>Remaining</span>
-                    <strong>{daysValue(employee.ptoRemainingMinutes).toFixed(1)}d</strong>
-                    <small>{hoursLabel(employee.ptoRemainingMinutes)}</small>
+                    <span>{overAllowance ? "Over allowance" : "Remaining"}</span>
+                    <strong className={overAllowance ? "pto-value--warning" : undefined}>
+                      {ptoDaysLabel(Math.abs(employee.ptoRemainingMinutes))}
+                    </strong>
+                    <small>{ptoHoursLabel(Math.abs(employee.ptoRemainingMinutes))}</small>
                   </div>
                 </div>
 
