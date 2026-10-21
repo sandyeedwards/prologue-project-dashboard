@@ -10656,10 +10656,9 @@ body {
 
 .hosting-deal-filters {
   display: grid;
-  grid-template-columns: minmax(240px, 1.5fr) minmax(135px, 0.6fr) minmax(175px, 1fr) minmax(
-      160px,
-      0.55fr
-    ) auto;
+  grid-template-columns:
+    minmax(240px, 1.5fr) minmax(135px, 0.6fr) minmax(175px, 1fr) minmax(160px, 0.55fr)
+    auto;
   gap: 10px;
   align-items: end;
   margin: 0 14px 12px;
