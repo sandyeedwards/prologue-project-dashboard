@@ -839,7 +839,9 @@ export async function getHostingDashboardData({
         hosting_notes,
         hosting_communications_contact
       from hosting_deals
-      where is_in_all_hosting_records = true
+      -- Keep deals that have since left HubSpot's current "All Hosting Records"
+      -- list in historical reporting. The hosting sync intentionally retains those
+      -- rows and marks them inactive instead of deleting their past terms.
       order by coalesce(site_name, deal_name, hubspot_deal_id)
     `,
     sql<HostingIvionSite[]>`
