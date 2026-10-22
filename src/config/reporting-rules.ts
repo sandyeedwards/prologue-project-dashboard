@@ -32,6 +32,7 @@ export const REPORTING_RULES = {
     "admin",
     "administration",
     "project setup",
+    "model setup",
     "teamwork setup",
     "project management",
     "general project management",

@@ -107,6 +107,7 @@ describe("helpers", () => {
   it.each([
     "Admin",
     "Project Setup",
+    "Model Setup",
     "Teamwork Setup",
     "General Project Management",
     "OffBoarding",

@@ -5,6 +5,7 @@ import { TimeReportingHoverTrack } from "@/components/time-reporting-hover-track
 import { TimeReportingProjectFilter } from "@/components/time-reporting-project-filter";
 import { MetricCard } from "@/components/reporting-ui";
 import { requireUser } from "@/lib/auth/session";
+import { ptoDaysLabel, ptoHoursLabel } from "@/lib/reporting/pto-display";
 import {
   getTimeReportingReport,
   type TimeReportingBreakdownRow,
@@ -413,7 +414,8 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
                 </strong>{" "}
                 All employees use the same scale. The vertical target marker represents expected
                 hours, while the full lane expands when anyone logs beyond that target so overtime
-                never runs off the chart.
+                never runs off the chart. Out of Office bars reflect this selected date range;
+                calendar-year PTO usage appears beneath each employee.
               </p>
             </div>
 
@@ -652,6 +654,20 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
                                 </strong>
                               </span>
                             ) : null}
+
+                            <span
+                              className={
+                                employee.ptoRemainingMinutes < 0
+                                  ? "time-reporting-hover-card__warning"
+                                  : undefined
+                              }
+                            >
+                              PTO used in {report.ptoYear}
+                              <strong>
+                                {ptoHoursLabel(employee.ptoUsedMinutes)} (
+                                {ptoDaysLabel(employee.ptoUsedMinutes)})
+                              </strong>
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -671,6 +687,21 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
                       </span>
 
                       <span>Utilization {utilization.toFixed(1)}%</span>
+
+                      <span
+                        className={
+                          employee.ptoRemainingMinutes < 0
+                            ? "time-reporting-row__pto time-reporting-row__pto--over"
+                            : "time-reporting-row__pto"
+                        }
+                      >
+                        PTO YTD <strong>{ptoHoursLabel(employee.ptoUsedMinutes)}</strong> (
+                        {ptoDaysLabel(employee.ptoUsedMinutes)}) of{" "}
+                        {ptoHoursLabel(employee.ptoAllowanceMinutes)}
+                        {employee.ptoRemainingMinutes < 0
+                          ? ` · ${ptoHoursLabel(Math.abs(employee.ptoRemainingMinutes))} over`
+                          : ""}
+                      </span>
                     </div>
                   </div>
                 </article>

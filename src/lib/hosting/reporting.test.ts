@@ -7,6 +7,7 @@ import {
   benacoBillCostPerActivePano,
   benacoPanoBasis,
   buildHostingReport,
+  filterHostingDeals,
   hostingDealTermSummary,
   isHostingDealActiveOn,
   isHostingTermExpired,
@@ -357,5 +358,56 @@ describe("buildHostingReport", () => {
 
     expect(summary?.kind).toBe("complimentary");
     expect(summary?.expired).toBe(false);
+  });
+});
+
+describe("filterHostingDeals", () => {
+  const target = new Date("2026-10-20T12:00:00.000Z");
+  const deals = [
+    deal({
+      id: "ivion-active",
+      hubspot_deal_id: "25-195",
+      deal_name: "10 Calycanthus Road - 3N",
+      site_name: "10 Calycanthus Road",
+      ivion_instance: "https://example.iv.navvis.com",
+      ivion_hosting_start: "2026-01-01",
+      ivion_hosting_end: "2027-01-01",
+      ivion_contracted_fee: 600,
+    }),
+    deal({
+      id: "benaco-expired",
+      hubspot_deal_id: "26-113",
+      deal_name: "1 Evelyn Place, Asheville NC",
+      site_name: "1 Evelyn Place",
+      benaco_url: "https://benaco.example/tour",
+      benaco_hosting_start: "2025-01-01",
+      benaco_hosting_end: "2026-01-01",
+      benaco_contracted_fee: 0,
+    }),
+  ];
+
+  it("searches deal names, site names, and HubSpot IDs", () => {
+    expect(filterHostingDeals(deals, { query: "calycanthus", target })).toHaveLength(1);
+    expect(filterHostingDeals(deals, { query: "26-113", target })[0]?.id).toBe("benaco-expired");
+  });
+
+  it("combines platform, term, and fee filters", () => {
+    expect(
+      filterHostingDeals(deals, {
+        platform: "ivion",
+        term: "current",
+        fee: "with-fee",
+        target,
+      }).map((row) => row.id),
+    ).toEqual(["ivion-active"]);
+
+    expect(
+      filterHostingDeals(deals, {
+        platform: "benaco",
+        term: "expired",
+        fee: "no-fee",
+        target,
+      }).map((row) => row.id),
+    ).toEqual(["benaco-expired"]);
   });
 });
