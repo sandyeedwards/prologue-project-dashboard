@@ -5197,6 +5197,18 @@ textarea {
   font-size: 0.65rem;
 }
 
+.time-reporting-row__pto {
+  padding-left: 12px;
+  border-left: 1px solid #cbd6e3;
+  color: #51667f;
+  font-weight: 750;
+}
+
+.time-reporting-row__pto--over,
+.time-reporting-row__pto--over strong {
+  color: #bd3e39;
+}
+
 .time-reporting-pto-table-wrap {
   overflow-x: auto;
   padding: 5px 20px 18px;
@@ -6141,6 +6153,10 @@ textarea {
 
 .pto-stat-card--warning > strong {
   color: #bd3e39;
+}
+
+.pto-value--warning {
+  color: #bd3e39 !important;
 }
 
 .pto-admin-heading {

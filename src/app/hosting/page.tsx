@@ -12,6 +12,7 @@ import {
   BENACO_SUBSCRIPTION_START,
   benacoBillCostPerActivePano,
   benacoPanoBasis,
+  filterHostingDeals,
   getHostingDashboardData,
   hasBenacoHosting,
   hasIvionHosting,
@@ -20,6 +21,9 @@ import {
   isHostingDealActiveOn,
   isHostingTermExpired,
   type HostingDealRow,
+  type HostingDealFeeFilter,
+  type HostingDealPlatformFilter,
+  type HostingDealTermFilter,
   type HostingGrouping,
   type HostingRange,
   type HostingView,
@@ -51,6 +55,26 @@ const views: Array<{ value: HostingView; label: string }> = [
   { value: "benaco", label: "Benaco" },
 ];
 
+const dealPlatformFilters: Array<{ value: HostingDealPlatformFilter; label: string }> = [
+  { value: "all", label: "All platforms" },
+  { value: "ivion", label: "IVION" },
+  { value: "benaco", label: "Benaco" },
+  { value: "both", label: "IVION + Benaco" },
+];
+
+const dealTermFilters: Array<{ value: HostingDealTermFilter; label: string }> = [
+  { value: "all", label: "Any term status" },
+  { value: "current", label: "Current / upcoming" },
+  { value: "expired", label: "Expired" },
+  { value: "missing", label: "No term dates" },
+];
+
+const dealFeeFilters: Array<{ value: HostingDealFeeFilter; label: string }> = [
+  { value: "all", label: "Any contracted fee" },
+  { value: "with-fee", label: "Fee above $0" },
+  { value: "no-fee", label: "$0 or missing" },
+];
+
 function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -69,6 +93,24 @@ function selectedForecast(value: string | undefined): boolean {
 
 function selectedView(value: string | undefined): HostingView {
   return views.some((option) => option.value === value) ? (value as HostingView) : "combined";
+}
+
+function selectedDealPlatform(value: string | undefined): HostingDealPlatformFilter {
+  return dealPlatformFilters.some((option) => option.value === value)
+    ? (value as HostingDealPlatformFilter)
+    : "all";
+}
+
+function selectedDealTerm(value: string | undefined): HostingDealTermFilter {
+  return dealTermFilters.some((option) => option.value === value)
+    ? (value as HostingDealTermFilter)
+    : "all";
+}
+
+function selectedDealFee(value: string | undefined): HostingDealFeeFilter {
+  return dealFeeFilters.some((option) => option.value === value)
+    ? (value as HostingDealFeeFilter)
+    : "all";
 }
 
 function currency(value: number, maximumFractionDigits = 0): string {
@@ -219,6 +261,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const showForecast = selectedForecast(one(params.forecast));
   const dateFrom = one(params.dateFrom);
   const dateTo = one(params.dateTo);
+  const dealQuery = one(params.dealQuery)?.trim().slice(0, 120) ?? "";
+  const dealPlatform = selectedDealPlatform(one(params.dealPlatform));
+  const dealTerm = selectedDealTerm(one(params.dealTerm));
+  const dealFee = selectedDealFee(one(params.dealFee));
   const data = await getHostingDashboardData({ grouping, range, dateFrom, dateTo });
   const latestSync = data.syncRuns[0] ?? null;
   const hasSourceData = Boolean(
@@ -237,6 +283,16 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   );
   const filteredDeals = data.deals.filter((deal) =>
     dealMatchesRange(deal, view, data.range.from, data.range.to),
+  );
+  const visibleDeals = filterHostingDeals(filteredDeals, {
+    query: dealQuery,
+    platform: dealPlatform,
+    term: dealTerm,
+    fee: dealFee,
+    view,
+  });
+  const dealFiltersActive = Boolean(
+    dealQuery || dealPlatform !== "all" || dealTerm !== "all" || dealFee !== "all",
   );
   const serviceDeals = data.deals.filter((deal) =>
     view === "ivion"
@@ -656,7 +712,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <p className="eyebrow">Actual cost source</p>
               <h2>Benaco monthly bills</h2>
             </div>
-            <p>Saved bill totals replace the estimate for the matching month.</p>
+            <p>
+              Copy the month, invoice total, and active-pano total from the Benaco bill. Saving a
+              month that already exists updates that month instead of creating a duplicate.
+            </p>
           </div>
 
           {session.user.role === "ADMIN" ? (
@@ -674,8 +733,13 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 <input type="number" name="activePanos" min="0.01" step="0.01" required />
               </label>
               <label className="hosting-benaco-bill-form__notes">
-                <span>Notes</span>
-                <input type="text" name="notes" maxLength={1000} />
+                <span>Invoice / reference (optional)</span>
+                <input
+                  type="text"
+                  name="notes"
+                  maxLength={1000}
+                  placeholder="Invoice number or source note"
+                />
               </label>
               <button className="button button--primary" type="submit">
                 Save monthly bill
@@ -727,13 +791,82 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <h2>Hosting deal detail</h2>
             </div>
             <p>
-              {filteredDeals.length
-                ? `${filteredDeals.length} records in this view`
+              {visibleDeals.length
+                ? dealFiltersActive
+                  ? `${visibleDeals.length} of ${filteredDeals.length} records shown`
+                  : `${visibleDeals.length} records in this view`
                 : "No matching records"}
             </p>
           </div>
+
+          <form className="hosting-deal-filters" action="/hosting" method="get">
+            <input type="hidden" name="grouping" value={grouping} />
+            <input type="hidden" name="view" value={view} />
+            <input type="hidden" name="range" value={range} />
+            {dateFrom ? <input type="hidden" name="dateFrom" value={dateFrom} /> : null}
+            {dateTo ? <input type="hidden" name="dateTo" value={dateTo} /> : null}
+            {showForecast ? <input type="hidden" name="forecast" value="show" /> : null}
+
+            <label className="hosting-deal-filters__search">
+              <span>Deal or site</span>
+              <input
+                type="search"
+                name="dealQuery"
+                defaultValue={dealQuery}
+                placeholder="Search name, project number, or HubSpot ID"
+              />
+            </label>
+
+            <label>
+              <span>Platform</span>
+              <select name="dealPlatform" defaultValue={dealPlatform}>
+                {dealPlatformFilters.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Term</span>
+              <select name="dealTerm" defaultValue={dealTerm}>
+                {dealTermFilters.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Contracted fee</span>
+              <select name="dealFee" defaultValue={dealFee}>
+                {dealFeeFilters.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="hosting-deal-filters__actions">
+              <button className="button button--primary" type="submit">
+                Filter deals
+              </button>
+              {dealFiltersActive ? (
+                <Link
+                  className="button button--secondary"
+                  href={viewHref({ grouping, view, range, dateFrom, dateTo, showForecast })}
+                >
+                  Clear
+                </Link>
+              ) : null}
+            </div>
+          </form>
+
           <div className="hosting-deal-list">
-            {filteredDeals.map((deal) => {
+            {visibleDeals.map((deal) => {
               const hasIvion = hasIvionHosting(deal);
               const hasBenaco = hasBenacoHosting(deal);
               const basis = benacoPanoBasis(deal);
@@ -901,9 +1034,11 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 </details>
               );
             })}
-            {!filteredDeals.length ? (
+            {!visibleDeals.length ? (
               <div className="empty-panel">
-                No hosting deals contribute to the selected service and time range.
+                {dealFiltersActive
+                  ? "No hosting deals match these filters."
+                  : "No hosting deals contribute to the selected service and time range."}
               </div>
             ) : null}
           </div>
