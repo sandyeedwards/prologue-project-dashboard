@@ -8,6 +8,7 @@ export type HostingDealTermFilter = "all" | "current" | "expired" | "missing";
 export type HostingDealFeeFilter = "all" | "with-fee" | "no-fee";
 
 export const BENACO_MONTHLY_OVERHEAD = 100;
+export const BENACO_ANNUAL_OVERHEAD = BENACO_MONTHLY_OVERHEAD * 12;
 export const BENACO_ANNUAL_PANO_COST = 0.38;
 export const BENACO_GRID_ESTIMATE_RATE = 0.28;
 export const BENACO_SUBSCRIPTION_START = "2023-09-01";
@@ -38,6 +39,7 @@ export type HostingDealRow = {
   benaco_hosting_end: string | null;
   benaco_contracted_fee: string | number | null;
   benaco_total_panos: string | number | null;
+  benaco_counted_grid_panos: string | number | null;
   benaco_comp_start: string | null;
   benaco_comp_end: string | null;
   benaco_url: string | null;
@@ -467,6 +469,11 @@ function annualSiteCost(site: HostingIvionSite, period: Period): number {
 }
 
 export function benacoPanoBasis(deal: HostingDealRow): BenacoPanoBasis {
+  const countedGridPanos = numeric(deal.benaco_counted_grid_panos);
+  if (countedGridPanos > 0) {
+    return { count: countedGridPanos, source: "actual" };
+  }
+
   const totalPanos = numeric(deal.benaco_total_panos);
   if (totalPanos > 0) {
     return { count: totalPanos * BENACO_GRID_ESTIMATE_RATE, source: "estimated" };
@@ -490,7 +497,8 @@ export function hasBenacoHosting(deal: HostingDealRow): boolean {
     deal.benaco_hosting_start ||
     deal.benaco_comp_start ||
     numeric(deal.benaco_contracted_fee) ||
-    numeric(deal.benaco_total_panos),
+    numeric(deal.benaco_total_panos) ||
+    numeric(deal.benaco_counted_grid_panos),
   );
 }
 
@@ -831,6 +839,7 @@ export async function getHostingDashboardData({
         benaco_hosting_end,
         benaco_contracted_fee,
         benaco_total_panos,
+        benaco_counted_grid_panos,
         benaco_comp_start,
         benaco_comp_end,
         benaco_url,

@@ -27,6 +27,15 @@ describe("resolveHostingPropertyMap", () => {
     expect(hostingPropertiesToFetch(map)).toContain("ivion_quarterly_fee");
   });
 
+  it("maps the HubSpot Counted Grid-Pano field", () => {
+    const map = resolveHostingPropertyMap([
+      { name: "counted_grid_pano", label: "Counted Grid-Pano" },
+    ]);
+
+    expect(map.benacoCountedGridPanos).toBe("counted_grid_pano");
+    expect(hostingPropertiesToFetch(map)).toContain("counted_grid_pano");
+  });
+
   it("fetches safe hosting detail fields without requesting credentials", () => {
     const map = resolveHostingPropertyMap([
       { name: "site_name", label: "Site Name" },

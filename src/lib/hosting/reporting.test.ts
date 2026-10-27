@@ -39,6 +39,7 @@ function deal(overrides: Partial<HostingDealRow> = {}): HostingDealRow {
     benaco_hosting_end: null,
     benaco_contracted_fee: null,
     benaco_total_panos: null,
+    benaco_counted_grid_panos: null,
     benaco_comp_start: null,
     benaco_comp_end: null,
     benaco_url: null,
@@ -135,11 +136,24 @@ describe("buildHostingReport", () => {
     expect(june?.benacoEstimatedPanoCosts).toBeCloseTo(june?.benacoPanoCosts ?? 0, 8);
   });
 
+  it("uses HubSpot Counted Grid-Pano instead of the planning estimate", () => {
+    const countedDeal = deal({
+      benaco_total_panos: 1000,
+      benaco_counted_grid_panos: 315,
+    });
+
+    expect(benacoPanoBasis(countedDeal)).toEqual({ count: 315, source: "actual" });
+  });
+
   it("starts the single Benaco subscription overhead in September 2023", () => {
     const report = buildHostingReport([], "month", [], new Date("2023-10-15T12:00:00.000Z"), "all");
 
-    expect(report.find((row) => row.period === "2023-09")?.benacoOverhead).toBe(100);
-    expect(report.find((row) => row.period === "2023-10")?.benacoOverhead).toBe(100);
+    expect(report.find((row) => row.period === "2023-09")?.benacoOverhead).toBe(
+      BENACO_MONTHLY_OVERHEAD,
+    );
+    expect(report.find((row) => row.period === "2023-10")?.benacoOverhead).toBe(
+      BENACO_MONTHLY_OVERHEAD,
+    );
   });
 
   it("uses an entered Benaco bill as the full cost for that month", () => {
@@ -202,10 +216,10 @@ describe("buildHostingReport", () => {
 
     expect(report[0]).toMatchObject({
       benacoBilledCost: 500,
-      benacoEstimatedCost: 200,
+      benacoEstimatedCost: BENACO_MONTHLY_OVERHEAD * 2,
       benacoBilledMonths: 1,
       benacoEstimatedMonths: 2,
-      benacoCost: 700,
+      benacoCost: 500 + BENACO_MONTHLY_OVERHEAD * 2,
     });
   });
 

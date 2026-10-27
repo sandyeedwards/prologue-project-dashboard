@@ -7,6 +7,7 @@ import { HostingSyncControl } from "@/components/hosting-sync-control";
 import { requireUser } from "@/lib/auth/session";
 import {
   BENACO_ANNUAL_PANO_COST,
+  BENACO_ANNUAL_OVERHEAD,
   BENACO_GRID_ESTIMATE_RATE,
   BENACO_MONTHLY_OVERHEAD,
   BENACO_SUBSCRIPTION_START,
@@ -692,11 +693,13 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 Tour active panos × effective monthly cost per active pano
               </DetailItem>
               <DetailItem label="Subscription overhead">
-                Included in the actual bill. Estimates use {currency(BENACO_MONTHLY_OVERHEAD)} per
-                month since {dateLabel(BENACO_SUBSCRIPTION_START)}.
+                Included in the actual bill. Estimates accrue {currency(BENACO_ANNUAL_OVERHEAD)}
+                per year ({currency(BENACO_MONTHLY_OVERHEAD, 2)} per month) since{" "}
+                {dateLabel(BENACO_SUBSCRIPTION_START)}.
               </DetailItem>
-              <DetailItem label="Estimated active panos">
-                {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos
+              <DetailItem label="Counted grid panos">
+                Use HubSpot Counted Grid-Pano when entered; otherwise estimate{" "}
+                {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos.
               </DetailItem>
               <DetailItem label="Estimate when no bill exists">
                 Estimated active panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} ÷ 365 × active days
@@ -714,7 +717,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </div>
             <p>
               Copy the month, invoice total, and active-pano total from the Benaco bill. Saving a
-              month that already exists updates that month instead of creating a duplicate.
+              month that already exists updates that month instead of creating a duplicate. Record
+              catch-up invoices in the month received and identify the historical coverage in the
+              notes; they remain one-time actual costs and do not change future estimates.
             </p>
           </div>
 
@@ -998,6 +1003,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                                 {basis.source}
                               </em>
                             </span>
+                          </DetailItem>
+                          <DetailItem label="HubSpot Counted Grid-Pano">
+                            {optionalNumber(deal.benaco_counted_grid_panos)}
                           </DetailItem>
                           <DetailItem label="Estimated monthly pano cost">
                             {currency(annualBenacoRunRate / 12, 2)}
