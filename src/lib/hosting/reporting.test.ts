@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   BENACO_ANNUAL_PANO_COST,
+  BENACO_2024_CATCH_UP_TOTAL,
   BENACO_MONTHLY_OVERHEAD,
   allocateBenacoTourCost,
   benacoBillCostPerActivePano,
+  benacoHistoricalCatchUpCost,
   benacoPanoBasis,
   buildHostingReport,
   filterHostingDeals,
@@ -39,6 +41,7 @@ function deal(overrides: Partial<HostingDealRow> = {}): HostingDealRow {
     benaco_hosting_end: null,
     benaco_contracted_fee: null,
     benaco_total_panos: null,
+    benaco_counted_grid_panos: null,
     benaco_comp_start: null,
     benaco_comp_end: null,
     benaco_url: null,
@@ -135,11 +138,48 @@ describe("buildHostingReport", () => {
     expect(june?.benacoEstimatedPanoCosts).toBeCloseTo(june?.benacoPanoCosts ?? 0, 8);
   });
 
+  it("uses HubSpot Counted Grid-Pano instead of the planning estimate", () => {
+    const countedDeal = deal({
+      benaco_total_panos: 1000,
+      benaco_counted_grid_panos: 315,
+    });
+
+    expect(benacoPanoBasis(countedDeal)).toEqual({ count: 315, source: "actual" });
+  });
+
+  it("spreads the one-time catch-up invoice across 2024 without recurring", () => {
+    expect(benacoHistoricalCatchUpCost("2024-01")).toBe(705.56);
+    expect(benacoHistoricalCatchUpCost("2024-12")).toBe(705.55);
+    expect(benacoHistoricalCatchUpCost("2025-01")).toBe(0);
+
+    const report = buildHostingReport(
+      [],
+      "year",
+      [],
+      new Date("2026-06-15T12:00:00.000Z"),
+      "custom",
+      { from: "2024-01-01", to: "2025-12-31" },
+    );
+
+    const year2024 = report.find((row) => row.period === "2024");
+    expect(year2024?.benacoHistoricalCost).toBeCloseTo(BENACO_2024_CATCH_UP_TOTAL, 8);
+    expect(year2024?.benacoOverhead).toBe(BENACO_MONTHLY_OVERHEAD * 12);
+    expect(year2024?.benacoCost).toBeCloseTo(
+      BENACO_2024_CATCH_UP_TOTAL + BENACO_MONTHLY_OVERHEAD * 12,
+      8,
+    );
+    expect(report.find((row) => row.period === "2025")?.benacoHistoricalCost).toBe(0);
+  });
+
   it("starts the single Benaco subscription overhead in September 2023", () => {
     const report = buildHostingReport([], "month", [], new Date("2023-10-15T12:00:00.000Z"), "all");
 
-    expect(report.find((row) => row.period === "2023-09")?.benacoOverhead).toBe(100);
-    expect(report.find((row) => row.period === "2023-10")?.benacoOverhead).toBe(100);
+    expect(report.find((row) => row.period === "2023-09")?.benacoOverhead).toBe(
+      BENACO_MONTHLY_OVERHEAD,
+    );
+    expect(report.find((row) => row.period === "2023-10")?.benacoOverhead).toBe(
+      BENACO_MONTHLY_OVERHEAD,
+    );
   });
 
   it("uses an entered Benaco bill as the full cost for that month", () => {
@@ -202,10 +242,10 @@ describe("buildHostingReport", () => {
 
     expect(report[0]).toMatchObject({
       benacoBilledCost: 500,
-      benacoEstimatedCost: 200,
+      benacoEstimatedCost: BENACO_MONTHLY_OVERHEAD * 2,
       benacoBilledMonths: 1,
       benacoEstimatedMonths: 2,
-      benacoCost: 700,
+      benacoCost: 500 + BENACO_MONTHLY_OVERHEAD * 2,
     });
   });
 

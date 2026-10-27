@@ -909,6 +909,10 @@ export const hostingDeals = pgTable(
       precision: 18,
       scale: 2,
     }),
+    benacoCountedGridPanos: numeric("benaco_counted_grid_panos", {
+      precision: 18,
+      scale: 2,
+    }),
     benacoCompStart: date("benaco_comp_start"),
     benacoCompEnd: date("benaco_comp_end"),
     benacoCompContractedFee: numeric("benaco_comp_contracted_fee", {

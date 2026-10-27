@@ -5,10 +5,10 @@ on:
   workflow_dispatch:
 
   schedule:
-    - cron: "0 7 * * *"
+    - cron: "0 8 * * *"
       timezone: "America/New_York"
 
-    - cron: "0 16 * * *"
+    - cron: "0 17 * * *"
       timezone: "America/New_York"
 
 permissions:

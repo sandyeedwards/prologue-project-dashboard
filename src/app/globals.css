@@ -10813,6 +10813,11 @@ body {
   background: #fff0cc;
 }
 
+.hosting-basis--actual {
+  color: #17613a;
+  background: #def6e8;
+}
+
 .hosting-basis--missing {
   color: #7c2e2e;
   background: #fde8e8;
