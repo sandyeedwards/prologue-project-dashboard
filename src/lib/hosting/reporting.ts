@@ -12,6 +12,7 @@ export const BENACO_ANNUAL_OVERHEAD = BENACO_MONTHLY_OVERHEAD * 12;
 export const BENACO_ANNUAL_PANO_COST = 0.38;
 export const BENACO_GRID_ESTIMATE_RATE = 0.28;
 export const BENACO_SUBSCRIPTION_START = "2023-09-01";
+export const BENACO_2024_CATCH_UP_TOTAL = 8466.71;
 export const HOSTING_REPORT_START = "2023-01-01";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -79,6 +80,7 @@ export type HostingReportRow = {
   benacoPanoCosts: number;
   benacoEstimatedPanoCosts: number;
   benacoBilledCost: number;
+  benacoHistoricalCost: number;
   benacoEstimatedCost: number;
   benacoBilledMonths: number;
   benacoEstimatedMonths: number;
@@ -141,6 +143,19 @@ export function allocateBenacoTourCost(
   totalActivePanos: string | number,
 ): number {
   return numeric(tourActivePanos) * benacoBillCostPerActivePano(billedAmount, totalActivePanos);
+}
+
+export function benacoHistoricalCatchUpCost(monthKey: string): number {
+  const match = /^(\d{4})-(\d{2})$/.exec(monthKey);
+  if (!match || match[1] !== "2024") return 0;
+
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return 0;
+
+  const totalCents = Math.round(BENACO_2024_CATCH_UP_TOTAL * 100);
+  const baseCents = Math.floor(totalCents / 12);
+  const remainderMonths = totalCents - baseCents * 12;
+  return (baseCents + (month <= remainderMonths ? 1 : 0)) / 100;
 }
 
 function numeric(value: unknown): number {
@@ -660,6 +675,7 @@ export function buildHostingReport(
     let benacoEstimatedPanoCosts = 0;
     let benacoOverhead = 0;
     let benacoBilledCost = 0;
+    let benacoHistoricalCost = 0;
     let benacoBilledMonths = 0;
     let benacoEstimatedMonths = 0;
 
@@ -701,28 +717,33 @@ export function buildHostingReport(
         benacoBilledMonths += 1;
       } else {
         const monthlyOverhead = subscriptionMonthsInPeriod(monthPeriod) * BENACO_MONTHLY_OVERHEAD;
+        const monthlyHistoricalCost = benacoHistoricalCatchUpCost(monthPeriod.key);
         let monthlyPanoCosts = 0;
         let monthlyEstimatedPanoCosts = 0;
 
-        for (const deal of deals) {
-          if (!hasBenacoHosting(deal)) continue;
-          const activeDays = activeDaysInPeriod(
-            [
-              {
-                start: dateValue(deal.benaco_hosting_start),
-                end: dateValue(deal.benaco_hosting_end),
-              },
-              {
-                start: dateValue(deal.benaco_comp_start),
-                end: dateValue(deal.benaco_comp_end),
-              },
-            ],
-            monthPeriod,
-          );
-          const basis = benacoPanoBasis(deal);
-          const panoCost = basis.count * (BENACO_ANNUAL_PANO_COST / 365) * activeDays;
-          monthlyPanoCosts += panoCost;
-          if (basis.source === "estimated") monthlyEstimatedPanoCosts += panoCost;
+        if (monthlyHistoricalCost > 0) {
+          benacoHistoricalCost += monthlyHistoricalCost;
+        } else {
+          for (const deal of deals) {
+            if (!hasBenacoHosting(deal)) continue;
+            const activeDays = activeDaysInPeriod(
+              [
+                {
+                  start: dateValue(deal.benaco_hosting_start),
+                  end: dateValue(deal.benaco_hosting_end),
+                },
+                {
+                  start: dateValue(deal.benaco_comp_start),
+                  end: dateValue(deal.benaco_comp_end),
+                },
+              ],
+              monthPeriod,
+            );
+            const basis = benacoPanoBasis(deal);
+            const panoCost = basis.count * (BENACO_ANNUAL_PANO_COST / 365) * activeDays;
+            monthlyPanoCosts += panoCost;
+            if (basis.source === "estimated") monthlyEstimatedPanoCosts += panoCost;
+          }
         }
 
         benacoOverhead += monthlyOverhead;
@@ -740,7 +761,7 @@ export function buildHostingReport(
       return sum + annualSiteCost(site, period) * periodFraction(grouping);
     }, 0);
     const benacoEstimatedCost = benacoOverhead + benacoPanoCosts;
-    const benacoCost = benacoBilledCost + benacoEstimatedCost;
+    const benacoCost = benacoBilledCost + benacoHistoricalCost + benacoEstimatedCost;
     const revenue = ivionRevenue + benacoRevenue;
     const costs = ivionCost + benacoCost;
 
@@ -760,6 +781,7 @@ export function buildHostingReport(
       benacoPanoCosts,
       benacoEstimatedPanoCosts,
       benacoBilledCost,
+      benacoHistoricalCost,
       benacoEstimatedCost,
       benacoBilledMonths,
       benacoEstimatedMonths,
