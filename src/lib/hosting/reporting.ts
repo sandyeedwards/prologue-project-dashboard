@@ -364,16 +364,12 @@ function overlaps(start: Date | null, end: Date | null, period: Period): boolean
   );
 }
 
-function allocatedRevenue(
-  fee: number,
-  start: Date | null,
-  end: Date | null,
-  period: Period,
-): number {
-  if (!fee || !start || !end || start.getTime() >= end.getTime()) return 0;
-  const overlap = overlapInterval(start, end, period);
-  if (!overlap) return 0;
-  return fee * ((overlap.end - overlap.start) / (end.getTime() - start.getTime()));
+function paidRevenue(fee: number, start: Date | null, period: Period): number {
+  if (!fee || !start) return 0;
+  return start.getTime() >= period.start.getTime() &&
+    start.getTime() < period.endExclusive.getTime()
+    ? fee
+    : 0;
 }
 
 function overlapInterval(
@@ -654,22 +650,10 @@ export function buildHostingReport(
 
     for (const deal of deals) {
       const ivionStart = dateValue(deal.ivion_hosting_start);
-      const ivionEnd = dateValue(deal.ivion_hosting_end);
       const benacoStart = dateValue(deal.benaco_hosting_start);
-      const benacoEnd = dateValue(deal.benaco_hosting_end);
 
-      ivionRevenue += allocatedRevenue(
-        numeric(deal.ivion_contracted_fee),
-        ivionStart,
-        ivionEnd,
-        period,
-      );
-      benacoRevenue += allocatedRevenue(
-        numeric(deal.benaco_contracted_fee),
-        benacoStart,
-        benacoEnd,
-        period,
-      );
+      ivionRevenue += paidRevenue(numeric(deal.ivion_contracted_fee), ivionStart, period);
+      benacoRevenue += paidRevenue(numeric(deal.benaco_contracted_fee), benacoStart, period);
     }
 
     let monthStart = startOfPeriod(period.start, "month");
