@@ -30,6 +30,7 @@ const desiredLabels = {
   ],
   benacoContractedFee: ["Benaco Contracted Fee", "Benaco Contracted Fee/quarterly"],
   benacoTotalPanos: ["Benaco Total Panos", "Total Panos"],
+  benacoCountedGridPanos: ["Counted Grid-Pano", "Benaco Counted Grid-Pano"],
 
   benacoCompStart: ["Complimentary Benaco Hosting Start", "Benaco Complimentary Hosting Start"],
   benacoCompEnd: [
