@@ -10,6 +10,7 @@ import {
   BENACO_ANNUAL_OVERHEAD,
   BENACO_GRID_ESTIMATE_RATE,
   BENACO_MONTHLY_OVERHEAD,
+  BENACO_2024_CATCH_UP_TOTAL,
   BENACO_SUBSCRIPTION_START,
   benacoBillCostPerActivePano,
   benacoPanoBasis,
@@ -321,6 +322,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const benacoCountedPanos = benacoPanoBases.reduce((sum, basis) => sum + basis.count, 0);
   const estimatedCost = actualRows.reduce((sum, row) => sum + row.benacoEstimatedPanoCosts, 0);
   const billedCost = actualRows.reduce((sum, row) => sum + row.benacoBilledCost, 0);
+  const historicalCost = actualRows.reduce((sum, row) => sum + row.benacoHistoricalCost, 0);
   const billedMonths = actualRows.reduce((sum, row) => sum + row.benacoBilledMonths, 0);
   const estimatedMonths = actualRows.reduce((sum, row) => sum + row.benacoEstimatedMonths, 0);
   const viewLabel = views.find((option) => option.value === view)?.label ?? "Combined";
@@ -501,6 +503,17 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </strong>
             <span>
               {currency(billedCost, 2)} of displayed Benaco cost comes directly from saved bills.
+            </span>
+          </section>
+        ) : null}
+
+        {historicalCost ? (
+          <section className="notice hosting-status-banner" aria-live="polite">
+            <strong>One-time 2024 Benaco catch-up cost included.</strong>
+            <span>
+              {currency(historicalCost, 2)} of the {currency(BENACO_2024_CATCH_UP_TOTAL, 2)} delayed
+              tour invoice falls within this view. It replaces the 2024 pano estimate, remains
+              separate from the $100 monthly subscription, and does not recur after 2024.
             </span>
           </section>
         ) : null}
@@ -703,6 +716,11 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               </DetailItem>
               <DetailItem label="Estimate when no bill exists">
                 Estimated active panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} ÷ 365 × active days
+              </DetailItem>
+              <DetailItem label="2024 historical adjustment">
+                The one-time {currency(BENACO_2024_CATCH_UP_TOTAL, 2)} delayed-tour invoice is
+                spread across January–December 2024 and replaces the pano estimate for those months.
+                It never carries into later years.
               </DetailItem>
               <DetailItem label="History start">January 2023</DetailItem>
             </dl>
