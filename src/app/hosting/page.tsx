@@ -327,7 +327,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const viewLabel = views.find((option) => option.value === view)?.label ?? "Combined";
   const rangeLabel = ranges.find((option) => option.value === range)?.label ?? "Rolling 12 months";
   const syncTone = latestSync?.status === "FAILED" ? "hosting-status--failed" : "";
-  const contributionMargin = totals.revenue ? totals.netProfit / totals.revenue : null;
+  const paymentRetention = totals.revenue ? totals.netProfit / totals.revenue : null;
   const costShare = totals.revenue ? Math.min(Math.max(totals.costs / totals.revenue, 0), 1) : 0;
 
   return (
@@ -512,22 +512,22 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           >
             <div className="hosting-contribution__heading">
               <div>
-                <p className="eyebrow">{viewLabel} contribution</p>
-                <h2>Hosting contribution</h2>
+                <p className="eyebrow">{viewLabel} cash activity</p>
+                <h2>Net hosting cash flow</h2>
               </div>
               <span>
-                {contributionMargin === null
-                  ? "No margin"
-                  : `${wholePercent(contributionMargin)} margin`}
+                {paymentRetention === null
+                  ? "No client payments"
+                  : `${wholePercent(paymentRetention)} of payments retained`}
               </span>
             </div>
             <strong className="hosting-contribution__value">
               {hasSourceData ? currency(totals.netProfit) : "No data"}
             </strong>
-            <p>Revenue remaining after direct platform, subscription, and pano costs.</p>
-            <div className="hosting-contribution__split" aria-label="Revenue and cost totals">
+            <p>Client payments received minus direct platform, subscription, and pano costs.</p>
+            <div className="hosting-contribution__split" aria-label="Payment and cost totals">
               <div>
-                <span>Recognized hosting revenue</span>
+                <span>Client payments received</span>
                 <strong>{hasSourceData ? currency(totals.revenue) : "No data"}</strong>
               </div>
               <div>
@@ -583,21 +583,21 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <h2>{viewLabel} financial performance</h2>
             </div>
             <p>
-              Term-based recognized revenue, direct platform costs, and resulting hosting
-              contribution.
+              Upfront client payments, monthly direct platform costs, and resulting net cash flow.
             </p>
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
           <details className="hosting-methodology">
-            <summary>How hosting contribution is calculated</summary>
+            <summary>How net hosting cash flow is calculated</summary>
             <p>
               <strong>
-                Recognized hosting revenue – IVION costs – Benaco pano and subscription costs =
-                Hosting contribution.
+                Client payments received – IVION costs – Benaco pano and subscription costs = net
+                hosting cash flow.
               </strong>{" "}
-              Upfront client payments are recognized across their hosting terms. Complimentary
-              hosting never reduces recognized revenue. A period can fall when a paid term ends
-              while its site continues to incur direct hosting cost.
+              The full contracted client payment appears in the hosting-start period. Direct costs
+              continue in the months when the service is active, so later months can show negative
+              cash flow after the upfront payment has already been received. Complimentary hosting
+              does not create a client payment.
             </p>
           </details>
         </section>
@@ -616,9 +616,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 <tr>
                   <th>Period</th>
                   <th>Status</th>
-                  <th>Recognized Revenue</th>
+                  <th>Client Payments</th>
                   <th>Direct Costs</th>
-                  <th>Hosting Contribution</th>
+                  <th>Net Cash Flow</th>
                 </tr>
               </thead>
               <tbody>
