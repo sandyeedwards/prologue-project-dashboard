@@ -364,43 +364,12 @@ function overlaps(start: Date | null, end: Date | null, period: Period): boolean
   );
 }
 
-function countTouchedPeriods(
-  start: Date | null,
-  end: Date | null,
-  grouping: HostingGrouping,
-): number {
-  if (!start || !end || start.getTime() >= end.getTime()) return 0;
-
-  let cursor = startOfPeriod(start, grouping);
-  let count = 0;
-
-  while (cursor.getTime() < end.getTime()) {
-    if (
-      overlaps(start, end, {
-        key: "",
-        start: cursor,
-        endExclusive: addPeriod(cursor, grouping),
-        forecast: false,
-      })
-    ) {
-      count += 1;
-    }
-    cursor = addPeriod(cursor, grouping);
-  }
-
-  return count;
-}
-
-function allocatedRevenue(
-  fee: number,
-  start: Date | null,
-  end: Date | null,
-  period: Period,
-  grouping: HostingGrouping,
-): number {
-  if (!fee || !end || !overlaps(start, end, period)) return 0;
-  const touchedPeriods = countTouchedPeriods(start, end, grouping);
-  return touchedPeriods ? fee / touchedPeriods : 0;
+function paidRevenue(fee: number, start: Date | null, period: Period): number {
+  if (!fee || !start) return 0;
+  return start.getTime() >= period.start.getTime() &&
+    start.getTime() < period.endExclusive.getTime()
+    ? fee
+    : 0;
 }
 
 function overlapInterval(
@@ -681,24 +650,10 @@ export function buildHostingReport(
 
     for (const deal of deals) {
       const ivionStart = dateValue(deal.ivion_hosting_start);
-      const ivionEnd = dateValue(deal.ivion_hosting_end);
       const benacoStart = dateValue(deal.benaco_hosting_start);
-      const benacoEnd = dateValue(deal.benaco_hosting_end);
 
-      ivionRevenue += allocatedRevenue(
-        numeric(deal.ivion_contracted_fee),
-        ivionStart,
-        ivionEnd,
-        period,
-        grouping,
-      );
-      benacoRevenue += allocatedRevenue(
-        numeric(deal.benaco_contracted_fee),
-        benacoStart,
-        benacoEnd,
-        period,
-        grouping,
-      );
+      ivionRevenue += paidRevenue(numeric(deal.ivion_contracted_fee), ivionStart, period);
+      benacoRevenue += paidRevenue(numeric(deal.benaco_contracted_fee), benacoStart, period);
     }
 
     let monthStart = startOfPeriod(period.start, "month");
