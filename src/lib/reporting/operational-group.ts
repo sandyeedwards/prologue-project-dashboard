@@ -23,6 +23,10 @@ export function isReadySetMobilizationTaskList(taskListName: string): boolean {
   return /^mob\s+\d+$/i.test(taskListName.replace(/\s+/g, " ").trim());
 }
 
+function isReadySetModelSetupTaskList(taskListName: string): boolean {
+  return normalizedWords(taskListName) === "model setup";
+}
+
 export function isTravelTask(taskName: string): boolean {
   return containsAny(taskName, REPORTING_RULES.travelTaskPatterns);
 }
@@ -55,6 +59,10 @@ export function classifyTaskList(
   } = {},
 ): OperationalGroup {
   const cleanName = taskListName.replace(/\s+/g, " ").trim() || "Unnamed task list";
+
+  if (context.isReadySet && isReadySetModelSetupTaskList(cleanName)) {
+    return "Modeling";
+  }
 
   if (isClearlyAdministrativeTaskList(cleanName)) {
     return "Admin";
@@ -95,7 +103,8 @@ export function classifyTaskListFromTasks(
   if (
     baseGroup === "Admin" ||
     context.isDataHall ||
-    (context.isReadySet && isReadySetMobilizationTaskList(taskListName))
+    (context.isReadySet &&
+      (isReadySetMobilizationTaskList(taskListName) || isReadySetModelSetupTaskList(taskListName)))
   ) {
     return baseGroup;
   }

@@ -67,6 +67,14 @@ describe("classifyTaskList", () => {
       }),
     ).toBe("Admin");
   });
+
+  it("treats Ready Set Model Setup as Modeling", () => {
+    expect(
+      classifyTaskList("Model Setup", {
+        isReadySet: true,
+      }),
+    ).toBe("Modeling");
+  });
 });
 
 describe("task-informed classification", () => {
@@ -100,6 +108,14 @@ describe("task-informed classification", () => {
         isReadySet: true,
       }),
     ).toBe("Fieldwork");
+  });
+
+  it("keeps Ready Set Model Setup in Modeling despite task-name noise", () => {
+    expect(
+      classifyTaskListFromTasks("Model Setup", ["Static Scanning Operations"], {
+        isReadySet: true,
+      }),
+    ).toBe("Modeling");
   });
 });
 
