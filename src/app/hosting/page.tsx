@@ -525,7 +525,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <div className="hosting-contribution__heading">
               <div>
                 <p className="eyebrow">{viewLabel} contribution</p>
-                <h2>Net hosting revenue</h2>
+                <h2>Hosting contribution</h2>
               </div>
               <span>
                 {contributionMargin === null
@@ -539,7 +539,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <p>Revenue remaining after direct platform, subscription, and pano costs.</p>
             <div className="hosting-contribution__split" aria-label="Revenue and cost totals">
               <div>
-                <span>Paid revenue</span>
+                <span>Recognized hosting revenue</span>
                 <strong>{hasSourceData ? currency(totals.revenue) : "No data"}</strong>
               </div>
               <div>
@@ -594,17 +594,22 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <p className="eyebrow">Company hosting timeline</p>
               <h2>{viewLabel} financial performance</h2>
             </div>
-            <p>Monthly paid revenue, direct platform costs, and resulting net hosting revenue.</p>
+            <p>
+              Term-based recognized revenue, direct platform costs, and resulting hosting
+              contribution.
+            </p>
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
           <details className="hosting-methodology">
-            <summary>How net revenue is calculated</summary>
+            <summary>How hosting contribution is calculated</summary>
             <p>
               <strong>
-                Paid revenue – IVION costs – Benaco pano and subscription costs = Net revenue.
+                Recognized hosting revenue – IVION costs – Benaco pano and subscription costs =
+                Hosting contribution.
               </strong>{" "}
-              Complimentary hosting never reduces paid revenue. A period can fall when a paid term
-              ends while its site continues to incur direct hosting cost.
+              Upfront client payments are recognized across their hosting terms. Complimentary
+              hosting never reduces recognized revenue. A period can fall when a paid term ends
+              while its site continues to incur direct hosting cost.
             </p>
           </details>
         </section>
@@ -623,9 +628,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 <tr>
                   <th>Period</th>
                   <th>Status</th>
-                  <th>Paid Revenue</th>
+                  <th>Recognized Revenue</th>
                   <th>Direct Costs</th>
-                  <th>Net Revenue</th>
+                  <th>Hosting Contribution</th>
                 </tr>
               </thead>
               <tbody>
@@ -734,10 +739,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <h2>Benaco monthly bills</h2>
             </div>
             <p>
-              Copy the month, invoice total, and active-pano total from the Benaco bill. Saving a
-              month that already exists updates that month instead of creating a duplicate. Record
-              catch-up invoices in the month received and identify the historical coverage in the
-              notes; they remain one-time actual costs and do not change future estimates.
+              Enter each new monthly invoice once using its full vendor total, including the $100
+              subscription and pano charges. Saving a month that already exists updates that month
+              instead of creating a duplicate. The $8,466.71 historical catch-up is already
+              allocated to 2024 and should not be entered here.
             </p>
           </div>
 
