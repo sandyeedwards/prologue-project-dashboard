@@ -364,43 +364,16 @@ function overlaps(start: Date | null, end: Date | null, period: Period): boolean
   );
 }
 
-function countTouchedPeriods(
-  start: Date | null,
-  end: Date | null,
-  grouping: HostingGrouping,
-): number {
-  if (!start || !end || start.getTime() >= end.getTime()) return 0;
-
-  let cursor = startOfPeriod(start, grouping);
-  let count = 0;
-
-  while (cursor.getTime() < end.getTime()) {
-    if (
-      overlaps(start, end, {
-        key: "",
-        start: cursor,
-        endExclusive: addPeriod(cursor, grouping),
-        forecast: false,
-      })
-    ) {
-      count += 1;
-    }
-    cursor = addPeriod(cursor, grouping);
-  }
-
-  return count;
-}
-
 function allocatedRevenue(
   fee: number,
   start: Date | null,
   end: Date | null,
   period: Period,
-  grouping: HostingGrouping,
 ): number {
-  if (!fee || !end || !overlaps(start, end, period)) return 0;
-  const touchedPeriods = countTouchedPeriods(start, end, grouping);
-  return touchedPeriods ? fee / touchedPeriods : 0;
+  if (!fee || !start || !end || start.getTime() >= end.getTime()) return 0;
+  const overlap = overlapInterval(start, end, period);
+  if (!overlap) return 0;
+  return fee * ((overlap.end - overlap.start) / (end.getTime() - start.getTime()));
 }
 
 function overlapInterval(
@@ -690,14 +663,12 @@ export function buildHostingReport(
         ivionStart,
         ivionEnd,
         period,
-        grouping,
       );
       benacoRevenue += allocatedRevenue(
         numeric(deal.benaco_contracted_fee),
         benacoStart,
         benacoEnd,
         period,
-        grouping,
       );
     }
 

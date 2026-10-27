@@ -96,7 +96,7 @@ export function HostingFinancialChart({
   const tooltipRows = hoveredPoint
     ? [
         {
-          label: "Paid revenue",
+          label: "Recognized revenue",
           value: fullCurrency(hoveredPoint.displayedRevenue),
           tone: "revenue",
         },
@@ -130,7 +130,7 @@ export function HostingFinancialChart({
             ]
           : []),
         {
-          label: "Net revenue",
+          label: "Hosting contribution",
           value: fullCurrency(hoveredPoint.displayedNet),
           tone: hoveredPoint.displayedNet < 0 ? "negative-net" : "net",
         },
@@ -170,7 +170,7 @@ export function HostingFinancialChart({
       <div className="hosting-chart__legend" aria-hidden="true">
         <span>
           <i className="hosting-chart-key hosting-chart-key--revenue" />
-          Paid revenue
+          Recognized Revenue
         </span>
         {view !== "benaco" ? (
           <span>
@@ -186,7 +186,7 @@ export function HostingFinancialChart({
         ) : null}
         <span>
           <i className="hosting-chart-key hosting-chart-key--net" />
-          Net revenue
+          Hosting Contribution
         </span>
         {firstForecastIndex >= 0 ? (
           <span>
@@ -205,11 +205,11 @@ export function HostingFinancialChart({
           onMouseLeave={() => setHovered(null)}
         >
           <title id="hosting-chart-title">
-            Hosting paid revenue, direct costs, and net revenue
+            Recognized hosting revenue, direct costs, and hosting contribution
           </title>
           <desc id="hosting-chart-description">
-            Revenue and stacked direct cost bars by period, with a net revenue line. Hover or focus
-            a period to see exact values.
+            Recognized revenue and stacked direct cost bars by period, with a hosting contribution
+            line. Hover or focus a period to see exact values.
           </desc>
           {yTicks.map((tick) => (
             <g key={tick}>
@@ -300,7 +300,7 @@ export function HostingFinancialChart({
                   height={plotHeight}
                   fill="transparent"
                   tabIndex={0}
-                  aria-label={`${periodLabel(point.period)}: paid revenue ${fullCurrency(point.displayedRevenue)}, IVION platform cost ${fullCurrency(point.displayedIvionCost)}, Benaco and subscription cost ${fullCurrency(point.displayedBenacoCost)}, total direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net revenue ${fullCurrency(point.displayedNet)}, net margin ${marginLabel(point.displayedNet, point.displayedRevenue)}`}
+                  aria-label={`${periodLabel(point.period)}: recognized revenue ${fullCurrency(point.displayedRevenue)}, IVION platform cost ${fullCurrency(point.displayedIvionCost)}, Benaco and subscription cost ${fullCurrency(point.displayedBenacoCost)}, total direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, hosting contribution ${fullCurrency(point.displayedNet)}, contribution margin ${marginLabel(point.displayedNet, point.displayedRevenue)}`}
                   onMouseEnter={(event) => inspectAtPointer(event, index)}
                   onMouseMove={(event) => inspectAtPointer(event, index)}
                   onMouseDown={(event) => event.preventDefault()}

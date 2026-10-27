@@ -73,7 +73,7 @@ describe("buildHostingReport", () => {
     expect(allocateBenacoTourCost(600, 1000, 4000)).toBe(150);
   });
 
-  it("spreads paid term revenue across touched periods without a thirteenth month", () => {
+  it("recognizes term revenue by active day without a thirteenth month", () => {
     const report = buildHostingReport(
       [
         deal({
@@ -89,7 +89,8 @@ describe("buildHostingReport", () => {
 
     const revenueRows = report.filter((row) => row.ivionRevenue > 0);
     expect(revenueRows).toHaveLength(12);
-    expect(revenueRows.every((row) => row.ivionRevenue === 100)).toBe(true);
+    expect(revenueRows.reduce((sum, row) => sum + row.ivionRevenue, 0)).toBeCloseTo(1200, 8);
+    expect(revenueRows[0].ivionRevenue).toBeCloseTo(1200 * (31 / 365), 8);
   });
 
   it("accrues estimated Benaco active-pano cost by active day plus one company overhead", () => {
@@ -111,11 +112,42 @@ describe("buildHostingReport", () => {
     const june = report.find((row) => row.period === "2026-06");
     expect(june).toMatchObject({
       ivionCost: 100,
-      benacoRevenue: 225,
       benacoOverhead: BENACO_MONTHLY_OVERHEAD,
     });
+    expect(june?.benacoRevenue).toBeCloseTo(900 * (21 / 92), 8);
     expect(june?.benacoPanoCosts).toBeCloseTo(400 * 0.28 * (BENACO_ANNUAL_PANO_COST / 365) * 21, 8);
     expect(june?.benacoEstimatedPanoCosts).toBeCloseTo(june?.benacoPanoCosts ?? 0, 8);
+  });
+
+  it("keeps recognized revenue consistent across report groupings", () => {
+    const hostingDeal = deal({
+      benaco_hosting_start: "2026-01-15",
+      benaco_hosting_end: "2027-01-15",
+      benaco_contracted_fee: 1200,
+    });
+    const options = {
+      from: "2026-01-01",
+      to: "2027-01-31",
+    };
+    const monthly = buildHostingReport(
+      [hostingDeal],
+      "month",
+      [],
+      new Date("2026-06-15T12:00:00.000Z"),
+      "custom",
+      options,
+    );
+    const quarterly = buildHostingReport(
+      [hostingDeal],
+      "quarter",
+      [],
+      new Date("2026-06-15T12:00:00.000Z"),
+      "custom",
+      options,
+    );
+
+    expect(monthly.reduce((sum, row) => sum + row.benacoRevenue, 0)).toBeCloseTo(1200, 8);
+    expect(quarterly.reduce((sum, row) => sum + row.benacoRevenue, 0)).toBeCloseTo(1200, 8);
   });
 
   it("uses the 28 percent planning estimate only when counted panos are missing", () => {
