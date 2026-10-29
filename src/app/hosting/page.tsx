@@ -14,6 +14,7 @@ import {
   BENACO_SUBSCRIPTION_START,
   benacoBillCostPerActivePano,
   benacoPanoBasis,
+  buildHostingReport,
   filterHostingDeals,
   getHostingDashboardData,
   hasBenacoHosting,
@@ -27,6 +28,7 @@ import {
   type HostingDealPlatformFilter,
   type HostingDealTermFilter,
   type HostingGrouping,
+  type HostingReportRow,
   type HostingRange,
   type HostingView,
 } from "@/lib/hosting/reporting";
@@ -129,6 +131,19 @@ function number(value: number): string {
 
 function wholePercent(value: number): string {
   return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value * 100)}%`;
+}
+
+function reportTotals(rows: HostingReportRow[], view: HostingView) {
+  return rows
+    .map((row) => hostingRowForView(row, view))
+    .reduce(
+      (sum, row) => ({
+        revenue: sum.revenue + row.revenue,
+        costs: sum.costs + row.costs,
+        netProfit: sum.netProfit + row.netProfit,
+      }),
+      { revenue: 0, costs: 0, netProfit: 0 },
+    );
 }
 
 function optionalCurrency(value: string | number | null, digits = 0): string {
@@ -274,17 +289,24 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   );
   const actualRows = data.report.filter((row) => !row.forecast);
   const displayedRows = showForecast ? data.report : actualRows;
-  const selectedRows = actualRows.map((row) => hostingRowForView(row, view));
-  const totals = selectedRows.reduce(
-    (sum, row) => ({
-      revenue: sum.revenue + row.revenue,
-      costs: sum.costs + row.costs,
-      netProfit: sum.netProfit + row.netProfit,
-    }),
-    { revenue: 0, costs: 0, netProfit: 0 },
-  );
+  const displayedRangeFrom = displayedRows[0]?.periodStart ?? data.range.from;
+  const displayedRangeTo = displayedRows.at(-1)?.periodEnd ?? data.range.to;
+  const selectedPeriodTotals = reportTotals(displayedRows, view);
+  const overallActualRows =
+    range === "all" && grouping === "month"
+      ? actualRows
+      : buildHostingReport(
+          data.deals,
+          "month",
+          data.ivionSites,
+          new Date(),
+          "all",
+          {},
+          data.benacoBills,
+        ).filter((row) => !row.forecast);
+  const overallTotals = reportTotals(overallActualRows, view);
   const filteredDeals = data.deals.filter((deal) =>
-    dealMatchesRange(deal, view, data.range.from, data.range.to),
+    dealMatchesRange(deal, view, displayedRangeFrom, displayedRangeTo),
   );
   const visibleDeals = filterHostingDeals(filteredDeals, {
     query: dealQuery,
@@ -344,8 +366,13 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const rangeLabel =
     ranges.find((option) => option.value === range)?.label ?? "All available history";
   const syncTone = latestSync?.status === "FAILED" ? "hosting-status--failed" : "";
-  const paymentRetention = totals.revenue ? totals.netProfit / totals.revenue : null;
-  const costShare = totals.revenue ? Math.min(Math.max(totals.costs / totals.revenue, 0), 1) : 0;
+  const paymentRetention = overallTotals.revenue
+    ? overallTotals.netProfit / overallTotals.revenue
+    : null;
+  const costShare = overallTotals.revenue
+    ? Math.min(Math.max(overallTotals.costs / overallTotals.revenue, 0), 1)
+    : 0;
+  const overallThrough = overallActualRows.at(-1)?.periodEnd ?? displayedRangeTo;
 
   return (
     <AppShell user={session.user} contentTone="portfolio">
@@ -476,8 +503,8 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </div>
           </details>
           <p className="hosting-range-summary">
-            <strong>{rangeLabel}</strong> · {dateLabel(data.range.from)} through{" "}
-            {dateLabel(data.range.to)}
+            <strong>{rangeLabel}</strong> · {dateLabel(displayedRangeFrom)} through{" "}
+            {dateLabel(displayedRangeTo)}
             {showForecast ? " · Forecast visible" : " · Actual periods"}
           </p>
         </section>
@@ -526,31 +553,36 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
 
         <section className="hosting-overview" aria-label="Hosting financial summary">
           <article
-            className={`hosting-contribution${hasSourceData && totals.netProfit < 0 ? " hosting-contribution--loss" : ""}`}
+            className={`hosting-contribution${hasSourceData && overallTotals.netProfit < 0 ? " hosting-contribution--loss" : ""}`}
           >
             <div className="hosting-contribution__heading">
               <div>
-                <p className="eyebrow">{viewLabel} historical cash activity</p>
-                <h2>Net hosting cash flow</h2>
+                <p className="eyebrow">{viewLabel} overall economics</p>
+                <h2>All-time hosting cash position</h2>
               </div>
               <span>
                 {paymentRetention === null
                   ? "No client payments"
-                  : `${wholePercent(paymentRetention)} of payments retained`}
+                  : overallTotals.netProfit < 0
+                    ? `${currency(Math.abs(overallTotals.netProfit))} cash deficit`
+                    : `${wholePercent(paymentRetention)} of payments retained`}
               </span>
             </div>
             <strong className="hosting-contribution__value">
-              {hasSourceData ? currency(totals.netProfit) : "No data"}
+              {hasSourceData ? currency(overallTotals.netProfit) : "No data"}
             </strong>
-            <p>Client payments received minus direct platform, subscription, and pano costs.</p>
+            <p>
+              All client payments and direct costs from Jan 1, 2023 through{" "}
+              {dateLabel(overallThrough)}. Report filters below do not change this overall result.
+            </p>
             <div className="hosting-contribution__split" aria-label="Payment and cost totals">
               <div>
                 <span>Client payments received</span>
-                <strong>{hasSourceData ? currency(totals.revenue) : "No data"}</strong>
+                <strong>{hasSourceData ? currency(overallTotals.revenue) : "No data"}</strong>
               </div>
               <div>
                 <span>Direct costs</span>
-                <strong>{hasSourceData ? currency(totals.costs) : "No data"}</strong>
+                <strong>{hasSourceData ? currency(overallTotals.costs) : "No data"}</strong>
               </div>
             </div>
             <div className="hosting-contribution__bar" aria-hidden="true">
@@ -608,12 +640,32 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           <div className="section-heading">
             <div>
               <p className="eyebrow">Company hosting timeline</p>
-              <h2>{viewLabel} historical cash performance</h2>
+              <h2>{viewLabel} cash activity in selected period</h2>
             </div>
             <p>
               One-time client payments at each hosting start date, monthly direct platform costs,
               and resulting net cash flow.
             </p>
+          </div>
+          <div className="hosting-period-summary" aria-label="Selected period cash totals">
+            <div>
+              <span>Client payments</span>
+              <strong>{hasSourceData ? currency(selectedPeriodTotals.revenue) : "No data"}</strong>
+            </div>
+            <div>
+              <span>Direct costs</span>
+              <strong>{hasSourceData ? currency(selectedPeriodTotals.costs) : "No data"}</strong>
+            </div>
+            <div
+              className={
+                selectedPeriodTotals.netProfit < 0 ? "hosting-period-summary__loss" : undefined
+              }
+            >
+              <span>Net cash activity</span>
+              <strong>
+                {hasSourceData ? currency(selectedPeriodTotals.netProfit) : "No data"}
+              </strong>
+            </div>
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
           <details className="hosting-methodology">
@@ -626,7 +678,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               The complete contracted fee appears once in the hosting-start period. Direct costs
               remain in the periods when they were incurred, so later periods may show negative cash
               flow after the upfront payment was received. Complimentary hosting does not create a
-              client payment.
+              client payment. The overall card always uses all history through the current period;
+              report options change only the selected-period cash activity shown in this graph and
+              table.
             </p>
           </details>
         </section>
