@@ -208,7 +208,7 @@ export function HostingFinancialChart({
             Client payments, direct hosting costs, and net cash flow
           </title>
           <desc id="hosting-chart-description">
-            Upfront client payments and stacked direct cost bars by period, with a net cash flow
+            One-time client payments and stacked direct cost bars by period, with a net cash flow
             line. Hover or focus a period to see exact values.
           </desc>
           {yTicks.map((tick) => (

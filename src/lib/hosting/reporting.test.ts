@@ -118,7 +118,7 @@ describe("buildHostingReport", () => {
     expect(june?.benacoEstimatedPanoCosts).toBeCloseTo(june?.benacoPanoCosts ?? 0, 8);
   });
 
-  it("keeps paid revenue in the hosting-start period across report groupings", () => {
+  it("keeps client payments in the hosting-start period across report groupings", () => {
     const hostingDeal = deal({
       benaco_hosting_start: "2026-01-15",
       benaco_hosting_end: "2027-01-15",
@@ -151,6 +151,25 @@ describe("buildHostingReport", () => {
     expect(quarterly.filter((row) => row.benacoRevenue > 0)).toEqual([
       expect.objectContaining({ period: "2026 Q1", benacoRevenue: 1200 }),
     ]);
+  });
+
+  it("records a multi-year Benaco contract as one payment at term start", () => {
+    const report = buildHostingReport(
+      [
+        deal({
+          benaco_hosting_start: "2025-01-01",
+          benaco_hosting_end: "2028-01-01",
+          benaco_contracted_fee: 21600,
+        }),
+      ],
+      "year",
+      [],
+      new Date("2026-06-15T12:00:00.000Z"),
+      "custom",
+      { from: "2025-01-01", to: "2027-12-31" },
+    );
+
+    expect(report.map((row) => row.benacoRevenue)).toEqual([21600, 0, 0]);
   });
 
   it("uses the 28 percent planning estimate only when counted panos are missing", () => {
@@ -365,6 +384,20 @@ describe("buildHostingReport", () => {
 
     expect(isHostingDealActiveOn(complimentary, new Date("2026-06-15T12:00:00.000Z"))).toBe(true);
     expect(report.find((row) => row.period === "2026-06")?.revenue).toBe(0);
+  });
+
+  it("checks active status for the selected hosting platform", () => {
+    const mixedPlatformDeal = deal({
+      ivion_hosting_start: "2026-01-01",
+      ivion_hosting_end: "2026-12-31",
+      benaco_hosting_start: "2025-01-01",
+      benaco_hosting_end: "2025-12-31",
+    });
+    const target = new Date("2026-06-15T12:00:00.000Z");
+
+    expect(isHostingDealActiveOn(mixedPlatformDeal, target)).toBe(true);
+    expect(isHostingDealActiveOn(mixedPlatformDeal, target, "ivion")).toBe(true);
+    expect(isHostingDealActiveOn(mixedPlatformDeal, target, "benaco")).toBe(false);
   });
 
   it("never subtracts complimentary hosting from paid hosting revenue", () => {

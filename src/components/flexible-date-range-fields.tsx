@@ -233,6 +233,7 @@ function DateField({
   setState,
   minimumIso,
   onUserInteraction,
+  onValueChange,
 }: {
   label: string;
   name: string;
@@ -240,6 +241,7 @@ function DateField({
   setState: (value: DateFieldState | ((current: DateFieldState) => DateFieldState)) => void;
   minimumIso?: string;
   onUserInteraction?: () => void;
+  onValueChange?: () => void;
 }) {
   const inputId = useId();
   const calendarId = `${inputId}-calendar`;
@@ -309,6 +311,7 @@ function DateField({
       }));
       return false;
     }
+    onValueChange?.();
     setState({ iso: parsed.iso, display: parsed.display, error: "", manual: false });
     return true;
   };
@@ -362,6 +365,7 @@ function DateField({
   const selectDate = (iso: string) => {
     onUserInteraction?.();
     if (minimumIso && iso < minimumIso) return;
+    if (iso !== state.iso) onValueChange?.();
     setState(fromIso(iso));
     setCalendarOpen(false);
     requestAnimationFrame(() => visibleRef.current?.focus());
@@ -388,6 +392,7 @@ function DateField({
           onDoubleClick={handleDoubleClick}
           onChange={(event) => {
             onUserInteraction?.();
+            onValueChange?.();
             setState((current) => ({ ...current, display: event.target.value, error: "" }));
           }}
           onBlur={() => {
@@ -452,6 +457,9 @@ export function FlexibleDateRangeFields({
   toName = "dateTo",
   fromLabel = "Project date from",
   toLabel = "Project date through",
+  presetName,
+  initialPreset,
+  customPresetValue = "custom",
 }: {
   initialFrom?: string;
   initialTo?: string;
@@ -460,16 +468,24 @@ export function FlexibleDateRangeFields({
   toName?: string;
   fromLabel?: string;
   toLabel?: string;
+  presetName?: string;
+  initialPreset?: string;
+  customPresetValue?: string;
 }) {
   const [from, setFrom] = useState<DateFieldState>(() => fromIso(initialFrom));
   const [to, setTo] = useState<DateFieldState>(() => fromIso(initialTo));
   const [historicalAttention, setHistoricalAttention] = useState(false);
+  const [preset, setPreset] = useState(initialPreset ?? "");
   const rootRef = useRef<HTMLDivElement>(null);
   const changeSourceRef = useRef("initial");
 
   const markUserChange = () => {
     changeSourceRef.current = "user";
     setHistoricalAttention(false);
+  };
+
+  const markDateValueChange = () => {
+    if (presetName) setPreset(customPresetValue);
   };
 
   useEffect(() => {
@@ -568,12 +584,14 @@ export function FlexibleDateRangeFields({
       className={`flexible-date-range ${className}${historicalAttention ? " flexible-date-range--historical-attention" : ""}`.trim()}
       data-historical-range-target="true"
     >
+      {presetName ? <input type="hidden" name={presetName} value={preset} /> : null}
       <DateField
         label={fromLabel}
         name={fromName}
         state={from}
         setState={setFrom}
         onUserInteraction={markUserChange}
+        onValueChange={markDateValueChange}
       />
       <DateField
         label={toLabel}
@@ -582,6 +600,7 @@ export function FlexibleDateRangeFields({
         setState={setTo}
         minimumIso={from.iso}
         onUserInteraction={markUserChange}
+        onValueChange={markDateValueChange}
       />
     </div>
   );
