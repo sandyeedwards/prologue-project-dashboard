@@ -40,9 +40,9 @@ function periodLabel(period: string): string {
   );
 }
 
-function paymentRetentionLabel(net: number, payments: number): string {
-  if (!payments) return "Not available";
-  return `${((net / payments) * 100).toFixed(1)}%`;
+function marginLabel(net: number, revenue: number): string {
+  if (!revenue) return "Not available";
+  return `${((net / revenue) * 100).toFixed(1)}%`;
 }
 
 export function HostingFinancialChart({
@@ -96,7 +96,7 @@ export function HostingFinancialChart({
   const tooltipRows = hoveredPoint
     ? [
         {
-          label: "Client payments",
+          label: "Allocated contract revenue",
           value: fullCurrency(hoveredPoint.displayedRevenue),
           tone: "revenue",
         },
@@ -130,13 +130,13 @@ export function HostingFinancialChart({
             ]
           : []),
         {
-          label: "Net cash flow",
+          label: "Net hosting contribution",
           value: fullCurrency(hoveredPoint.displayedNet),
           tone: hoveredPoint.displayedNet < 0 ? "negative-net" : "net",
         },
         {
-          label: "Payments retained",
-          value: paymentRetentionLabel(hoveredPoint.displayedNet, hoveredPoint.displayedRevenue),
+          label: "Contribution margin",
+          value: marginLabel(hoveredPoint.displayedNet, hoveredPoint.displayedRevenue),
           tone: "margin",
         },
       ]
@@ -170,7 +170,7 @@ export function HostingFinancialChart({
       <div className="hosting-chart__legend" aria-hidden="true">
         <span>
           <i className="hosting-chart-key hosting-chart-key--revenue" />
-          Client Payments
+          Allocated Contract Revenue
         </span>
         {view !== "benaco" ? (
           <span>
@@ -186,7 +186,7 @@ export function HostingFinancialChart({
         ) : null}
         <span>
           <i className="hosting-chart-key hosting-chart-key--net" />
-          Net Cash Flow
+          Net Hosting Contribution
         </span>
         {firstForecastIndex >= 0 ? (
           <span>
@@ -205,11 +205,11 @@ export function HostingFinancialChart({
           onMouseLeave={() => setHovered(null)}
         >
           <title id="hosting-chart-title">
-            Client payments, direct hosting costs, and net cash flow
+            Allocated contract revenue, direct hosting costs, and net hosting contribution
           </title>
           <desc id="hosting-chart-description">
-            Upfront client payments and stacked direct cost bars by period, with a net cash flow
-            line. Hover or focus a period to see exact values.
+            Annualized contract revenue and stacked direct cost bars by period, with a net hosting
+            contribution line. Hover or focus a period to see exact values.
           </desc>
           {yTicks.map((tick) => (
             <g key={tick}>
@@ -300,7 +300,7 @@ export function HostingFinancialChart({
                   height={plotHeight}
                   fill="transparent"
                   tabIndex={0}
-                  aria-label={`${periodLabel(point.period)}: client payments ${fullCurrency(point.displayedRevenue)}, IVION platform cost ${fullCurrency(point.displayedIvionCost)}, Benaco and subscription cost ${fullCurrency(point.displayedBenacoCost)}, total direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net cash flow ${fullCurrency(point.displayedNet)}, payments retained ${paymentRetentionLabel(point.displayedNet, point.displayedRevenue)}`}
+                  aria-label={`${periodLabel(point.period)}: allocated contract revenue ${fullCurrency(point.displayedRevenue)}, IVION platform cost ${fullCurrency(point.displayedIvionCost)}, Benaco and subscription cost ${fullCurrency(point.displayedBenacoCost)}, total direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net hosting contribution ${fullCurrency(point.displayedNet)}, contribution margin ${marginLabel(point.displayedNet, point.displayedRevenue)}`}
                   onMouseEnter={(event) => inspectAtPointer(event, index)}
                   onMouseMove={(event) => inspectAtPointer(event, index)}
                   onMouseDown={(event) => event.preventDefault()}

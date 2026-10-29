@@ -296,8 +296,6 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
               </div>
 
               <form className="time-reporting-filter-form" action="/time-reporting" method="get">
-                <input type="hidden" name="preset" value="custom" />
-
                 <div className="time-reporting-filter-field">
                   <span>Employees</span>
 
@@ -331,6 +329,7 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
                 />
 
                 <FlexibleDateRangeFields
+                  key={`${report.range.preset}:${report.range.startDate}:${report.range.endDate}`}
                   initialFrom={report.range.startDate}
                   initialTo={report.range.endDate}
                   fromName="startDate"
@@ -338,6 +337,8 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
                   fromLabel="From"
                   toLabel="Through"
                   className="time-reporting-flexible-dates"
+                  presetName="preset"
+                  initialPreset={report.range.preset}
                 />
 
                 <div className="time-reporting-filter-actions">

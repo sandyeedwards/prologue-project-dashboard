@@ -364,12 +364,16 @@ function overlaps(start: Date | null, end: Date | null, period: Period): boolean
   );
 }
 
-function paidRevenue(fee: number, start: Date | null, period: Period): number {
-  if (!fee || !start) return 0;
-  return start.getTime() >= period.start.getTime() &&
-    start.getTime() < period.endExclusive.getTime()
-    ? fee
-    : 0;
+function allocatedContractRevenue(
+  fee: number,
+  start: Date | null,
+  end: Date | null,
+  period: Period,
+): number {
+  if (!fee || !start || !end || start.getTime() >= end.getTime()) return 0;
+  const overlap = overlapInterval(start, end, period);
+  if (!overlap) return 0;
+  return fee * ((overlap.end - overlap.start) / (end.getTime() - start.getTime()));
 }
 
 function overlapInterval(
@@ -650,10 +654,22 @@ export function buildHostingReport(
 
     for (const deal of deals) {
       const ivionStart = dateValue(deal.ivion_hosting_start);
+      const ivionEnd = dateValue(deal.ivion_hosting_end);
       const benacoStart = dateValue(deal.benaco_hosting_start);
+      const benacoEnd = dateValue(deal.benaco_hosting_end);
 
-      ivionRevenue += paidRevenue(numeric(deal.ivion_contracted_fee), ivionStart, period);
-      benacoRevenue += paidRevenue(numeric(deal.benaco_contracted_fee), benacoStart, period);
+      ivionRevenue += allocatedContractRevenue(
+        numeric(deal.ivion_contracted_fee),
+        ivionStart,
+        ivionEnd,
+        period,
+      );
+      benacoRevenue += allocatedContractRevenue(
+        numeric(deal.benaco_contracted_fee),
+        benacoStart,
+        benacoEnd,
+        period,
+      );
     }
 
     let monthStart = startOfPeriod(period.start, "month");
@@ -757,13 +773,21 @@ function includesDate(start: string | null, end: string | null, target: Date): b
   );
 }
 
-export function isHostingDealActiveOn(deal: HostingDealRow, target = new Date()): boolean {
-  return (
+export function isHostingDealActiveOn(
+  deal: HostingDealRow,
+  target = new Date(),
+  view: HostingView = "combined",
+): boolean {
+  const ivionActive =
     includesDate(deal.ivion_hosting_start, deal.ivion_hosting_end, target) ||
-    includesDate(deal.ivion_comp_start, deal.ivion_comp_end, target) ||
+    includesDate(deal.ivion_comp_start, deal.ivion_comp_end, target);
+  const benacoActive =
     includesDate(deal.benaco_hosting_start, deal.benaco_hosting_end, target) ||
-    includesDate(deal.benaco_comp_start, deal.benaco_comp_end, target)
-  );
+    includesDate(deal.benaco_comp_start, deal.benaco_comp_end, target);
+
+  if (view === "ivion") return ivionActive;
+  if (view === "benaco") return benacoActive;
+  return ivionActive || benacoActive;
 }
 
 export function hostingRowForView(

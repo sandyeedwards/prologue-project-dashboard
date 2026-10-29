@@ -303,23 +303,39 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
         ? hasBenacoHosting(deal)
         : hasIvionHosting(deal) || hasBenacoHosting(deal),
   );
-  const activeDeals = serviceDeals.filter((deal) => isHostingDealActiveOn(deal));
-  const ivionDeals = filteredDeals.filter(hasIvionHosting);
-  const benacoDeals = filteredDeals.filter(hasBenacoHosting);
-  const ivionTotalPanos = ivionDeals.reduce(
+  const activeOn = new Date();
+  const activeDeals = serviceDeals.filter((deal) => isHostingDealActiveOn(deal, activeOn, view));
+  const activeIvionDeals = data.deals.filter(
+    (deal) => hasIvionHosting(deal) && isHostingDealActiveOn(deal, activeOn, "ivion"),
+  );
+  const activeBenacoDeals = data.deals.filter(
+    (deal) => hasBenacoHosting(deal) && isHostingDealActiveOn(deal, activeOn, "benaco"),
+  );
+  const ivionTotalPanos = activeIvionDeals.reduce(
     (sum, deal) => sum + Number(deal.ivion_total_panos ?? 0),
     0,
   );
-  const ivionActivePanos = ivionDeals.reduce(
+  const ivionActivePanos = activeIvionDeals.reduce(
     (sum, deal) => sum + Number(deal.ivion_active_panos ?? 0),
     0,
   );
-  const benacoTotalPanos = benacoDeals.reduce(
+  const benacoTotalPanos = activeBenacoDeals.reduce(
     (sum, deal) => sum + Number(deal.benaco_total_panos ?? 0),
     0,
   );
-  const benacoPanoBases = benacoDeals.map(benacoPanoBasis);
+  const benacoPanoBases = activeBenacoDeals.map(benacoPanoBasis);
   const benacoCountedPanos = benacoPanoBases.reduce((sum, basis) => sum + basis.count, 0);
+  const benacoActualCountedPanos = benacoPanoBases.reduce(
+    (sum, basis) => sum + (basis.source === "actual" ? basis.count : 0),
+    0,
+  );
+  const benacoEstimatedCountedPanos = benacoPanoBases.reduce(
+    (sum, basis) => sum + (basis.source === "estimated" ? basis.count : 0),
+    0,
+  );
+  const benacoMissingPanoDeals = benacoPanoBases.filter(
+    (basis) => basis.source === "missing",
+  ).length;
   const estimatedCost = actualRows.reduce((sum, row) => sum + row.benacoEstimatedPanoCosts, 0);
   const billedCost = actualRows.reduce((sum, row) => sum + row.benacoBilledCost, 0);
   const billedMonths = actualRows.reduce((sum, row) => sum + row.benacoBilledMonths, 0);
@@ -327,7 +343,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const viewLabel = views.find((option) => option.value === view)?.label ?? "Combined";
   const rangeLabel = ranges.find((option) => option.value === range)?.label ?? "Rolling 12 months";
   const syncTone = latestSync?.status === "FAILED" ? "hosting-status--failed" : "";
-  const paymentRetention = totals.revenue ? totals.netProfit / totals.revenue : null;
+  const contributionMargin = totals.revenue ? totals.netProfit / totals.revenue : null;
   const costShare = totals.revenue ? Math.min(Math.max(totals.costs / totals.revenue, 0), 1) : 0;
 
   return (
@@ -512,22 +528,22 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           >
             <div className="hosting-contribution__heading">
               <div>
-                <p className="eyebrow">{viewLabel} cash activity</p>
-                <h2>Net hosting cash flow</h2>
+                <p className="eyebrow">{viewLabel} contribution</p>
+                <h2>Net hosting contribution</h2>
               </div>
               <span>
-                {paymentRetention === null
-                  ? "No client payments"
-                  : `${wholePercent(paymentRetention)} of payments retained`}
+                {contributionMargin === null
+                  ? "No margin"
+                  : `${wholePercent(contributionMargin)} margin`}
               </span>
             </div>
             <strong className="hosting-contribution__value">
               {hasSourceData ? currency(totals.netProfit) : "No data"}
             </strong>
-            <p>Client payments received minus direct platform, subscription, and pano costs.</p>
-            <div className="hosting-contribution__split" aria-label="Payment and cost totals">
+            <p>Allocated contract revenue minus direct platform, subscription, and pano costs.</p>
+            <div className="hosting-contribution__split" aria-label="Revenue and cost totals">
               <div>
-                <span>Client payments received</span>
+                <span>Allocated contract revenue</span>
                 <strong>{hasSourceData ? currency(totals.revenue) : "No data"}</strong>
               </div>
               <div>
@@ -551,12 +567,17 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 <article className="hosting-scale__card">
                   <span>Benaco total panos</span>
                   <strong>{hasSourceData ? number(benacoTotalPanos) : "No data"}</strong>
-                  <small>Complete site pano inventory</small>
+                  <small>Current active site inventory</small>
                 </article>
                 <article className="hosting-scale__card">
                   <span>Benaco counted panos</span>
                   <strong>{hasSourceData ? number(benacoCountedPanos) : "No data"}</strong>
-                  <small>Billable basis after approved estimates</small>
+                  <small>
+                    {number(benacoActualCountedPanos)} actual ·{" "}
+                    {number(benacoEstimatedCountedPanos)}
+                    {" estimated"}
+                    {benacoMissingPanoDeals ? ` · ${benacoMissingPanoDeals} missing` : ""}
+                  </small>
                 </article>
               </>
             ) : (
@@ -564,12 +585,17 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 <article className="hosting-scale__card">
                   <span>IVION active panos</span>
                   <strong>{hasSourceData ? number(ivionActivePanos) : "No data"}</strong>
-                  <small>{number(ivionTotalPanos)} total in this range</small>
+                  <small>{number(ivionTotalPanos)} total across current active deals</small>
                 </article>
                 <article className="hosting-scale__card">
                   <span>Benaco counted panos</span>
                   <strong>{hasSourceData ? number(benacoCountedPanos) : "No data"}</strong>
-                  <small>{number(benacoTotalPanos)} total in this range</small>
+                  <small>
+                    {number(benacoActualCountedPanos)} actual ·{" "}
+                    {number(benacoEstimatedCountedPanos)}
+                    {" estimated"}
+                    {benacoMissingPanoDeals ? ` · ${benacoMissingPanoDeals} missing` : ""}
+                  </small>
                 </article>
               </>
             )}
@@ -583,21 +609,22 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <h2>{viewLabel} financial performance</h2>
             </div>
             <p>
-              Upfront client payments, monthly direct platform costs, and resulting net cash flow.
+              Annualized contract revenue, monthly direct platform costs, and resulting hosting
+              contribution.
             </p>
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
           <details className="hosting-methodology">
-            <summary>How net hosting cash flow is calculated</summary>
+            <summary>How hosting contribution is calculated</summary>
             <p>
               <strong>
-                Client payments received – IVION costs – Benaco pano and subscription costs = net
-                hosting cash flow.
+                Allocated contract revenue – IVION costs – Benaco pano and subscription costs = net
+                hosting contribution.
               </strong>{" "}
-              The full contracted client payment appears in the hosting-start period. Direct costs
-              continue in the months when the service is active, so later months can show negative
-              cash flow after the upfront payment has already been received. Complimentary hosting
-              does not create a client payment.
+              Each contracted fee is divided across its active hosting term. For example, a
+              three-year contract contributes one-third of its contracted amount per active year,
+              prorated across the displayed periods. Complimentary hosting does not create contract
+              revenue.
             </p>
           </details>
         </section>
@@ -616,9 +643,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 <tr>
                   <th>Period</th>
                   <th>Status</th>
-                  <th>Client Payments</th>
+                  <th>Allocated Contract Revenue</th>
                   <th>Direct Costs</th>
-                  <th>Net Cash Flow</th>
+                  <th>Net Hosting Contribution</th>
                 </tr>
               </thead>
               <tbody>
