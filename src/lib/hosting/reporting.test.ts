@@ -73,7 +73,7 @@ describe("buildHostingReport", () => {
     expect(allocateBenacoTourCost(600, 1000, 4000)).toBe(150);
   });
 
-  it("allocates contracted revenue across the active hosting term", () => {
+  it("records the full client payment in the hosting-start month", () => {
     const report = buildHostingReport(
       [
         deal({
@@ -88,9 +88,8 @@ describe("buildHostingReport", () => {
     );
 
     const revenueRows = report.filter((row) => row.ivionRevenue > 0);
-    expect(revenueRows).toHaveLength(12);
-    expect(revenueRows.reduce((sum, row) => sum + row.ivionRevenue, 0)).toBeCloseTo(1200, 8);
-    expect(revenueRows[0].ivionRevenue).toBeCloseTo(1200 * (31 / 365), 8);
+    expect(revenueRows).toHaveLength(1);
+    expect(revenueRows[0]).toMatchObject({ period: "2026-01", ivionRevenue: 1200 });
   });
 
   it("accrues estimated Benaco active-pano cost by active day plus one company overhead", () => {
@@ -114,12 +113,12 @@ describe("buildHostingReport", () => {
       ivionCost: 100,
       benacoOverhead: BENACO_MONTHLY_OVERHEAD,
     });
-    expect(june?.benacoRevenue).toBeCloseTo(900 * (21 / 92), 8);
+    expect(june?.benacoRevenue).toBe(900);
     expect(june?.benacoPanoCosts).toBeCloseTo(400 * 0.28 * (BENACO_ANNUAL_PANO_COST / 365) * 21, 8);
     expect(june?.benacoEstimatedPanoCosts).toBeCloseTo(june?.benacoPanoCosts ?? 0, 8);
   });
 
-  it("keeps allocated contract revenue consistent across report groupings", () => {
+  it("keeps client payments in the hosting-start period across report groupings", () => {
     const hostingDeal = deal({
       benaco_hosting_start: "2026-01-15",
       benaco_hosting_end: "2027-01-15",
@@ -146,11 +145,15 @@ describe("buildHostingReport", () => {
       options,
     );
 
-    expect(monthly.reduce((sum, row) => sum + row.benacoRevenue, 0)).toBeCloseTo(1200, 8);
-    expect(quarterly.reduce((sum, row) => sum + row.benacoRevenue, 0)).toBeCloseTo(1200, 8);
+    expect(monthly.filter((row) => row.benacoRevenue > 0)).toEqual([
+      expect.objectContaining({ period: "2026-01", benacoRevenue: 1200 }),
+    ]);
+    expect(quarterly.filter((row) => row.benacoRevenue > 0)).toEqual([
+      expect.objectContaining({ period: "2026 Q1", benacoRevenue: 1200 }),
+    ]);
   });
 
-  it("divides a multi-year Benaco contract into annual revenue", () => {
+  it("records a multi-year Benaco contract as one payment at term start", () => {
     const report = buildHostingReport(
       [
         deal({
@@ -166,7 +169,7 @@ describe("buildHostingReport", () => {
       { from: "2025-01-01", to: "2027-12-31" },
     );
 
-    expect(report.map((row) => row.benacoRevenue)).toEqual([7200, 7200, 7200]);
+    expect(report.map((row) => row.benacoRevenue)).toEqual([21600, 0, 0]);
   });
 
   it("uses the 28 percent planning estimate only when counted panos are missing", () => {

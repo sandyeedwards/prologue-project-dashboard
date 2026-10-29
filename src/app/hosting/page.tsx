@@ -86,7 +86,7 @@ function selectedGrouping(value: string | undefined): HostingGrouping {
 }
 
 function selectedRange(value: string | undefined): HostingRange {
-  return ranges.some((option) => option.value === value) ? (value as HostingRange) : "12m";
+  return ranges.some((option) => option.value === value) ? (value as HostingRange) : "all";
 }
 
 function selectedForecast(value: string | undefined): boolean {
@@ -341,9 +341,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const billedMonths = actualRows.reduce((sum, row) => sum + row.benacoBilledMonths, 0);
   const estimatedMonths = actualRows.reduce((sum, row) => sum + row.benacoEstimatedMonths, 0);
   const viewLabel = views.find((option) => option.value === view)?.label ?? "Combined";
-  const rangeLabel = ranges.find((option) => option.value === range)?.label ?? "Rolling 12 months";
+  const rangeLabel =
+    ranges.find((option) => option.value === range)?.label ?? "All available history";
   const syncTone = latestSync?.status === "FAILED" ? "hosting-status--failed" : "";
-  const contributionMargin = totals.revenue ? totals.netProfit / totals.revenue : null;
+  const paymentRetention = totals.revenue ? totals.netProfit / totals.revenue : null;
   const costShare = totals.revenue ? Math.min(Math.max(totals.costs / totals.revenue, 0), 1) : 0;
 
   return (
@@ -354,7 +355,8 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <p className="eyebrow">Hosting revenue &amp; platform economics</p>
             <h1>Hosting Reporting</h1>
             <p>
-              A focused view of hosting revenue, direct costs, net contribution, and platform scale.
+              Historical client payments and direct hosting costs, with a separate snapshot of the
+              current hosting footprint.
             </p>
             <div className="report-titlebar__status" aria-label="Hosting data status">
               <span className="portfolio-status-dot portfolio-status-dot--green" />
@@ -528,22 +530,22 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           >
             <div className="hosting-contribution__heading">
               <div>
-                <p className="eyebrow">{viewLabel} contribution</p>
-                <h2>Net hosting contribution</h2>
+                <p className="eyebrow">{viewLabel} historical cash activity</p>
+                <h2>Net hosting cash flow</h2>
               </div>
               <span>
-                {contributionMargin === null
-                  ? "No margin"
-                  : `${wholePercent(contributionMargin)} margin`}
+                {paymentRetention === null
+                  ? "No client payments"
+                  : `${wholePercent(paymentRetention)} of payments retained`}
               </span>
             </div>
             <strong className="hosting-contribution__value">
               {hasSourceData ? currency(totals.netProfit) : "No data"}
             </strong>
-            <p>Allocated contract revenue minus direct platform, subscription, and pano costs.</p>
-            <div className="hosting-contribution__split" aria-label="Revenue and cost totals">
+            <p>Client payments received minus direct platform, subscription, and pano costs.</p>
+            <div className="hosting-contribution__split" aria-label="Payment and cost totals">
               <div>
-                <span>Allocated contract revenue</span>
+                <span>Client payments received</span>
                 <strong>{hasSourceData ? currency(totals.revenue) : "No data"}</strong>
               </div>
               <div>
@@ -556,7 +558,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </div>
           </article>
 
-          <div className="hosting-scale" aria-label="Hosting operating scale">
+          <div className="hosting-scale" aria-label="Current hosting operating scale">
             <article className="hosting-scale__card hosting-scale__card--deals">
               <span>Active hosting deals</span>
               <strong>{hasSourceData ? number(activeDeals.length) : "No data"}</strong>
@@ -606,25 +608,25 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           <div className="section-heading">
             <div>
               <p className="eyebrow">Company hosting timeline</p>
-              <h2>{viewLabel} financial performance</h2>
+              <h2>{viewLabel} historical cash performance</h2>
             </div>
             <p>
-              Annualized contract revenue, monthly direct platform costs, and resulting hosting
-              contribution.
+              One-time client payments at each hosting start date, monthly direct platform costs,
+              and resulting net cash flow.
             </p>
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
           <details className="hosting-methodology">
-            <summary>How hosting contribution is calculated</summary>
+            <summary>How historical hosting cash flow is calculated</summary>
             <p>
               <strong>
-                Allocated contract revenue – IVION costs – Benaco pano and subscription costs = net
-                hosting contribution.
+                Client payments received – IVION costs – Benaco pano and subscription costs = net
+                hosting cash flow.
               </strong>{" "}
-              Each contracted fee is divided across its active hosting term. For example, a
-              three-year contract contributes one-third of its contracted amount per active year,
-              prorated across the displayed periods. Complimentary hosting does not create contract
-              revenue.
+              The complete contracted fee appears once in the hosting-start period. Direct costs
+              remain in the periods when they were incurred, so later periods may show negative cash
+              flow after the upfront payment was received. Complimentary hosting does not create a
+              client payment.
             </p>
           </details>
         </section>
@@ -643,9 +645,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 <tr>
                   <th>Period</th>
                   <th>Status</th>
-                  <th>Allocated Contract Revenue</th>
+                  <th>Client Payments</th>
                   <th>Direct Costs</th>
-                  <th>Net Hosting Contribution</th>
+                  <th>Net Cash Flow</th>
                 </tr>
               </thead>
               <tbody>
