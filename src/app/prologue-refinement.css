@@ -8592,6 +8592,45 @@ textarea {
   padding: 20px 22px 15px;
 }
 
+.hosting-period-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 16px 10px;
+  overflow: hidden;
+  border: 1px solid #d8e1ec;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.hosting-period-summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 11px 14px;
+  border-right: 1px solid #d8e1ec;
+}
+
+.hosting-period-summary > div:last-child {
+  border-right: 0;
+}
+
+.hosting-period-summary span {
+  color: #617086;
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.065em;
+  text-transform: uppercase;
+}
+
+.hosting-period-summary strong {
+  color: #112846;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hosting-period-summary__loss strong {
+  color: #b7352c;
+}
+
 .hosting-chart__scroller {
   background: #fff;
 }
@@ -8754,8 +8793,18 @@ textarea {
   }
 
   .hosting-scale,
-  .hosting-contribution__split {
+  .hosting-contribution__split,
+  .hosting-period-summary {
     grid-template-columns: 1fr;
+  }
+
+  .hosting-period-summary > div {
+    border-right: 0;
+    border-bottom: 1px solid #d8e1ec;
+  }
+
+  .hosting-period-summary > div:last-child {
+    border-bottom: 0;
   }
 
   .hosting-scale__card--deals {
