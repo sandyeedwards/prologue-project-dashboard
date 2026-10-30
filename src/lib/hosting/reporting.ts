@@ -13,7 +13,8 @@ export const BENACO_ANNUAL_PANO_COST = 0.38;
 export const BENACO_GRID_ESTIMATE_RATE = 0.28;
 export const BENACO_SUBSCRIPTION_START = "2023-09-01";
 export const BENACO_2024_CATCH_UP_TOTAL = 8466.71;
-export const HOSTING_REPORT_START = "2023-01-01";
+export const BENACO_2024_CATCH_UP_INVOICE_DATE = "2026-08-31";
+export const HOSTING_REPORT_START = "2024-01-01";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -146,16 +147,9 @@ export function allocateBenacoTourCost(
 }
 
 export function benacoHistoricalCatchUpCost(monthKey: string): number {
-  const match = /^(\d{4})-(\d{2})$/.exec(monthKey);
-  if (!match || match[1] !== "2024") return 0;
-
-  const month = Number(match[2]);
-  if (month < 1 || month > 12) return 0;
-
-  const totalCents = Math.round(BENACO_2024_CATCH_UP_TOTAL * 100);
-  const baseCents = Math.floor(totalCents / 12);
-  const remainderMonths = totalCents - baseCents * 12;
-  return (baseCents + (month <= remainderMonths ? 1 : 0)) / 100;
+  return monthKey === BENACO_2024_CATCH_UP_INVOICE_DATE.slice(0, 7)
+    ? BENACO_2024_CATCH_UP_TOTAL
+    : 0;
 }
 
 function numeric(value: unknown): number {
@@ -272,36 +266,36 @@ function reportBounds(
   earliestDate = dateValue(BENACO_SUBSCRIPTION_START)!,
 ): ReportBounds {
   const historyStart = startOfPeriod(dateValue(HOSTING_REPORT_START)!, grouping);
-  const from2023 = (bounds: ReportBounds): ReportBounds => ({
+  const fromHistoryStart = (bounds: ReportBounds): ReportBounds => ({
     ...bounds,
     start: new Date(Math.max(bounds.start.getTime(), historyStart.getTime())),
   });
 
   if (range === "custom") {
-    return from2023(
+    return fromHistoryStart(
       parsedCustomBounds(grouping, custom.from, custom.to) ??
         defaultReportBounds(grouping, referenceDate),
     );
   }
   if (range === "all") {
-    return from2023({
+    return fromHistoryStart({
       start: startOfPeriod(earliestDate, grouping),
       endExclusive: futureReportEnd(grouping, referenceDate),
     });
   }
   if (range === "ytd") {
-    return from2023({
+    return fromHistoryStart({
       start: startOfPeriod(utcDate(referenceDate.getUTCFullYear(), 0), grouping),
       endExclusive: futureReportEnd(grouping, referenceDate),
     });
   }
   if (range === "prior-year") {
-    return from2023({
+    return fromHistoryStart({
       start: startOfPeriod(utcDate(referenceDate.getUTCFullYear() - 1, 0), grouping),
       endExclusive: utcDate(referenceDate.getUTCFullYear(), 0),
     });
   }
-  return from2023(defaultReportBounds(grouping, referenceDate));
+  return fromHistoryStart(defaultReportBounds(grouping, referenceDate));
 }
 
 function earliestReportDate(deals: HostingDealRow[], sites: HostingIvionSite[]): Date {
@@ -355,15 +349,6 @@ export function makeHostingPeriods(
   return periods;
 }
 
-function overlaps(start: Date | null, end: Date | null, period: Period): boolean {
-  if (!start) return false;
-  if (end && start.getTime() >= end.getTime()) return false;
-  return (
-    start.getTime() < period.endExclusive.getTime() &&
-    (!end || end.getTime() > period.start.getTime())
-  );
-}
-
 function paymentReceived(fee: number, start: Date | null, period: Period): number {
   if (!fee || !start) return 0;
   return start.getTime() >= period.start.getTime() &&
@@ -372,33 +357,20 @@ function paymentReceived(fee: number, start: Date | null, period: Period): numbe
     : 0;
 }
 
-function overlapInterval(
-  start: Date | null,
-  end: Date | null,
-  period: Period,
-): { start: number; end: number } | null {
-  if (!overlaps(start, end, period) || !start) return null;
-  const overlapStart = Math.max(start.getTime(), period.start.getTime());
-  const overlapEnd = Math.min(
-    end?.getTime() ?? period.endExclusive.getTime(),
-    period.endExclusive.getTime(),
-  );
-  return overlapEnd > overlapStart ? { start: overlapStart, end: overlapEnd } : null;
-}
-
-function activeDaysInPeriod(
-  intervals: Array<{ start: Date | null; end: Date | null }>,
-  period: Period,
-): number {
-  const overlapsForPeriod = intervals
-    .map((interval) => overlapInterval(interval.start, interval.end, period))
-    .filter((interval): interval is { start: number; end: number } => interval !== null)
+function activeDaysAcrossTerm(intervals: Array<{ start: Date | null; end: Date | null }>): number {
+  const termIntervals = intervals
+    .filter((interval): interval is { start: Date; end: Date | null } => interval.start !== null)
+    .map((interval) => ({
+      start: interval.start.getTime(),
+      end: (interval.end ?? addDays(interval.start, 365)).getTime(),
+    }))
+    .filter((interval) => interval.end > interval.start)
     .sort((left, right) => left.start - right.start);
 
-  if (!overlapsForPeriod.length) return 0;
+  if (!termIntervals.length) return 0;
 
   const merged: Array<{ start: number; end: number }> = [];
-  for (const interval of overlapsForPeriod) {
+  for (const interval of termIntervals) {
     const previous = merged.at(-1);
     if (!previous || interval.start > previous.end) {
       merged.push({ ...interval });
@@ -408,6 +380,36 @@ function activeDaysInPeriod(
   }
 
   return merged.reduce((sum, interval) => sum + (interval.end - interval.start) / DAY_MS, 0);
+}
+
+function dateInPeriod(value: Date | null, period: Period): boolean {
+  return Boolean(
+    value &&
+    value.getTime() >= period.start.getTime() &&
+    value.getTime() < period.endExclusive.getTime(),
+  );
+}
+
+function benacoTourStart(deal: HostingDealRow): Date | null {
+  const starts = [dateValue(deal.benaco_hosting_start), dateValue(deal.benaco_comp_start)]
+    .filter((value): value is Date => value !== null)
+    .sort((left, right) => left.getTime() - right.getTime());
+  return starts[0] ?? null;
+}
+
+export function benacoTourPanoCost(deal: HostingDealRow): number {
+  const basis = benacoPanoBasis(deal);
+  const activeDays = activeDaysAcrossTerm([
+    {
+      start: dateValue(deal.benaco_hosting_start),
+      end: dateValue(deal.benaco_hosting_end),
+    },
+    {
+      start: dateValue(deal.benaco_comp_start),
+      end: dateValue(deal.benaco_comp_end),
+    },
+  ]);
+  return basis.count * (BENACO_ANNUAL_PANO_COST / 365) * activeDays;
 }
 
 function subscriptionMonthsInPeriod(period: Period): number {
@@ -676,29 +678,20 @@ export function buildHostingReport(
         let monthlyPanoCosts = 0;
         let monthlyEstimatedPanoCosts = 0;
 
-        if (monthlyHistoricalCost > 0) {
-          benacoHistoricalCost += monthlyHistoricalCost;
-        } else {
-          for (const deal of deals) {
-            if (!hasBenacoHosting(deal)) continue;
-            const activeDays = activeDaysInPeriod(
-              [
-                {
-                  start: dateValue(deal.benaco_hosting_start),
-                  end: dateValue(deal.benaco_hosting_end),
-                },
-                {
-                  start: dateValue(deal.benaco_comp_start),
-                  end: dateValue(deal.benaco_comp_end),
-                },
-              ],
-              monthPeriod,
-            );
-            const basis = benacoPanoBasis(deal);
-            const panoCost = basis.count * (BENACO_ANNUAL_PANO_COST / 365) * activeDays;
-            monthlyPanoCosts += panoCost;
-            if (basis.source === "estimated") monthlyEstimatedPanoCosts += panoCost;
-          }
+        benacoHistoricalCost += monthlyHistoricalCost;
+        for (const deal of deals) {
+          if (!hasBenacoHosting(deal)) continue;
+          const tourStart = benacoTourStart(deal);
+          if (!dateInPeriod(tourStart, monthPeriod)) continue;
+
+          // The delayed invoice already contains the pano charges for tours that
+          // began in 2024. Excluding those calculated costs prevents double counting.
+          if (tourStart?.getUTCFullYear() === 2024) continue;
+
+          const basis = benacoPanoBasis(deal);
+          const panoCost = benacoTourPanoCost(deal);
+          monthlyPanoCosts += panoCost;
+          if (basis.source === "estimated") monthlyEstimatedPanoCosts += panoCost;
         }
 
         benacoOverhead += monthlyOverhead;
@@ -888,7 +881,7 @@ export async function getHostingDashboardData({
         created_at,
         updated_at
       from hosting_benaco_monthly_bills
-      where billing_month >= date '2023-01-01'
+      where billing_month >= date '2024-01-01'
       order by billing_month desc
     `,
   ]);
