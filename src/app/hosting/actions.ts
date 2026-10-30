@@ -12,7 +12,7 @@ const monthlyBillSchema = z.object({
   billingMonth: z
     .string()
     .regex(/^\d{4}-\d{2}$/, "Choose a valid billing month.")
-    .refine((value) => value >= "2023-01", "Benaco bill history starts in January 2023."),
+    .refine((value) => value >= "2024-01", "Hosting reporting starts in January 2024."),
   billedAmount: z.coerce.number().min(0).max(10_000_000),
   activePanos: z.coerce.number().positive().max(1_000_000_000),
   notes: z.string().trim().max(1_000).optional(),
