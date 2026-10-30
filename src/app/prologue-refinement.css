@@ -8748,6 +8748,27 @@ textarea {
   pointer-events: none;
 }
 
+.hosting-chart__cumulative-line {
+  fill: none;
+  pointer-events: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.8;
+}
+
+.hosting-chart__cumulative-line--revenue {
+  stroke: #2384c6;
+}
+
+.hosting-chart__cumulative-line--cost {
+  stroke: #c16e3b;
+}
+
+.hosting-chart__cumulative-line--net {
+  stroke: #11855d;
+  stroke-width: 3.2;
+}
+
 .hosting-chart__tooltip .hosting-chart__tooltip-key--cost,
 .hosting-chart__tooltip .hosting-chart__tooltip-key--margin {
   fill: #91a2b3;

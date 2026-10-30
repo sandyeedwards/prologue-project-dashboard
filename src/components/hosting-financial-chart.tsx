@@ -7,6 +7,13 @@ import type { HostingReportRow, HostingView } from "@/lib/hosting/reporting";
 const HEIGHT = 360;
 const MARGIN = { top: 34, right: 30, bottom: 58, left: 76 };
 
+type HostingChartPoint = HostingReportRow & {
+  displayedRevenue: number;
+  displayedIvionCost: number;
+  displayedBenacoCost: number;
+  displayedNet: number;
+};
+
 function compactCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -40,11 +47,6 @@ function periodLabel(period: string): string {
   );
 }
 
-function paymentRetentionLabel(net: number, payments: number): string {
-  if (!payments) return "Not available";
-  return `${((net / payments) * 100).toFixed(1)}%`;
-}
-
 export function HostingFinancialChart({
   rows,
   view,
@@ -58,7 +60,7 @@ export function HostingFinancialChart({
     return <div className="chart-empty">No hosting periods are available for this range.</div>;
   }
 
-  const points = rows.map((row) => ({
+  const points: HostingChartPoint[] = rows.map((row) => ({
     ...row,
     displayedRevenue:
       view === "ivion" ? row.ivionRevenue : view === "benaco" ? row.benacoRevenue : row.revenue,
@@ -130,14 +132,9 @@ export function HostingFinancialChart({
             ]
           : []),
         {
-          label: "Net cash flow",
+          label: "Net activity this period",
           value: fullCurrency(hoveredPoint.displayedNet),
           tone: hoveredPoint.displayedNet < 0 ? "negative-net" : "net",
-        },
-        {
-          label: "Payments retained",
-          value: paymentRetentionLabel(hoveredPoint.displayedNet, hoveredPoint.displayedRevenue),
-          tone: "margin",
         },
       ]
     : [];
@@ -186,7 +183,7 @@ export function HostingFinancialChart({
         ) : null}
         <span>
           <i className="hosting-chart-key hosting-chart-key--net" />
-          Net Cash Flow
+          Net Cash Activity
         </span>
         {firstForecastIndex >= 0 ? (
           <span>
@@ -205,10 +202,10 @@ export function HostingFinancialChart({
           onMouseLeave={() => setHovered(null)}
         >
           <title id="hosting-chart-title">
-            Client payments, direct hosting costs, and net cash flow
+            Client payments, direct hosting costs, and net cash activity
           </title>
           <desc id="hosting-chart-description">
-            One-time client payments and stacked direct cost bars by period, with a net cash flow
+            One-time client payments and stacked direct cost bars by period, with a net activity
             line. Hover or focus a period to see exact values.
           </desc>
           {yTicks.map((tick) => (
@@ -300,7 +297,7 @@ export function HostingFinancialChart({
                   height={plotHeight}
                   fill="transparent"
                   tabIndex={0}
-                  aria-label={`${periodLabel(point.period)}: client payments ${fullCurrency(point.displayedRevenue)}, IVION platform cost ${fullCurrency(point.displayedIvionCost)}, Benaco and subscription cost ${fullCurrency(point.displayedBenacoCost)}, total direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net cash flow ${fullCurrency(point.displayedNet)}, payments retained ${paymentRetentionLabel(point.displayedNet, point.displayedRevenue)}`}
+                  aria-label={`${periodLabel(point.period)}: client payments ${fullCurrency(point.displayedRevenue)}, IVION platform cost ${fullCurrency(point.displayedIvionCost)}, Benaco and subscription cost ${fullCurrency(point.displayedBenacoCost)}, total direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net activity ${fullCurrency(point.displayedNet)}`}
                   onMouseEnter={(event) => inspectAtPointer(event, index)}
                   onMouseMove={(event) => inspectAtPointer(event, index)}
                   onMouseDown={(event) => event.preventDefault()}
@@ -427,7 +424,283 @@ export function HostingFinancialChart({
         </svg>
       </div>
       <p className="hosting-chart__note">
-        Hover or focus a period to see its exact revenue, cost, and net values.
+        Bars and the line show client payments, direct costs, and net activity in each selected
+        period. Hover or focus a period for exact values.
+      </p>
+    </div>
+  );
+}
+
+type CumulativeHostingPoint = HostingReportRow & {
+  periodRevenue: number;
+  periodCost: number;
+  periodNet: number;
+  cumulativeRevenue: number;
+  cumulativeCost: number;
+  cumulativeNet: number;
+};
+
+export function HostingCumulativeChart({
+  rows,
+  view,
+}: {
+  rows: HostingReportRow[];
+  view: HostingView;
+}) {
+  const [hovered, setHovered] = useState<{ index: number; x: number; y: number } | null>(null);
+
+  if (!rows.length) {
+    return <div className="chart-empty">No historical hosting periods are available.</div>;
+  }
+
+  const points = rows.reduce<CumulativeHostingPoint[]>((previousPoints, row) => {
+    const periodRevenue =
+      view === "ivion" ? row.ivionRevenue : view === "benaco" ? row.benacoRevenue : row.revenue;
+    const periodCost =
+      (view === "benaco" ? 0 : row.ivionCost) + (view === "ivion" ? 0 : row.benacoCost);
+    const periodNet = periodRevenue - periodCost;
+    const previous = previousPoints.at(-1);
+    return [
+      ...previousPoints,
+      {
+        ...row,
+        periodRevenue,
+        periodCost,
+        periodNet,
+        cumulativeRevenue: (previous?.cumulativeRevenue ?? 0) + periodRevenue,
+        cumulativeCost: (previous?.cumulativeCost ?? 0) + periodCost,
+        cumulativeNet: (previous?.cumulativeNet ?? 0) + periodNet,
+      },
+    ];
+  }, []);
+
+  const width = Math.max(940, points.length * 50 + MARGIN.left + MARGIN.right);
+  const plotWidth = width - MARGIN.left - MARGIN.right;
+  const plotHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
+  const values = points.flatMap((point) => [
+    point.cumulativeRevenue,
+    point.cumulativeCost,
+    point.cumulativeNet,
+  ]);
+  const rawMinimum = Math.min(0, ...values);
+  const rawMaximum = Math.max(1, ...values);
+  const step = niceStep(Math.max((rawMaximum - rawMinimum) / 5, 1));
+  const minimum = Math.floor(rawMinimum / step) * step;
+  const maximum = Math.max(step, Math.ceil(rawMaximum / step) * step);
+  const y = (value: number) =>
+    MARGIN.top + ((maximum - value) / Math.max(maximum - minimum, 1)) * plotHeight;
+  const slot = plotWidth / points.length;
+  const x = (index: number) => MARGIN.left + slot * (index + 0.5);
+  const yTicks = Array.from(
+    { length: Math.round((maximum - minimum) / step) + 1 },
+    (_, index) => minimum + index * step,
+  );
+  const labelEvery = Math.max(1, Math.ceil(points.length / 10));
+  const path = (value: (point: CumulativeHostingPoint) => number) =>
+    points
+      .map(
+        (point, index) =>
+          `${index === 0 ? "M" : "L"}${x(index).toFixed(2)},${y(value(point)).toFixed(2)}`,
+      )
+      .join(" ");
+  const hoveredPoint = hovered === null ? null : points[hovered.index];
+  const tooltipRows = hoveredPoint
+    ? [
+        {
+          label: "Total client payments",
+          value: fullCurrency(hoveredPoint.cumulativeRevenue),
+          tone: "revenue",
+        },
+        {
+          label: "Total direct costs",
+          value: fullCurrency(hoveredPoint.cumulativeCost),
+          tone: "pano",
+        },
+        {
+          label: "Cash position to date",
+          value: fullCurrency(hoveredPoint.cumulativeNet),
+          tone: hoveredPoint.cumulativeNet < 0 ? "negative-net" : "net",
+        },
+        {
+          label: "Net activity this period",
+          value: fullCurrency(hoveredPoint.periodNet),
+          tone: hoveredPoint.periodNet < 0 ? "negative-net" : "net",
+        },
+      ]
+    : [];
+  const tooltipWidth = 330;
+  const tooltipHeight = 48 + tooltipRows.length * 20;
+  const tooltipX = hovered
+    ? hovered.x + 14 + tooltipWidth <= width - MARGIN.right
+      ? Math.max(MARGIN.left, hovered.x + 14)
+      : Math.max(MARGIN.left, hovered.x - tooltipWidth - 14)
+    : 0;
+  const tooltipY = hovered
+    ? Math.min(
+        HEIGHT - MARGIN.bottom - tooltipHeight,
+        Math.max(MARGIN.top, hovered.y - tooltipHeight / 2),
+      )
+    : 0;
+  const inspectAtPointer = (event: MouseEvent<SVGRectElement>, index: number) => {
+    const svg = event.currentTarget.ownerSVGElement;
+    if (!svg) return;
+    const bounds = svg.getBoundingClientRect();
+    setHovered({
+      index,
+      x: ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * width,
+      y: ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * HEIGHT,
+    });
+  };
+
+  return (
+    <div className="hosting-chart" role="region" aria-label="All-history hosting totals chart">
+      <div className="hosting-chart__legend" aria-hidden="true">
+        <span>
+          <i className="hosting-chart-key hosting-chart-key--revenue" />
+          Total Client Payments
+        </span>
+        <span>
+          <i className="hosting-chart-key hosting-chart-key--pano" />
+          Total Direct Costs
+        </span>
+        <span>
+          <i className="hosting-chart-key hosting-chart-key--net" />
+          Cash Position
+        </span>
+      </div>
+      <div className="hosting-chart__scroller">
+        <svg
+          className="hosting-chart__svg"
+          viewBox={`0 0 ${width} ${HEIGHT}`}
+          role="img"
+          aria-labelledby="hosting-cumulative-chart-title hosting-cumulative-chart-description"
+          style={{ minWidth: `${width}px` }}
+          onMouseLeave={() => setHovered(null)}
+        >
+          <title id="hosting-cumulative-chart-title">Cumulative hosting financial totals</title>
+          <desc id="hosting-cumulative-chart-description">
+            Running client payments, direct costs, and resulting cash position from January 2024
+            through the current period.
+          </desc>
+          {yTicks.map((tick) => (
+            <g key={tick}>
+              <line
+                x1={MARGIN.left}
+                x2={width - MARGIN.right}
+                y1={y(tick)}
+                y2={y(tick)}
+                className={tick === 0 ? "hosting-chart__zero" : "hosting-chart__grid"}
+              />
+              <text
+                x={MARGIN.left - 10}
+                y={y(tick) + 4}
+                textAnchor="end"
+                className="hosting-chart__axis-label"
+              >
+                {compactCurrency(tick)}
+              </text>
+            </g>
+          ))}
+          <path
+            d={path((point) => point.cumulativeRevenue)}
+            className="hosting-chart__cumulative-line hosting-chart__cumulative-line--revenue"
+          />
+          <path
+            d={path((point) => point.cumulativeCost)}
+            className="hosting-chart__cumulative-line hosting-chart__cumulative-line--cost"
+          />
+          <path
+            d={path((point) => point.cumulativeNet)}
+            className="hosting-chart__cumulative-line hosting-chart__cumulative-line--net"
+          />
+          {points.map((point, index) => {
+            const center = x(index);
+            return (
+              <g key={point.period}>
+                {index % labelEvery === 0 || index === points.length - 1 ? (
+                  <text
+                    x={center}
+                    y={HEIGHT - MARGIN.bottom + 22}
+                    textAnchor="middle"
+                    className="hosting-chart__period-label"
+                  >
+                    {point.period}
+                  </text>
+                ) : null}
+                <rect
+                  x={center - slot / 2}
+                  y={MARGIN.top}
+                  width={slot}
+                  height={plotHeight}
+                  fill="transparent"
+                  tabIndex={0}
+                  aria-label={`${periodLabel(point.period)}: total client payments ${fullCurrency(point.cumulativeRevenue)}, total direct costs ${fullCurrency(point.cumulativeCost)}, cash position ${fullCurrency(point.cumulativeNet)}, net activity this period ${fullCurrency(point.periodNet)}`}
+                  onMouseEnter={(event) => inspectAtPointer(event, index)}
+                  onMouseMove={(event) => inspectAtPointer(event, index)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onFocus={() => setHovered({ index, x: center, y: y(point.cumulativeNet) })}
+                  onBlur={() => setHovered(null)}
+                />
+              </g>
+            );
+          })}
+          {hoveredPoint && hovered ? (
+            <g className="hosting-chart__tooltip" pointerEvents="none">
+              <line
+                x1={hovered.x}
+                x2={hovered.x}
+                y1={MARGIN.top}
+                y2={HEIGHT - MARGIN.bottom}
+                className="hosting-chart__cursor-line"
+              />
+              <circle
+                cx={x(hovered.index)}
+                cy={y(hoveredPoint.cumulativeNet)}
+                r={4}
+                className="hosting-chart__net-point"
+              />
+              <rect x={tooltipX} y={tooltipY} width={tooltipWidth} height={tooltipHeight} rx={8} />
+              <text x={tooltipX + 16} y={tooltipY + 23} className="hosting-chart__tooltip-title">
+                Through {periodLabel(hoveredPoint.period)}
+              </text>
+              <line
+                x1={tooltipX + 16}
+                x2={tooltipX + tooltipWidth - 16}
+                y1={tooltipY + 34}
+                y2={tooltipY + 34}
+                className="hosting-chart__tooltip-divider"
+              />
+              {tooltipRows.map((row, index) => {
+                const rowY = tooltipY + 55 + index * 20;
+                return (
+                  <g key={row.label}>
+                    <circle
+                      cx={tooltipX + 20}
+                      cy={rowY}
+                      r={3.5}
+                      className={`hosting-chart__tooltip-key hosting-chart__tooltip-key--${row.tone}`}
+                    />
+                    <text x={tooltipX + 32} y={rowY + 4}>
+                      {row.label}
+                    </text>
+                    <text
+                      x={tooltipX + tooltipWidth - 16}
+                      y={rowY + 4}
+                      textAnchor="end"
+                      className="hosting-chart__tooltip-value"
+                    >
+                      {row.value}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          ) : null}
+        </svg>
+      </div>
+      <p className="hosting-chart__note">
+        This chart always uses all actual hosting data from January 1, 2024 through today. Its final
+        cash-position value equals total client payments minus total direct costs.
       </p>
     </div>
   );
