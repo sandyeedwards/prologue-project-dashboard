@@ -2,7 +2,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { HostingFinancialChart } from "@/components/hosting-financial-chart";
+import {
+  HostingCumulativeChart,
+  HostingFinancialChart,
+} from "@/components/hosting-financial-chart";
 import { HostingSyncControl } from "@/components/hosting-sync-control";
 import { requireUser } from "@/lib/auth/session";
 import {
@@ -48,8 +51,8 @@ const groupings: Array<{ value: HostingGrouping; label: string }> = [
 ];
 
 const ranges: Array<{ value: HostingRange; label: string }> = [
-  { value: "12m", label: "Rolling 12 months" },
   { value: "all", label: "All available history" },
+  { value: "12m", label: "Rolling 12 months" },
   { value: "ytd", label: "Year to date" },
   { value: "prior-year", label: "Previous calendar year" },
   { value: "custom", label: "Custom dates" },
@@ -368,11 +371,11 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const rangeLabel =
     ranges.find((option) => option.value === range)?.label ?? "All available history";
   const syncTone = latestSync?.status === "FAILED" ? "hosting-status--failed" : "";
-  const paymentRetention = overallTotals.revenue
-    ? overallTotals.netProfit / overallTotals.revenue
+  const paymentRetention = selectedPeriodTotals.revenue
+    ? selectedPeriodTotals.netProfit / selectedPeriodTotals.revenue
     : null;
-  const costShare = overallTotals.revenue
-    ? Math.min(Math.max(overallTotals.costs / overallTotals.revenue, 0), 1)
+  const costShare = selectedPeriodTotals.revenue
+    ? Math.min(Math.max(selectedPeriodTotals.costs / selectedPeriodTotals.revenue, 0), 1)
     : 0;
   const overallThrough = overallActualRows.at(-1)?.periodEnd ?? displayedRangeTo;
 
@@ -555,36 +558,38 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
 
         <section className="hosting-overview" aria-label="Hosting financial summary">
           <article
-            className={`hosting-contribution${hasSourceData && overallTotals.netProfit < 0 ? " hosting-contribution--loss" : ""}`}
+            className={`hosting-contribution${hasSourceData && selectedPeriodTotals.netProfit < 0 ? " hosting-contribution--loss" : ""}`}
           >
             <div className="hosting-contribution__heading">
               <div>
-                <p className="eyebrow">{viewLabel} overall economics</p>
-                <h2>Hosting cash position since 2024</h2>
+                <p className="eyebrow">{viewLabel} selected-period economics</p>
+                <h2>Hosting cash activity in selected range</h2>
               </div>
               <span>
                 {paymentRetention === null
                   ? "No client payments"
-                  : overallTotals.netProfit < 0
-                    ? `${currency(Math.abs(overallTotals.netProfit))} cash deficit`
+                  : selectedPeriodTotals.netProfit < 0
+                    ? `${currency(Math.abs(selectedPeriodTotals.netProfit))} cash deficit`
                     : `${wholePercent(paymentRetention)} of payments retained`}
               </span>
             </div>
             <strong className="hosting-contribution__value">
-              {hasSourceData ? currency(overallTotals.netProfit) : "No data"}
+              {hasSourceData ? currency(selectedPeriodTotals.netProfit) : "No data"}
             </strong>
             <p>
-              All client payments and direct costs from Jan 1, 2024 through{" "}
-              {dateLabel(overallThrough)}. Report filters below do not change this overall result.
+              Client payments and direct costs from {dateLabel(displayedRangeFrom)} through{" "}
+              {dateLabel(displayedRangeTo)}. The report options above change this result.
             </p>
             <div className="hosting-contribution__split" aria-label="Payment and cost totals">
               <div>
                 <span>Client payments received</span>
-                <strong>{hasSourceData ? currency(overallTotals.revenue) : "No data"}</strong>
+                <strong>
+                  {hasSourceData ? currency(selectedPeriodTotals.revenue) : "No data"}
+                </strong>
               </div>
               <div>
                 <span>Direct costs</span>
-                <strong>{hasSourceData ? currency(overallTotals.costs) : "No data"}</strong>
+                <strong>{hasSourceData ? currency(selectedPeriodTotals.costs) : "No data"}</strong>
               </div>
             </div>
             <div className="hosting-contribution__bar" aria-hidden="true">
@@ -641,6 +646,36 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
         <section className="report-section hosting-report-section hosting-chart-section">
           <div className="section-heading">
             <div>
+              <p className="eyebrow">All-history hosting totals</p>
+              <h2>{viewLabel} financial position since 2024</h2>
+            </div>
+            <p>
+              Running client payments, direct costs, and cash position from Jan 1, 2024 through{" "}
+              {dateLabel(overallThrough)}. Report date filters do not change this chart.
+            </p>
+          </div>
+          <div className="hosting-period-summary" aria-label="All-history hosting totals">
+            <div>
+              <span>Total client payments</span>
+              <strong>{hasSourceData ? currency(overallTotals.revenue) : "No data"}</strong>
+            </div>
+            <div>
+              <span>Total direct costs</span>
+              <strong>{hasSourceData ? currency(overallTotals.costs) : "No data"}</strong>
+            </div>
+            <div
+              className={overallTotals.netProfit < 0 ? "hosting-period-summary__loss" : undefined}
+            >
+              <span>Current cash position</span>
+              <strong>{hasSourceData ? currency(overallTotals.netProfit) : "No data"}</strong>
+            </div>
+          </div>
+          <HostingCumulativeChart rows={overallActualRows} view={view} />
+        </section>
+
+        <section className="report-section hosting-report-section hosting-chart-section">
+          <div className="section-heading">
+            <div>
               <p className="eyebrow">Company hosting timeline</p>
               <h2>{viewLabel} cash activity in selected period</h2>
             </div>
@@ -680,9 +715,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               The complete contracted fee appears once in the hosting-start period. Direct costs
               remain in the periods when they were incurred, so later periods may show negative cash
               flow after the upfront payment was received. Complimentary hosting does not create a
-              client payment. The overall card always uses history from January 1, 2024 through the
-              current period; report options change only the selected-period cash activity shown in
-              this graph and table.
+              client payment. The historical totals chart always uses all actual data from January
+              1, 2024 through the current period. The summary card, activity chart, and table use
+              the selected report range.
             </p>
           </details>
         </section>
