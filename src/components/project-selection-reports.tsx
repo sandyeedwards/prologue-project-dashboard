@@ -162,7 +162,7 @@ export function ProjectComparisonReport({
             <span>Margin</span>
             <span>Actual Cost</span>
             <span>Remaining Work</span>
-            <span>Forecast Profit</span>
+            <span>Projected Profit</span>
             <span>Coverage</span>
           </div>
           <div className="compare-register__rows">
@@ -201,7 +201,7 @@ export function ProjectComparisonReport({
                   >
                     <strong>{money(project.forecastProfit)}</strong>
                     <small>
-                      {profit !== null && profit < 0 ? "Forecast loss" : "Unspent revenue"}
+                      {profit !== null && profit < 0 ? "Projected Loss" : "Projected profit"}
                     </small>
                   </div>
 
@@ -298,7 +298,7 @@ export function CombinedPortfolioReport({
         <div className="executive-kpis__primary">
           <MetricCard
             priority="primary"
-            label="Actual Cost to Date"
+            label="Current Costs"
             value={money(summary.totalActualCost)}
             detail={actualCostCoverageDetail(
               summary.actualCostKnownCount,
@@ -309,17 +309,17 @@ export function CombinedPortfolioReport({
           />
           <MetricCard
             priority="primary"
-            label="Costed Remaining Work"
+            label="Estimated Remaining Costs"
             value={money(totalRemainingCost)}
             detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)}
-            help={`Estimated remaining internal and outsourced cost from today to completion. This excludes actual cost already incurred and matches the costed remaining work shown in the profitability chart. ${summary.provisionalCount} selected project${summary.provisionalCount === 1 ? " is" : "s are"} provisional, so missing inputs can make this a known minimum.`}
+            help={`Estimated remaining internal labor cost from today to completion. Outsourced modeling task estimates are excluded; recorded vendor expenses remain in current costs. ${summary.provisionalCount} selected project${summary.provisionalCount === 1 ? " is" : "s are"} provisional, so missing inputs can make this a known minimum.`}
           />
           <MetricCard
             priority="primary"
-            label="Unspent Revenue / Forecasted Profit"
+            label="Projected Profit"
             value={money(summary.totalForecastProfit)}
             detail={knownFor(summary.forecastProfitKnownCount, summary.projectCount)}
-            help="Combined client fees less actual cost to date and remaining cost to complete. It is recalculated from the totals rather than averaging project profit values."
+            help="Combined client fees less current costs and remaining cost to complete. It is recalculated from the totals rather than averaging project profit values."
           />
         </div>
         <div className="executive-kpis__secondary">
@@ -333,7 +333,7 @@ export function CombinedPortfolioReport({
             label={summary.provisionalCount ? "Margin Ceiling" : "Forecast Margin"}
             value={<MarginBadge value={combinedMargin} />}
             detail={knownFor(summary.forecastMarginKnownCount, summary.projectCount)}
-            help="Combined forecast profit divided by combined client fees. This is not an average of the selected project margins."
+            help="Combined projected profit divided by combined client fees. This is not an average of the selected project margins."
           />
           <MetricCard
             label="Logged Hours"
@@ -352,7 +352,7 @@ export function CombinedPortfolioReport({
           totalRow={totalProfitabilityRow}
           historicalSeries={historicalSeries}
           historicalInitialRange={historicalInitialRange}
-          groupDescription="Compare allocated revenue, actual cost to date, costed remaining work, and forecast profit or loss across the selected projects' operational groups."
+          groupDescription="Compare allocated revenue, current costs, estimated remaining costs, and projected profit or loss across the selected projects' operational groups."
           totalDescription="View the combined profitability of all selected projects using the same revenue, cost-to-date, remaining-cost, and profit structure."
           historicalDescription="Track gross revenue, source-dated actual cost, anticipated cost, net profit to date, and forecasted net profit over time across the selected projects. The calendar controls adjust only the visible historical range."
         />

@@ -703,7 +703,7 @@ export function buildHostingReport(
         monthPeriod.key <= IVION_INVOICE_COVERAGE_END
       ) {
         ivionCost += ivionInvoiceCostBetween(monthPeriod.start, monthPeriod.endExclusive);
-      } else {
+      } else if (includeForecast && monthPeriod.forecast) {
         const estimatedCost = ivionSites.reduce((sum, site) => {
           if (!site.is_active && !site.ended_on) return sum;
           if (!siteOverlapsPeriod(site, monthPeriod)) return sum;

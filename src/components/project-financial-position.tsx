@@ -64,11 +64,11 @@ export function ProjectFinancialPosition({
     >
       <div className="project-financial-position__summary">
         <div>
-          <span>Actual Cost to Date</span>
+          <span>Current Costs</span>
           <strong>{currency(actualCost)}</strong>
         </div>
         <div>
-          <span>Costed Remaining Work</span>
+          <span>Estimated Remaining Costs</span>
           <strong>{currency(remainingCost)}</strong>
         </div>
         <div
@@ -76,7 +76,7 @@ export function ProjectFinancialPosition({
             profit < 0 ? "project-financial-position__loss" : "project-financial-position__profit"
           }
         >
-          <span>{profit < 0 ? "Forecast Loss" : "Unspent Revenue / Forecasted Profit"}</span>
+          <span>{profit < 0 ? "Projected Loss" : "Projected Profit"}</span>
           <strong>{currency(profit)}</strong>
         </div>
         <div>

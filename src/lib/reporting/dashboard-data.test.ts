@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { projectWatchReasons } from "./project-watch-reasons";
 import {
   buildHistoricalProfitSeriesFromSource,
   filterAndSortProjects,
@@ -52,6 +53,39 @@ const base: ProjectReportRow = {
 };
 
 describe("reporting filters", () => {
+  it("explains delivery overrides even when forecast margin is strong", () => {
+    const reasons = projectWatchReasons({
+      ...base,
+      healthBand: "RED",
+      forecastMarginPercent: "88.8",
+      progressPercent: "30",
+      healthOverrides: ["MATERIAL_INCOMPLETION_PAST_DUE"],
+      financialScore: "100",
+      scheduleScore: "30",
+      isProvisional: false,
+      dataQualityIssueCount: 0,
+    });
+    expect(reasons).toEqual(["Past project end date with 30% of tasks complete"]);
+  });
+
+  it("uses planned hours and explains missing dates and provisional costs", () => {
+    const reasons = projectWatchReasons({
+      ...base,
+      startDate: null,
+      endDate: null,
+      scheduleScore: "40",
+      effortScore: "20",
+      progressPercent: "40",
+      loggedMinutes: 9999,
+      plannedLoggedMinutes: 90,
+      canonicalEstimatedMinutes: 100,
+    });
+    expect(reasons).toContain("90.0% of planned hours used vs 40% of tasks complete");
+    expect(reasons).toContain("Low task completion; schedule dates unavailable");
+    expect(reasons).toContain("Provisional forecast: incomplete remaining-work cost rates");
+    expect(reasons).toContain("2 unresolved data issues");
+  });
+
   it("finds projects by number and tag", () => {
     expect(filterAndSortProjects([base], { query: "26-120" })).toHaveLength(1);
     expect(filterAndSortProjects([base], { query: "scanning" })).toHaveLength(1);

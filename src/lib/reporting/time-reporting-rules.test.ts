@@ -17,10 +17,10 @@ describe("Time Reporting business rules", () => {
     expect(currentTimeReportingDate(new Date("2026-08-25T02:00:00.000Z"))).toBe("2026-08-24");
   });
 
-  it("defaults to the current month through today", () => {
+  it("defaults to the current week through today", () => {
     expect(resolveTimeReportingRange({}, NOW)).toEqual({
-      preset: "month",
-      startDate: "2026-08-01",
+      preset: "week",
+      startDate: "2026-08-24",
       endDate: "2026-08-24",
     });
   });
@@ -41,6 +41,28 @@ describe("Time Reporting business rules", () => {
     expect(resolveTimeReportingRange({ preset: "1y" }, NOW).startDate).toBe("2025-08-24");
   });
 
+  it("selects the full prior calendar month across year and leap-year boundaries", () => {
+    for (const [now, startDate, endDate] of [
+      ["2026-11-02T13:00:00Z", "2026-10-01", "2026-10-31"],
+      ["2026-01-10T13:00:00Z", "2025-12-01", "2025-12-31"],
+      ["2024-03-10T13:00:00Z", "2024-02-01", "2024-02-29"],
+    ]) {
+      expect(resolveTimeReportingRange({ preset: "previous-month" }, new Date(now))).toEqual({
+        preset: "previous-month",
+        startDate,
+        endDate,
+      });
+    }
+  });
+
+  it("keeps the default week on Eastern calendar dates at a UTC day boundary", () => {
+    expect(resolveTimeReportingRange({}, new Date("2026-11-02T02:00:00Z"))).toEqual({
+      preset: "week",
+      startDate: "2026-10-26",
+      endDate: "2026-11-01",
+    });
+  });
+
   it("uses a valid custom range", () => {
     expect(
       resolveTimeReportingRange(
@@ -58,7 +80,7 @@ describe("Time Reporting business rules", () => {
     });
   });
 
-  it("falls back to current month for invalid custom dates", () => {
+  it("falls back to current week for invalid custom dates", () => {
     expect(
       resolveTimeReportingRange(
         {
@@ -69,8 +91,8 @@ describe("Time Reporting business rules", () => {
         NOW,
       ),
     ).toEqual({
-      preset: "month",
-      startDate: "2026-08-01",
+      preset: "week",
+      startDate: "2026-08-24",
       endDate: "2026-08-24",
     });
   });

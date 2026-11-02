@@ -8904,6 +8904,35 @@ textarea {
   background: #fff0ef;
   color: #a92f2a;
 }
+
+.company-watchlist__reasons {
+  margin: 7px 0 0;
+  padding-left: 15px;
+  min-width: 220px;
+  max-width: 360px;
+  color: var(--navy-strong);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.portfolio-composition__note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+
+.company-watchlist__methodology {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.company-watchlist__methodology summary {
+  color: var(--blue-700);
+  cursor: pointer;
+  font-weight: 750;
+}
 .company-watchlist__signal--amber {
   background: #fff7e6;
   color: #8a5900;

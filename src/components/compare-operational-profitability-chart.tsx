@@ -174,9 +174,9 @@ function rowAriaLabel(row: DisplayPosition): string {
     row.project.projectName,
     row.groupName ? `${row.groupName}.` : "Entire project.",
     `Allocated revenue ${fullCurrency(position.allocatedRevenue)}.`,
-    `Actual cost to date ${fullCurrency(position.actualCostToDate)}.`,
-    `Costed remaining work ${fullCurrency(position.remainingCost)}.`,
-    `${position.forecastProfit < 0 ? "Forecast loss" : "Forecast profit"} ${fullCurrency(position.forecastProfit)}.`,
+    `Current Costs ${fullCurrency(position.actualCostToDate)}.`,
+    `Estimated remaining costs ${fullCurrency(position.remainingCost)}.`,
+    `${position.forecastProfit < 0 ? "Projected Loss" : "Projected Profit"} ${fullCurrency(position.forecastProfit)}.`,
     `Margin ${formatMargin(position.marginPercent)}.`,
   ].join(" ");
 }
@@ -208,7 +208,7 @@ function ComparisonRow({
         </div>
         <div className="compare-profitability-rows__outcome">
           <strong>{"\u2014"}</strong>
-          <small>Forecast profit</small>
+          <small>Projected Profit</small>
         </div>
         <div className="compare-profitability-rows__margin compare-profitability-rows__margin--neutral">
           <strong>N/A</strong>
@@ -330,7 +330,7 @@ function ComparisonRow({
             <strong>{fullCurrency(position.remainingCost)}</strong>
           </span>
           <span>
-            <small>{loss > 0 ? "Cost above revenue" : "Unspent revenue"}</small>
+            <small>{loss > 0 ? "Projected Loss" : "Projected profit"}</small>
             <strong>{fullCurrency(loss > 0 ? loss : profit)}</strong>
           </span>
         </div>
@@ -359,14 +359,14 @@ function ComparisonRow({
               <div>
                 <dt>
                   <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--actual" />
-                  Actual cost to date
+                  Current Costs
                 </dt>
                 <dd>{fullCurrency(position.actualCostToDate)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--remaining" />
-                  Costed remaining work
+                  Estimated remaining costs
                 </dt>
                 <dd>{fullCurrency(position.remainingCost)}</dd>
               </div>
@@ -375,9 +375,7 @@ function ComparisonRow({
                   <i
                     className={`compare-profitability-rows__tooltip-key ${position.forecastProfit < 0 ? "compare-profitability-rows__tooltip-key--loss" : "compare-profitability-rows__tooltip-key--profit"}`}
                   />
-                  {position.forecastProfit < 0
-                    ? "Cost above revenue"
-                    : "Unspent revenue / forecast profit"}
+                  {position.forecastProfit < 0 ? "Projected Loss" : "Projected Profit"}
                 </dt>
                 <dd>
                   {fullCurrency(
@@ -404,7 +402,7 @@ function ComparisonRow({
         className={`compare-profitability-rows__outcome compare-profitability-rows__outcome--${outcomeTone}`}
       >
         <strong>{fullCurrency(position.forecastProfit)}</strong>
-        <small>{position.forecastProfit < 0 ? "Forecast loss" : "Forecast profit"}</small>
+        <small>{position.forecastProfit < 0 ? "Projected Loss" : "Projected Profit"}</small>
       </div>
 
       <div
@@ -536,19 +534,19 @@ export function CompareOperationalProfitabilityChart({
       <div className="chart-legend compare-profitability-rows__legend" aria-hidden="true">
         <span>
           <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--actual" />
-          Actual cost to date
+          Current Costs
         </span>
         <span>
           <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--remaining" />
-          Costed remaining work
+          Estimated remaining costs
         </span>
         <span>
           <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--profit" />
-          Unspent revenue / forecast profit
+          Projected Profit
         </span>
         <span>
           <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--loss" />
-          Cost above revenue
+          Projected Loss
         </span>
       </div>
 
@@ -564,7 +562,7 @@ export function CompareOperationalProfitabilityChart({
               <div className="compare-profitability-rows__column-headings" aria-hidden="true">
                 <span>Project</span>
                 <span>Cost composition against revenue</span>
-                <span>Forecast profit</span>
+                <span>Projected Profit</span>
                 <span>Margin</span>
               </div>
               <div className="compare-profitability-rows__rows">
@@ -612,8 +610,8 @@ export function CompareOperationalProfitabilityChart({
 
       <p className="compare-profitability-rows__note">
         Each row uses allocated revenue as its 100% comparison baseline. Orange is actual cost to
-        date, yellow is costed remaining work, light blue is unspent revenue / forecast profit, and
-        red extends beyond revenue when forecast cost is over budget.
+        date, yellow is estimated remaining costs, light blue is projected profit, and red extends
+        beyond revenue when forecast cost is over budget.
       </p>
     </div>
   );

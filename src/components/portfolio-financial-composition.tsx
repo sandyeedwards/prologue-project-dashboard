@@ -68,9 +68,9 @@ function ariaLabel(row: ProfitabilityRow, values: ResolvedRow): string {
     row.label,
     row.detail,
     `Allocated revenue ${fullCurrency(values.revenue)}.`,
-    `Actual cost to date ${fullCurrency(values.actual)}.`,
-    `Costed remaining work ${fullCurrency(values.remaining)}.`,
-    `${values.profit < 0 ? "Forecast loss" : "Forecast profit"} ${fullCurrency(values.profit)}.`,
+    `Current Costs ${fullCurrency(values.actual)}.`,
+    `Estimated remaining costs ${fullCurrency(values.remaining)}.`,
+    `${values.profit < 0 ? "Projected Loss" : "Projected Profit"} ${fullCurrency(values.profit)}.`,
     `Forecast margin ${formatMargin(values.margin)}.`,
   ]
     .filter(Boolean)
@@ -161,15 +161,15 @@ function CompositionRow({
       {hero && showHeroMetrics ? (
         <div className="portfolio-composition__hero-metrics" aria-hidden="true">
           <span>
-            <small>Actual Cost to Date</small>
+            <small>Current Costs</small>
             <strong>{fullCurrency(values.actual)}</strong>
           </span>
           <span>
-            <small>Costed Remaining Work</small>
+            <small>Estimated Remaining Costs</small>
             <strong>{fullCurrency(values.remaining)}</strong>
           </span>
           <span className={values.profit < 0 ? "is-loss" : "is-profit"}>
-            <small>{values.profit < 0 ? "Forecast Loss" : "Forecasted Profit"}</small>
+            <small>{values.profit < 0 ? "Projected Loss" : "Projected Profit"}</small>
             <strong>{fullCurrency(values.profit)}</strong>
           </span>
           <span>
@@ -232,21 +232,21 @@ function CompositionRow({
               <div>
                 <dt>
                   <i className="is-actual" />
-                  Actual cost to date
+                  Current Costs
                 </dt>
                 <dd>{fullCurrency(values.actual)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="is-remaining" />
-                  Costed remaining work
+                  Estimated remaining costs
                 </dt>
                 <dd>{fullCurrency(values.remaining)}</dd>
               </div>
               <div className={values.profit < 0 ? "is-loss" : "is-profit"}>
                 <dt>
                   <i />
-                  {values.profit < 0 ? "Forecast loss" : "Forecasted profit"}
+                  {values.profit < 0 ? "Projected Loss" : "Projected Profit"}
                 </dt>
                 <dd>{fullCurrency(values.profit)}</dd>
               </div>
@@ -264,7 +264,7 @@ function CompositionRow({
           className={`portfolio-composition__outcome${values.profit < 0 ? " is-loss" : " is-profit"}`}
         >
           <strong>{compactCurrency(values.profit)}</strong>
-          <small>{values.profit < 0 ? "Forecast loss" : "Forecasted profit"}</small>
+          <small>{values.profit < 0 ? "Projected Loss" : "Projected Profit"}</small>
           <span>{formatMargin(values.margin)} margin</span>
         </div>
       ) : null}
@@ -302,19 +302,19 @@ export function PortfolioFinancialComposition({
       <div className="portfolio-composition__legend" aria-hidden="true">
         <span>
           <i className="is-actual" />
-          Actual Cost to Date
+          Current Costs
         </span>
         <span>
           <i className="is-remaining" />
-          Costed Remaining Work
+          Estimated Remaining Costs
         </span>
         <span>
           <i className="is-profit" />
-          Unspent Revenue / Forecasted Profit
+          Projected Profit
         </span>
         <span>
           <i className="is-loss" />
-          Cost Above Revenue
+          Projected Loss
         </span>
       </div>
       <div className="portfolio-composition__rows">
@@ -328,6 +328,10 @@ export function PortfolioFinancialComposition({
           />
         ))}
       </div>
+      <p className="portfolio-composition__note">
+        Estimated remaining costs include internal labor only. Recorded vendor expenses are included
+        in current costs; outsourced modeling task estimates are excluded from remaining work.
+      </p>
     </div>
   );
 }

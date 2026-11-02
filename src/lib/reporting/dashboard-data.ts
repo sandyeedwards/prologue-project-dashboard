@@ -33,6 +33,12 @@ export type ProjectReportRow = {
   totalTaskCount: number;
   progressPercent: string | null;
   healthScore: string | null;
+  financialScore?: string | null;
+  scheduleScore?: string | null;
+  effortScore?: string | null;
+  overdueScore?: string | null;
+  completenessScore?: string | null;
+  healthOverrides?: string[] | null;
   healthBand: HealthBand;
   laborCoverage: Coverage;
   assignmentCoverage: Coverage;
@@ -458,6 +464,12 @@ export async function getProjectRows(): Promise<ProjectReportRow[]> {
       pm.total_task_count as "totalTaskCount",
       pm.progress_percent as "progressPercent",
       pm.health_score as "healthScore",
+      pm.financial_score as "financialScore",
+      pm.schedule_score as "scheduleScore",
+      pm.effort_score as "effortScore",
+      pm.overdue_score as "overdueScore",
+      pm.completeness_score as "completenessScore",
+      pm.details -> 'healthOverrides' as "healthOverrides",
       pm.health_band as "healthBand",
       pm.labor_coverage as "laborCoverage",
       pm.assignment_coverage as "assignmentCoverage",
@@ -1296,10 +1308,10 @@ export async function getPortfolioOperationalGroups(
   }
 
   const order: PortfolioOperationalGroupRow["groupName"][] = [
-    "Fieldwork",
-    "Mobilization",
-    "Modeling",
     "Admin",
+    "Mobilization",
+    "Fieldwork",
+    "Modeling",
     "Unclassified",
   ];
   return order

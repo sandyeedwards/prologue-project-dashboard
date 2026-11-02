@@ -15,7 +15,7 @@ import {
   BENACO_MONTHLY_OVERHEAD,
   BENACO_2024_CATCH_UP_TOTAL,
   BENACO_2024_CATCH_UP_INVOICE_DATE,
-  BENACO_SUBSCRIPTION_START,
+  HOSTING_REPORT_START,
   benacoBillCostPerActivePano,
   benacoPanoBasis,
   benacoTourPanoCost,
@@ -554,13 +554,25 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </section>
         ) : null}
 
+        {view !== "benaco" && displayedRangeTo > "2026-09-30" ? (
+          <section className="notice hosting-status-banner">
+            <strong>
+              IVION recorded costs use invoices from January 2024 through September 2026.
+            </strong>
+            <span>
+              Later invoices have not been loaded. Historical cash activity does not add
+              instance-rate estimates to the supplied bills. Missing later invoices are not
+              confirmation of zero spending.
+            </span>
+          </section>
+        ) : null}
+
         {view !== "benaco" && ivionEstimatedCost > 0 ? (
           <section className="notice hosting-status-banner">
             <strong>IVION includes {currency(ivionEstimatedCost, 2)} in estimated costs.</strong>
             <span>
-              Vendor invoice history runs through September 2026. Later months use configured annual
-              instance costs divided by 12. These monthly estimates do not establish when a vendor
-              payment was made.
+              Future months use configured annual instance costs divided by 12. These forecast
+              estimates do not establish when a vendor payment was made.
             </span>
           </section>
         ) : null}
@@ -758,7 +770,8 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <p>
               IVION history uses the supplied NavVis bills in their invoice months from January 2024
               through September 2026. Invoice dates stand in for payment dates. After that coverage,
-              costs use the configured instance rates, allocated monthly.
+              historical cash activity awaits additional invoices. Configured instance rates are
+              used only for future forecast months.
             </p>
           </details>
         </section>
@@ -862,7 +875,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <DetailItem label="Subscription overhead">
                 Included in the actual bill. Estimates accrue {currency(BENACO_ANNUAL_OVERHEAD)}
                 per year ({currency(BENACO_MONTHLY_OVERHEAD, 2)} per month) since{" "}
-                {dateLabel(BENACO_SUBSCRIPTION_START)}.
+                {dateLabel(HOSTING_REPORT_START)} in this report.
               </DetailItem>
               <DetailItem label="Counted grid panos">
                 Use HubSpot Counted Grid-Pano when entered; otherwise estimate{" "}

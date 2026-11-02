@@ -13,7 +13,15 @@ export const TIME_REPORTING_SOURCE_NAMES = {
   clerical: "Clerical (routine tasks, day-to-day office tasks)",
 } as const;
 
-export const TIME_REPORTING_PRESETS = ["week", "month", "3m", "6m", "1y", "custom"] as const;
+export const TIME_REPORTING_PRESETS = [
+  "week",
+  "month",
+  "previous-month",
+  "3m",
+  "6m",
+  "1y",
+  "custom",
+] as const;
 
 export type TimeReportingPreset = (typeof TIME_REPORTING_PRESETS)[number];
 
@@ -82,7 +90,7 @@ export function normalizeTimeReportingPreset(
 ): TimeReportingPreset {
   return TIME_REPORTING_PRESETS.includes(value as TimeReportingPreset)
     ? (value as TimeReportingPreset)
-    : "month";
+    : "week";
 }
 
 export function resolveTimeReportingRange(
@@ -114,8 +122,8 @@ export function resolveTimeReportingRange(
     }
 
     return {
-      preset: "month",
-      startDate: `${todayText.slice(0, 7)}-01`,
+      preset: "week",
+      startDate: dateOnly(startOfMondayWeek(today)),
       endDate: todayText,
     };
   }
@@ -133,6 +141,14 @@ export function resolveTimeReportingRange(
       preset,
       startDate: `${todayText.slice(0, 7)}-01`,
       endDate: todayText,
+    };
+  }
+
+  if (preset === "previous-month") {
+    return {
+      preset,
+      startDate: dateOnly(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1))),
+      endDate: dateOnly(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0))),
     };
   }
 
