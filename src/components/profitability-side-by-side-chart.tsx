@@ -76,15 +76,13 @@ function tooltipLabel(row: ProfitabilityRow, revenueLabel: string): string {
     finite(row.revenue)
       ? `${revenueLabel}: ${fullCurrency(row.revenue)}.`
       : `${revenueLabel}: missing.`,
-    actual !== null
-      ? `Actual cost to date: ${fullCurrency(actual)}.`
-      : "Actual cost to date: missing.",
+    actual !== null ? `Current Costs: ${fullCurrency(actual)}.` : "Current Costs: missing.",
     remaining !== null
-      ? `Costed remaining work: ${fullCurrency(remaining)}.`
-      : "Costed remaining work: missing.",
+      ? `Estimated remaining costs: ${fullCurrency(remaining)}.`
+      : "Estimated remaining costs: missing.",
     profit !== null
-      ? `${profit < 0 ? "Forecast loss" : "Forecast profit"}: ${fullCurrency(profit)}.`
-      : "Forecast profit: missing.",
+      ? `${profit < 0 ? "Projected Loss" : "Projected Profit"}: ${fullCurrency(profit)}.`
+      : "Projected Profit: missing.",
     finite(row.margin) ? `Margin: ${row.margin.toFixed(1)} percent.` : "Margin: missing.",
   ];
   return items.join(" ");
@@ -100,7 +98,7 @@ export function ProfitabilitySideBySideChart({
   rows,
   revenueLabel = "Allocated revenue",
   emptyMessage = "No complete financial positions are available.",
-  ariaLabel = "Side-by-side allocated revenue, actual cost to date, costed remaining work, and forecast profit or loss markers",
+  ariaLabel = "Side-by-side allocated revenue, current costs, estimated remaining costs, and projected profit or loss markers",
   expandToFill = false,
 }: {
   rows: ProfitabilityRow[];
@@ -234,19 +232,19 @@ export function ProfitabilitySideBySideChart({
         </span>
         <span>
           <i className="chart-swatch profitability-side-by-side__swatch profitability-side-by-side__swatch--actual" />
-          Actual cost to date
+          Current Costs
         </span>
         <span>
           <i className="chart-swatch profitability-side-by-side__swatch profitability-side-by-side__swatch--remaining" />
-          Costed remaining work
+          Estimated remaining costs
         </span>
         <span>
           <i className="profitability-side-by-side__marker-key profitability-side-by-side__marker-key--profit" />
-          Forecast profit
+          Projected Profit
         </span>
         <span>
           <i className="profitability-side-by-side__marker-key profitability-side-by-side__marker-key--loss" />
-          Forecast loss
+          Projected Loss
         </span>
       </div>
 
@@ -504,14 +502,14 @@ export function ProfitabilitySideBySideChart({
               <div>
                 <dt>
                   <i className="profitability-side-by-side__tooltip-key profitability-side-by-side__tooltip-key--actual" />
-                  Actual cost to date
+                  Current Costs
                 </dt>
                 <dd>{fullCurrency(tooltipActual)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="profitability-side-by-side__tooltip-key profitability-side-by-side__tooltip-key--remaining" />
-                  Costed remaining work
+                  Estimated remaining costs
                 </dt>
                 <dd>{fullCurrency(tooltipRemaining)}</dd>
               </div>
@@ -521,8 +519,8 @@ export function ProfitabilitySideBySideChart({
                     className={`profitability-side-by-side__tooltip-key ${tooltipProfit !== null && tooltipProfit < 0 ? "profitability-side-by-side__tooltip-key--loss" : "profitability-side-by-side__tooltip-key--profit"}`}
                   />
                   {tooltipProfit !== null && tooltipProfit < 0
-                    ? "Forecast loss"
-                    : "Forecast profit"}
+                    ? "Projected Loss"
+                    : "Projected Profit"}
                 </dt>
                 <dd>{fullCurrency(tooltipProfit)}</dd>
               </div>
@@ -544,9 +542,9 @@ export function ProfitabilitySideBySideChart({
       </div>
 
       <p className="profitability-side-by-side__note">
-        Blue shows allocated revenue. The adjacent cost bar stacks actual cost to date and costed
-        remaining work. The green or red marker and value pill show the resulting forecast profit or
-        loss. Hover or focus a group to see exact values.
+        Blue shows allocated revenue. The adjacent cost bar stacks current costs and estimated
+        remaining costs. The green or red marker and value pill show the resulting projected profit
+        or loss. Hover or focus a group to see exact values.
       </p>
     </div>
   );

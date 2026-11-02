@@ -147,8 +147,9 @@ function groupBreakdown(rows: readonly TimeReportingBreakdownRow[]): BreakdownPr
 }
 
 const presets = [
-  { value: "week", label: "Week" },
+  { value: "week", label: "Current Week" },
   { value: "month", label: "Current Month" },
+  { value: "previous-month", label: "Previous Month" },
   { value: "3m", label: "3 Months" },
   { value: "6m", label: "6 Months" },
   { value: "1y", label: "1 Year" },
@@ -403,7 +404,7 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
               <p className="eyebrow">Billable status by employee</p>
 
               <h2>
-                {report.range.preset === "month"
+                {report.range.preset === "month" || report.range.preset === "previous-month"
                   ? "Monthly Hours by Billable Status"
                   : "Hours by Billable Status"}
               </h2>

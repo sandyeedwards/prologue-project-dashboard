@@ -8,6 +8,7 @@ function isCompleted(task: CalculationTaskInput): boolean {
 export function calculateCanonicalTaskMetrics(
   tasks: readonly CalculationTaskInput[],
   loggedMinutesByTaskId: ReadonlyMap<string, number>,
+  projectFinished = false,
 ): Map<string, CanonicalTaskMetric> {
   const activeTasks = tasks.filter((task) => !task.isDeleted);
   const byId = new Map(activeTasks.map((task) => [task.id, task]));
@@ -45,6 +46,7 @@ export function calculateCanonicalTaskMetrics(
     const branchLogged =
       ownLogged + childMetrics.reduce((sum, child) => sum + child.branchLoggedMinutes, 0);
     const branchComplete =
+      projectFinished ||
       isCompleted(task) ||
       ((children.get(task.id) ?? []).length > 0 &&
         childMetrics.every((child) => child.isBranchComplete));

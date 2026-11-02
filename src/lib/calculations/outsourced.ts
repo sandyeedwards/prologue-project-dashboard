@@ -1,5 +1,15 @@
 import type { CanonicalTaskMetric } from "./types";
 
+// Vendor expense actuals belong in cost-to-date. Vendor task hour estimates
+// are reference data and must not become additional costed remaining work.
+export function deliveryCostForecast(
+  actualCost: number,
+  remainingInternalLabor: number,
+  projectFinished: boolean,
+): number {
+  return actualCost + (projectFinished ? 0 : remainingInternalLabor);
+}
+
 interface TaskHierarchyRecord {
   id: string;
   parentTaskId: string | null;

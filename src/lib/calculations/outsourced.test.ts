@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CanonicalTaskMetric } from "./types";
-import { createOutsourcedBranchResolver, sumInternalCanonicalEstimatedMinutes } from "./outsourced";
+import {
+  createOutsourcedBranchResolver,
+  sumInternalCanonicalEstimatedMinutes,
+  deliveryCostForecast,
+} from "./outsourced";
 
 describe("outsourced modeling hierarchy", () => {
   it("treats an estimated child under an outsourced parent as outsourced", () => {
@@ -78,5 +82,12 @@ describe("outsourced modeling hierarchy", () => {
 
     expect(metrics.get("vendor")?.countedEstimatedMinutes).toBe(6000);
     expect(metrics.get("vendor")?.remainingMinutes).toBe(6000);
+    const remainingInternalMinutes = [...metrics.values()]
+      .filter((metric) => metric.isCanonicalHolder && !resolve(metric.taskId))
+      .reduce((sum, metric) => sum + metric.remainingMinutes, 0);
+    // The recorded $250 vendor expense remains actual cost. The 100-hour
+    // vendor estimate adds nothing to the 10 hours of remaining internal work.
+    expect(deliveryCostForecast(250, (remainingInternalMinutes / 60) * 50, false)).toBe(750);
+    expect(deliveryCostForecast(250, (remainingInternalMinutes / 60) * 50, true)).toBe(250);
   });
 });

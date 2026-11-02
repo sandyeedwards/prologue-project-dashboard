@@ -13,6 +13,7 @@ import {
 } from "@/lib/reporting/dashboard-data";
 import { hours, money } from "@/lib/reporting/format";
 import { getPortfolioStandouts } from "@/lib/reporting/portfolio-standouts";
+import { projectWatchReasons } from "@/lib/reporting/project-watch-reasons";
 
 export const dynamic = "force-dynamic";
 
@@ -264,7 +265,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               <p className="eyebrow">Portfolio exceptions</p>
               <h2>Projects to watch</h2>
               <p>
-                Only projects with delivery risk, provisional forecasts, or data issues appear here.
+                Flags include delivery risk, provisional forecasts, and data issues. A strong margin
+                alone does not mean a project is healthy.
               </p>
             </div>
             <Link href="/projects?health=AMBER&health=RED">View flagged projects</Link>
@@ -277,15 +279,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                     <th>Project</th>
                     <th>Forecast profit</th>
                     <th>Forecast margin</th>
-                    <th>Hours used</th>
-                    <th>Signal</th>
+                    <th>Planned hours used</th>
+                    <th>Signal / why flagged</th>
                   </tr>
                 </thead>
                 <tbody>
                   {projectsToWatch.map((project) => {
-                    const projectHours = project.canonicalEstimatedMinutes
-                      ? (project.loggedMinutes / project.canonicalEstimatedMinutes) * 100
-                      : null;
+                    const projectHours =
+                      project.canonicalEstimatedMinutes && project.plannedLoggedMinutes !== null
+                        ? (project.plannedLoggedMinutes / project.canonicalEstimatedMinutes) * 100
+                        : null;
                     const signal =
                       project.healthBand === "RED"
                         ? "Unhealthy"
@@ -309,6 +312,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                           >
                             {signal}
                           </span>
+                          <ul className="company-watchlist__reasons">
+                            {projectWatchReasons(project).map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
                         </td>
                       </tr>
                     );
@@ -321,6 +329,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               No projects in this view currently need attention.
             </p>
           )}
+          <details className="company-watchlist__methodology">
+            <summary>What makes a project unhealthy?</summary>
+            <p>
+              Health combines margin, task completion against schedule, planned hours used, overdue
+              tasks, and data completeness. Scores below 60 are unhealthy; 60–79 are at risk; 80 or
+              higher are healthy. A forecast loss, passing the project end date with less than 80%
+              of tasks complete, or severely incomplete data can force an unhealthy rating. Without
+              sufficient financial data, health is unavailable. Reasons above use the latest saved
+              calculation; task completion is based on task status.
+            </p>
+          </details>
           {portfolioStandouts.length ? (
             <div className="portfolio-standouts">
               <div className="portfolio-standouts__heading">

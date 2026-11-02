@@ -319,7 +319,7 @@ export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
     <div
       className="diverging-profit"
       role="img"
-      aria-label="Forecast profit and loss by operational group"
+      aria-label="Projected Profit and loss by operational group"
       style={chartStyle}
     >
       <div className="diverging-profit__axis" aria-hidden="true">
@@ -389,7 +389,7 @@ export function OperationalBreakdown({ rows }: { rows: ProfitabilityRow[] }) {
           <strong>{compactCurrency(totals.cost)}</strong>
         </div>
         <div>
-          <span>Forecast profit</span>
+          <span>Projected Profit</span>
           <strong>{compactCurrency(totals.profit)}</strong>
         </div>
         <div>
@@ -467,7 +467,7 @@ function AnalysisTakeaway({ rows }: { rows: ProfitabilityRow[] }) {
             {compactCurrency(leaders.reduce((sum, row) => sum + (row.profit ?? 0), 0))} combined.
           </p>
         ) : (
-          <p>No operational group currently reports positive forecast profit.</p>
+          <p>No operational group currently reports positive projected profit.</p>
         )}
         {largestLoss ? (
           <p>
@@ -495,7 +495,7 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
             <th>Project</th>
             <th>Client</th>
             <th>Margin</th>
-            <th>Forecast profit</th>
+            <th>Projected Profit</th>
             <th>Logged hours</th>
             <th>vs. estimate</th>
             <th>Task completion</th>
@@ -677,7 +677,7 @@ export function CostPerformanceChart({
         </span>
         <span>
           <i className="chart-swatch chart-tone--amber" />
-          Costed remaining work
+          Estimated remaining costs
         </span>
         {hasCompleteTarget ? (
           <>

@@ -16,7 +16,7 @@ type ProfitabilityViewDefinition = {
 
 const forecastView: ProfitabilityViewDefinition = {
   id: "total",
-  label: "Forecasted Profitability",
+  label: "Projected Profitability",
   description:
     "View the combined financial position of every operational group in the filtered company view with the same revenue, cost-to-date, remaining-cost, and profit structure.",
 };
@@ -32,7 +32,7 @@ const groupView: ProfitabilityViewDefinition = {
   id: "groups",
   label: "Profitability by Operational Group",
   description:
-    "Compare allocated revenue, actual cost to date, costed remaining work, and forecast profit or loss across operational groups.",
+    "Compare allocated revenue, current costs, estimated remaining costs, and projected profit or loss across operational groups.",
 };
 
 export function DashboardProfitabilityTabs({

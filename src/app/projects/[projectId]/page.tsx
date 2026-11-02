@@ -183,27 +183,23 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <div className="executive-kpis__primary">
             <MetricCard
               priority="primary"
-              label="Actual Cost to Date"
+              label="Current Costs"
               value={money(project.actualTotalCost)}
               detail="Internal labor plus active expenses"
             />
             <MetricCard
               priority="primary"
-              label="Costed Remaining Work"
+              label="Estimated Remaining Costs"
               value={money(remainingCost)}
               detail={
                 project.isProvisional
                   ? "Known costed work; incomplete inputs may increase this amount"
-                  : "Forecast cost less actual cost to date"
+                  : "Forecast cost less current costs"
               }
             />
             <MetricCard
               priority="primary"
-              label={
-                project.isProvisional
-                  ? "Known Forecasted Profit"
-                  : "Unspent Revenue / Forecasted Profit"
-              }
+              label={project.isProvisional ? "Known Projected Profit" : "Projected Profit"}
               value={money(project.forecastProfit)}
               detail={
                 <>
@@ -270,7 +266,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <ChartPanel
             eyebrow="Financial position"
             title="Revenue Consumption & Forecasted Outcome"
-            description="Actual cost, costed remaining work, and unspent revenue are shown together against the project fee."
+            description="Actual cost, estimated remaining costs, and projected profit are shown together against the project fee."
           >
             <ProjectFinancialPosition
               revenue={clientFee}
@@ -297,7 +293,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <ChartPanel
             eyebrow="Cost performance"
             title="Cost against target by group"
-            description="Actual cost and costed remaining work build to the forecast. Green shows forecast headroom below a complete planned-cost target; red shows cost above target. Groups without a complete target remain N/A."
+            description="Actual cost and estimated remaining costs build to the forecast. Green shows forecast headroom below a complete planned-cost target; red shows cost above target. Groups without a complete target remain N/A."
           >
             <CostPerformanceChart rows={groupCostPerformanceRows} />
           </ChartPanel>
@@ -453,8 +449,8 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <p className="section-description">
             Actual cost uses historical labor and imported expenses. A project is provisional only
             when a source needed to price remaining or expected work is incomplete. Task-list
-            budgets define planned internal cost and group cost targets; forecast profit remains the
-            fixed fee less forecast cost.
+            budgets define planned internal cost and group cost targets; projected profit remains
+            the fixed fee less forecast cost.
           </p>
           <div className="coverage-grid">
             <div>

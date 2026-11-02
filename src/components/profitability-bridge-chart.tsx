@@ -63,11 +63,11 @@ function tooltipLabel(row: ProfitabilityRow, revenueLabel: string): string {
     finite(row.cost)
       ? `Forecast cost at completion: ${fullCurrency(row.cost)}.`
       : "Forecast cost at completion: missing.",
-    actual !== null ? `Actual cost to date: ${fullCurrency(actual)}.` : null,
-    remaining !== null ? `Costed remaining work: ${fullCurrency(remaining)}.` : null,
+    actual !== null ? `Current Costs: ${fullCurrency(actual)}.` : null,
+    remaining !== null ? `Estimated remaining costs: ${fullCurrency(remaining)}.` : null,
     finite(row.profit)
-      ? `${row.profit < 0 ? "Forecast loss" : "Forecast profit"}: ${fullCurrency(row.profit)}.`
-      : "Forecast profit: missing.",
+      ? `${row.profit < 0 ? "Projected Loss" : "Projected Profit"}: ${fullCurrency(row.profit)}.`
+      : "Projected Profit: missing.",
     finite(row.margin) ? `Margin: ${row.margin.toFixed(1)} percent.` : "Margin: missing.",
   ];
   return items.filter(Boolean).join(" ");
@@ -196,12 +196,12 @@ export function ProfitabilityBridgeChart({
     <div
       className="profitability-bridge"
       role="group"
-      aria-label="Allocated revenue, forecast cost at completion, forecast profit or loss, and a mirrored forecast-cost comparison by operational group"
+      aria-label="Allocated revenue, forecast cost at completion, projected profit or loss, and a mirrored forecast-cost comparison by operational group"
     >
       <div className="chart-legend profitability-bridge__legend" aria-hidden="true">
         <span>
           <i className="chart-swatch profitability-bridge__swatch profitability-bridge__swatch--profit" />
-          Forecast profit
+          Projected Profit
         </span>
         <span>
           <i className="chart-swatch profitability-bridge__swatch profitability-bridge__swatch--included" />
@@ -423,13 +423,13 @@ export function ProfitabilityBridgeChart({
               </div>
               {tooltipActual !== null ? (
                 <div className="profitability-bridge__tooltip-subrow">
-                  <dt>Actual cost to date</dt>
+                  <dt>Current Costs</dt>
                   <dd>{fullCurrency(tooltipActual)}</dd>
                 </div>
               ) : null}
               {tooltipRemaining !== null ? (
                 <div className="profitability-bridge__tooltip-subrow">
-                  <dt>Costed remaining work</dt>
+                  <dt>Estimated remaining costs</dt>
                   <dd>{fullCurrency(tooltipRemaining)}</dd>
                 </div>
               ) : null}
@@ -439,8 +439,8 @@ export function ProfitabilityBridgeChart({
                     className={`profitability-bridge__tooltip-key ${tooltipProfit !== null && tooltipProfit < 0 ? "profitability-bridge__tooltip-key--loss" : "profitability-bridge__tooltip-key--profit"}`}
                   />
                   {tooltipProfit !== null && tooltipProfit < 0
-                    ? "Forecast loss"
-                    : "Forecast profit"}
+                    ? "Projected Loss"
+                    : "Projected Profit"}
                 </dt>
                 <dd>{fullCurrency(tooltipProfit)}</dd>
               </div>
@@ -462,8 +462,8 @@ export function ProfitabilityBridgeChart({
       </div>
       <p className="profitability-bridge__note">
         The outlined bar is allocated revenue. Inside it, amber is forecast cost at completion and
-        green is forecast profit. Forecast cost equals actual cost to date plus costed remaining
-        work. The pale amber bar below $0 mirrors the same forecast cost for comparison and is not
+        green is projected profit. Forecast cost equals current costs plus estimated remaining
+        costs. The pale amber bar below $0 mirrors the same forecast cost for comparison and is not
         counted twice.
       </p>
     </div>
