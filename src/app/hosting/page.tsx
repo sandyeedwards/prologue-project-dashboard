@@ -38,6 +38,7 @@ import {
   type HostingView,
 } from "@/lib/hosting/reporting";
 import { saveBenacoMonthlyBill } from "./actions";
+import { hostingPeriodStatus } from "@/lib/hosting/period-status";
 
 export const dynamic = "force-dynamic";
 
@@ -287,12 +288,29 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const dealPlatform = selectedDealPlatform(one(params.dealPlatform));
   const dealTerm = selectedDealTerm(one(params.dealTerm));
   const dealFee = selectedDealFee(one(params.dealFee));
-  const data = await getHostingDashboardData({ grouping, range, dateFrom, dateTo });
+  const data = await getHostingDashboardData({
+    grouping,
+    range,
+    dateFrom,
+    dateTo,
+    includeForecast: showForecast,
+  });
   const latestSync = data.syncRuns[0] ?? null;
   const hasSourceData = Boolean(
     latestSync || data.deals.length || data.ivionSites.length || data.benacoBills.length,
   );
-  const actualRows = data.report.filter((row) => !row.forecast);
+  const actualRows = showForecast
+    ? buildHostingReport(
+        data.deals,
+        grouping,
+        data.ivionSites,
+        new Date(),
+        range,
+        { from: dateFrom, to: dateTo },
+        data.benacoBills,
+        false,
+      )
+    : data.report;
   const displayedRows = showForecast ? data.report : actualRows;
   const displayedRangeFrom = displayedRows[0]?.periodStart ?? data.range.from;
   const displayedRangeTo = displayedRows.at(-1)?.periodEnd ?? data.range.to;
@@ -308,6 +326,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           "all",
           {},
           data.benacoBills,
+          false,
         ).filter((row) => !row.forecast);
   const overallTotals = reportTotals(overallActualRows, view);
   const filteredDeals = data.deals.filter((deal) =>
@@ -367,6 +386,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   const billedCost = actualRows.reduce((sum, row) => sum + row.benacoBilledCost, 0);
   const billedMonths = actualRows.reduce((sum, row) => sum + row.benacoBilledMonths, 0);
   const estimatedMonths = actualRows.reduce((sum, row) => sum + row.benacoEstimatedMonths, 0);
+  const ivionEstimatedCost = displayedRows.reduce(
+    (sum, row) => sum + (row.ivionEstimatedCost ?? 0),
+    0,
+  );
   const viewLabel = views.find((option) => option.value === view)?.label ?? "Combined";
   const rangeLabel =
     ranges.find((option) => option.value === range)?.label ?? "All available history";
@@ -510,7 +533,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           <p className="hosting-range-summary">
             <strong>{rangeLabel}</strong> · {dateLabel(displayedRangeFrom)} through{" "}
             {dateLabel(displayedRangeTo)}
-            {showForecast ? " · Forecast visible" : " · Actual periods"}
+            {showForecast
+              ? " · Forecast visible"
+              : " · Through today; modeled costs identified below"}
           </p>
         </section>
 
@@ -529,7 +554,18 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </section>
         ) : null}
 
-        {estimatedMonths ? (
+        {view !== "benaco" && ivionEstimatedCost > 0 ? (
+          <section className="notice hosting-status-banner">
+            <strong>IVION includes {currency(ivionEstimatedCost, 2)} in estimated costs.</strong>
+            <span>
+              Vendor invoice history runs through September 2026. Later months use configured annual
+              instance costs divided by 12. These monthly estimates do not establish when a vendor
+              payment was made.
+            </span>
+          </section>
+        ) : null}
+
+        {view !== "ivion" && estimatedMonths ? (
           <section className="notice hosting-status-banner" aria-live="polite">
             <strong>
               {estimatedMonths} displayed Benaco month{estimatedMonths === 1 ? "" : "s"} use the
@@ -545,7 +581,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </section>
         ) : null}
 
-        {billedMonths ? (
+        {view !== "ivion" && billedMonths ? (
           <section className="notice hosting-status-banner" aria-live="polite">
             <strong>
               {billedMonths} displayed Benaco month{billedMonths === 1 ? "" : "s"} use actual bills.
@@ -715,9 +751,14 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               The complete contracted fee appears once in the hosting-start period. Direct costs
               remain in the periods when they were incurred, so later periods may show negative cash
               flow after the upfront payment was received. Complimentary hosting does not create a
-              client payment. The historical totals chart always uses all actual data from January
-              1, 2024 through the current period. The summary card, activity chart, and table use
-              the selected report range.
+              client payment. The historical totals chart always uses recorded and modeled data from
+              January 1, 2024 through the current period. The summary card, activity chart, and
+              table use the selected report range.
+            </p>
+            <p>
+              IVION history uses the supplied NavVis bills in their invoice months from January 2024
+              through September 2026. Invoice dates stand in for payment dates. After that coverage,
+              costs use the configured instance rates, allocated monthly.
             </p>
           </details>
         </section>
@@ -749,7 +790,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                       <td>
                         <strong>{row.period}</strong>
                       </td>
-                      <td>{row.forecast ? <span className="tag">Forecast</span> : "Actual"}</td>
+                      <td>{hostingPeriodStatus(row, view)}</td>
                       <td>{currency(values.revenue)}</td>
                       <td>{currency(values.costs)}</td>
                       <td
@@ -831,10 +872,12 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 Counted grid panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} per year × hosting-term
                 years. The full cost appears once in the tour-start period.
               </DetailItem>
-              <DetailItem label="2024 historical adjustment">
+              <DetailItem label="One-time catch-up invoice">
                 The one-time {currency(BENACO_2024_CATCH_UP_TOTAL, 2)} delayed-tour invoice is
                 recorded once on {dateLabel(BENACO_2024_CATCH_UP_INVOICE_DATE)}. It replaces
-                calculated pano costs for tours that started in 2024, preventing double counting.
+                calculated pano costs for the original 2024 tours and all Benaco tours active on
+                October 30, 2026. New tours after that coverage date have separate calculated pano
+                costs. The $100 monthly subscription remains separate from this pano-only invoice.
               </DetailItem>
               <DetailItem label="History start">January 2024</DetailItem>
             </dl>
