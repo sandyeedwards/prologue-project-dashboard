@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useId, useState, type MouseEvent } from "react";
 
 import type { HostingReportRow, HostingView } from "@/lib/hosting/reporting";
+import { hostingPeriodStatus } from "@/lib/hosting/period-status";
 
 const HEIGHT = 360;
 const MARGIN = { top: 34, right: 30, bottom: 58, left: 76 };
@@ -380,7 +381,7 @@ export function HostingFinancialChart({
               />
               <rect x={tooltipX} y={tooltipY} width={tooltipWidth} height={tooltipHeight} rx={8} />
               <text x={tooltipX + 16} y={tooltipY + 23} className="hosting-chart__tooltip-title">
-                {periodLabel(hoveredPoint.period)} · {hoveredPoint.forecast ? "Forecast" : "Actual"}
+                {periodLabel(hoveredPoint.period)} · {hostingPeriodStatus(hoveredPoint, view)}
               </text>
               <line
                 x1={tooltipX + 16}
@@ -447,6 +448,7 @@ export function HostingCumulativeChart({
   rows: HostingReportRow[];
   view: HostingView;
 }) {
+  const fillId = useId();
   const [hovered, setHovered] = useState<{ index: number; x: number; y: number } | null>(null);
 
   if (!rows.length) {
@@ -528,6 +530,8 @@ export function HostingCumulativeChart({
         },
       ]
     : [];
+  const netArea = `${path((point) => point.cumulativeNet)} L${x(points.length - 1)},${y(0)} L${x(0)},${y(0)} Z`;
+  const zeroOffset = `${((y(0) - MARGIN.top) / plotHeight) * 100}%`;
   const tooltipWidth = 330;
   const tooltipHeight = 48 + tooltipRows.length * 20;
   const tooltipX = hovered
@@ -578,6 +582,21 @@ export function HostingCumulativeChart({
           onMouseLeave={() => setHovered(null)}
         >
           <title id="hosting-cumulative-chart-title">Cumulative hosting financial totals</title>
+          <defs>
+            <linearGradient
+              id={fillId}
+              x1="0"
+              y1={MARGIN.top}
+              x2="0"
+              y2={HEIGHT - MARGIN.bottom}
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stopColor="#11855d" stopOpacity="0.2" />
+              <stop offset={zeroOffset} stopColor="#11855d" stopOpacity="0.1" />
+              <stop offset={zeroOffset} stopColor="#c4433b" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="#c4433b" stopOpacity="0.2" />
+            </linearGradient>
+          </defs>
           <desc id="hosting-cumulative-chart-description">
             Running client payments, direct costs, and resulting cash position from January 2024
             through the current period.
@@ -601,6 +620,7 @@ export function HostingCumulativeChart({
               </text>
             </g>
           ))}
+          <path d={netArea} fill={`url(#${fillId})`} pointerEvents="none" />
           <path
             d={path((point) => point.cumulativeRevenue)}
             className="hosting-chart__cumulative-line hosting-chart__cumulative-line--revenue"
@@ -699,8 +719,9 @@ export function HostingCumulativeChart({
         </svg>
       </div>
       <p className="hosting-chart__note">
-        This chart always uses all actual hosting data from January 1, 2024 through today. Its final
-        cash-position value equals total client payments minus total direct costs.
+        This chart uses recorded payments, vendor bills, and modeled costs from January 1, 2024
+        through today. Its final cash-position value equals total client payments minus total direct
+        costs.
       </p>
     </div>
   );

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hostingPeriodStatus } from "./period-status";
 
 import {
   BENACO_ANNUAL_PANO_COST,
@@ -70,6 +71,160 @@ function site(overrides: Partial<HostingIvionSite> = {}): HostingIvionSite {
 }
 
 describe("buildHostingReport", () => {
+  it("reconciles actual monthly, quarterly, and annual totals through the same day", () => {
+    const deals = [
+      deal({ ivion_hosting_start: "2026-01-01", ivion_contracted_fee: 1200 }),
+      deal({
+        id: "future",
+        ivion_hosting_start: "2026-11-20",
+        ivion_contracted_fee: 9000,
+        benaco_hosting_start: "2026-12-01",
+        benaco_hosting_end: "2027-12-01",
+        benaco_counted_grid_panos: 1000,
+        benaco_contracted_fee: 500,
+      }),
+    ];
+    const reports = (["month", "quarter", "year"] as const).map((grouping) =>
+      buildHostingReport(
+        deals,
+        grouping,
+        [site()],
+        new Date("2026-11-02T12:00:00Z"),
+        "ytd",
+        {},
+        [],
+        false,
+      ),
+    );
+    const totals = reports.map((rows) =>
+      rows.reduce(
+        (sum, row) => ({ revenue: sum.revenue + row.revenue, cost: sum.cost + row.costs }),
+        { revenue: 0, cost: 0 },
+      ),
+    );
+    expect(totals[0].revenue).toBe(1200);
+    expect(totals[1]).toEqual(totals[0]);
+    expect(totals[2]).toEqual(totals[0]);
+    for (const rows of reports) {
+      expect(rows.at(-1)?.periodEnd).toBe("2026-11-02");
+      expect(rows.every((row) => !row.forecast)).toBe(true);
+      expect(hostingPeriodStatus(rows.at(-1)!, "ivion")).toBe("Includes estimated costs");
+    }
+    const forecast = buildHostingReport(
+      deals,
+      "year",
+      [site()],
+      new Date("2026-11-02T12:00:00Z"),
+      "ytd",
+      {},
+      [],
+      true,
+    );
+    expect(forecast[0].revenue).toBe(10700);
+    expect(hostingPeriodStatus(forecast[0], "ivion")).toBe("Includes forecast");
+  });
+
+  it("excludes invoices dated after the reporting day", () => {
+    const september = buildHostingReport(
+      [],
+      "month",
+      [],
+      new Date("2026-09-15T12:00:00Z"),
+      "ytd",
+      {},
+      [],
+      false,
+    );
+    expect(september.at(-1)?.ivionCost).toBe(0);
+    const august = buildHostingReport(
+      [],
+      "month",
+      [],
+      new Date("2026-08-15T12:00:00Z"),
+      "ytd",
+      {},
+      [],
+      false,
+    );
+    expect(august.at(-1)?.benacoHistoricalCost).toBe(0);
+  });
+
+  it("covers existing active tours of every start year once, while costing future tours separately", () => {
+    const report = buildHostingReport(
+      [
+        deal({
+          id: "existing-2025",
+          benaco_hosting_start: "2025-01-01",
+          benaco_hosting_end: "2028-01-01",
+          benaco_counted_grid_panos: 1000,
+        }),
+        deal({
+          id: "existing-2026",
+          benaco_hosting_start: "2026-06-01",
+          benaco_hosting_end: "2028-06-01",
+          benaco_counted_grid_panos: 2000,
+        }),
+        deal({
+          id: "new-tour",
+          benaco_hosting_start: "2026-11-01",
+          benaco_hosting_end: "2027-11-01",
+          benaco_counted_grid_panos: 500,
+        }),
+      ],
+      "month",
+      [],
+      new Date("2026-12-15T12:00:00Z"),
+      "all",
+      {},
+      [
+        {
+          id: "regular-august",
+          billing_month: "2026-08-01",
+          billed_amount: 100,
+          active_panos: 3000,
+          notes: null,
+          created_at: "2026-08-31",
+          updated_at: "2026-08-31",
+        },
+      ],
+    );
+    expect(report.reduce((sum, row) => sum + row.benacoHistoricalCost, 0)).toBe(
+      BENACO_2024_CATCH_UP_TOTAL,
+    );
+    expect(report.find((row) => row.period === "2026-08")?.benacoCost).toBeCloseTo(
+      BENACO_2024_CATCH_UP_TOTAL + 100,
+      2,
+    );
+    expect(report.find((row) => row.period === "2025-01")?.benacoPanoCosts).toBe(0);
+    expect(report.find((row) => row.period === "2026-06")?.benacoPanoCosts).toBe(0);
+    expect(report.find((row) => row.period === "2026-11")?.benacoPanoCosts).toBeCloseTo(190, 2);
+    expect(report.find((row) => row.period === "2026-12")?.benacoCost).toBe(100);
+  });
+
+  it("uses historical invoices without adding configured instance costs", () => {
+    const report = buildHostingReport(
+      [],
+      "year",
+      [site()],
+      new Date("2026-10-30T12:00:00Z"),
+      "custom",
+      { from: "2024-01-01", to: "2026-09-30" },
+    );
+    expect(report[0].ivionCost).toBeCloseTo(53226.83, 2);
+    expect(report[1].ivionCost).toBeCloseTo(38046.74, 2);
+  });
+
+  it("resumes configured monthly instance costs after invoice coverage", () => {
+    const report = buildHostingReport(
+      [],
+      "month",
+      [site()],
+      new Date("2026-10-30T12:00:00Z"),
+      "custom",
+      { from: "2026-09-01", to: "2026-10-31" },
+    );
+    expect(report.map((row) => row.ivionCost)).toEqual([10555, 100]);
+  });
   it("allocates a monthly Benaco bill proportionally by active panos", () => {
     expect(benacoBillCostPerActivePano(1000, 4000)).toBe(0.25);
     expect(allocateBenacoTourCost(600, 1000, 4000)).toBe(150);
@@ -112,7 +267,7 @@ describe("buildHostingReport", () => {
 
     const june = report.find((row) => row.period === "2026-06");
     expect(june).toMatchObject({
-      ivionCost: 100,
+      ivionCost: 3960,
       benacoOverhead: BENACO_MONTHLY_OVERHEAD,
     });
     expect(june?.benacoRevenue).toBe(900);
