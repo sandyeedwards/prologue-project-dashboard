@@ -34,3 +34,18 @@ export function dateLabel(value: string | Date | null | undefined): string {
     year: "numeric",
   }).format(date);
 }
+
+export function reportingTimestamp(value: string | Date | null | undefined): string {
+  if (!value) return "Not run";
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Invalid date";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    timeZoneName: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
+}

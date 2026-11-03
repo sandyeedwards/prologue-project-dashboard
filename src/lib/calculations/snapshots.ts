@@ -1,8 +1,9 @@
 import { getDb } from "@/db/client";
 import { projectMetrics, projectSnapshots } from "@/db/schema";
 import { CALCULATION_VERSION } from "@/lib/calculations/engine";
+import { currentTimeReportingDate } from "@/lib/reporting/time-reporting-rules";
 
-export async function createProjectSnapshots(snapshotDate = new Date().toISOString().slice(0, 10)) {
+export async function createProjectSnapshots(snapshotDate = currentTimeReportingDate()) {
   const db = getDb();
   const metrics = await db.select().from(projectMetrics);
   for (const metric of metrics) {

@@ -63,7 +63,8 @@ services:
     region: virginia
     branch: develop
     autoDeployTrigger: checksPass
-    schedule: "17 */6 * * *"
+    # Keep staging away from the production hosting job's :17 start.
+    schedule: "47 */6 * * *"
     buildCommand: npm ci --include=dev
     startCommand: npm run hosting:sync
 

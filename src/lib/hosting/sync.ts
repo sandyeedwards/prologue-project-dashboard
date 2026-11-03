@@ -1,4 +1,5 @@
 import { getSqlClient } from "@/db/client";
+import type { Sql } from "postgres";
 
 import {
   batchReadDeals,
@@ -182,9 +183,8 @@ async function upsertHostingDeal(
   deal: HubSpotDeal,
   siteLookup: Map<string, string>,
   propertyMap: Awaited<ReturnType<typeof buildHostingPropertyMap>>,
+  sql: Sql = getSqlClient(),
 ): Promise<void> {
-  const sql = getSqlClient();
-
   const properties = deal.properties || {};
   const hubspotDealId = String(deal.id);
 
@@ -333,9 +333,10 @@ async function upsertHostingDeal(
   `;
 }
 
-async function removeDealsNoLongerInSegment(membershipIds: Set<string>): Promise<string[]> {
-  const sql = getSqlClient();
-
+async function removeDealsNoLongerInSegment(
+  membershipIds: Set<string>,
+  sql: Sql = getSqlClient(),
+): Promise<string[]> {
   const rows = await sql`
     select hubspot_deal_id
     from hosting_deals
@@ -380,13 +381,16 @@ export async function runHostingSync(
 
     const siteLookup = await ivionSiteLookup();
 
-    for (const deal of deals) {
-      await upsertHostingDeal(deal, siteLookup, propertyMap);
-    }
-
     const membershipSet = new Set(membershipIds);
-
-    const removedIds = await removeDealsNoLongerInSegment(membershipSet);
+    const removedIds = await sql.begin(async (transaction) => {
+      // This installed Postgres.js version's Omit-based TransactionSql type loses
+      // its call signature. At runtime the transaction supplies the same SQL tag.
+      const transactionQuery = transaction as unknown as Sql;
+      for (const deal of deals) {
+        await upsertHostingDeal(deal, siteLookup, propertyMap, transactionQuery);
+      }
+      return await removeDealsNoLongerInSegment(membershipSet, transactionQuery);
+    });
 
     const returnedDealIds = new Set(deals.map((deal) => String(deal.id)));
 

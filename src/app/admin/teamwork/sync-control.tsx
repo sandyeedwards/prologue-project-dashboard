@@ -31,7 +31,9 @@ export function TeamworkSyncControl({ disabled = false }: { disabled?: boolean }
   async function runSync() {
     setRunning(true);
     setFailed(false);
-    setMessage("Synchronizing Teamwork data. This can take a few minutes...");
+    setMessage(
+      "Refreshing Teamwork, financial sources, and reporting calculations. This can take several minutes...",
+    );
 
     try {
       const response = await fetch("/api/teamwork/sync", { method: "POST" });
@@ -44,7 +46,7 @@ export function TeamworkSyncControl({ disabled = false }: { disabled?: boolean }
       const totals = result.totals;
       const timeEntries = result.datasets?.timeEntries;
       const summary = [
-        `Sync ${result.status?.toLowerCase() ?? "completed"}.`,
+        `Reporting refresh ${result.status?.toLowerCase() ?? "completed"}.`,
         totals ? `${totals.read.toLocaleString()} total records read.` : undefined,
         timeEntries
           ? `${timeEntries.created.toLocaleString()} time entries created, ${timeEntries.updated.toLocaleString()} updated, and ${timeEntries.skipped.toLocaleString()} skipped.`

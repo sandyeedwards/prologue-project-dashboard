@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { teamworkConnections } from "@/db/schema";
 import { decryptToken } from "./crypto";
+import { readOnlyFetch } from "@/lib/read-only-fetch";
 
 export type TeamworkConnection = typeof teamworkConnections.$inferSelect;
 export async function activeConnection() {
@@ -26,7 +27,7 @@ export async function teamworkFetch<T>(connection: TeamworkConnection, path: str
     path.replace(/^\//, ""),
     connection.apiEndpoint.endsWith("/") ? connection.apiEndpoint : `${connection.apiEndpoint}/`,
   );
-  const response = await fetch(url, {
+  const response = await readOnlyFetch(url, {
     headers: { Authorization: `Bearer ${bearerToken(connection)}`, Accept: "application/json" },
     cache: "no-store",
   });
