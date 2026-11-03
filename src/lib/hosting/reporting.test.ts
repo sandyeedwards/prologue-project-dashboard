@@ -71,6 +71,32 @@ function site(overrides: Partial<HostingIvionSite> = {}): HostingIvionSite {
 }
 
 describe("buildHostingReport", () => {
+  it("counts only 2024-onward invoices in historical IVION costs and keeps rates in the forecast", () => {
+    const sites = [16185, 16185, 10905, 11985].map((annual_cost, index) =>
+      site({
+        id: `instance-${index}`,
+        cost_history: [{ effective_on: "2023-01-01", annual_cost }],
+        started_on: "2023-01-01",
+      }),
+    );
+    const deals = [
+      deal({ id: "old", ivion_hosting_start: "2023-06-01", ivion_contracted_fee: 50000 }),
+      deal({ id: "new", ivion_hosting_start: "2024-01-01", ivion_contracted_fee: 1000 }),
+    ];
+    const reference = new Date("2026-11-02T12:00:00Z");
+    for (const grouping of ["month", "quarter", "year"] as const) {
+      const actual = buildHostingReport(deals, grouping, sites, reference, "all", {}, [], false);
+      expect(actual[0].periodStart).toBe("2024-01-01");
+      expect(actual.reduce((sum, row) => sum + row.ivionRevenue, 0)).toBe(1000);
+      expect(actual.reduce((sum, row) => sum + row.ivionCost, 0)).toBeCloseTo(167988.57, 2);
+      expect(actual.reduce((sum, row) => sum + (row.ivionEstimatedCost ?? 0), 0)).toBe(0);
+    }
+    const projected = buildHostingReport(deals, "month", sites, reference, "all", {}, [], true);
+    expect(projected.find((row) => row.period === "2026-10")?.ivionCost).toBe(0);
+    expect(projected.find((row) => row.period === "2026-11")?.ivionCost).toBe(0);
+    expect(projected.find((row) => row.period === "2026-12")?.ivionEstimatedCost).toBe(4605);
+  });
+
   it("reconciles actual monthly, quarterly, and annual totals through the same day", () => {
     const deals = [
       deal({ ivion_hosting_start: "2026-01-01", ivion_contracted_fee: 1200 }),
@@ -108,7 +134,7 @@ describe("buildHostingReport", () => {
     for (const rows of reports) {
       expect(rows.at(-1)?.periodEnd).toBe("2026-11-02");
       expect(rows.every((row) => !row.forecast)).toBe(true);
-      expect(hostingPeriodStatus(rows.at(-1)!, "ivion")).toBe("Includes estimated costs");
+      expect(hostingPeriodStatus(rows.at(-1)!, "ivion")).toBe("Recorded");
     }
     const forecast = buildHostingReport(
       deals,
@@ -214,7 +240,7 @@ describe("buildHostingReport", () => {
     expect(report[1].ivionCost).toBeCloseTo(38046.74, 2);
   });
 
-  it("resumes configured monthly instance costs after invoice coverage", () => {
+  it("does not add instance estimates to recorded invoices after coverage ends", () => {
     const report = buildHostingReport(
       [],
       "month",
@@ -223,7 +249,7 @@ describe("buildHostingReport", () => {
       "custom",
       { from: "2026-09-01", to: "2026-10-31" },
     );
-    expect(report.map((row) => row.ivionCost)).toEqual([10555, 100]);
+    expect(report.map((row) => row.ivionCost)).toEqual([10555, 0]);
   });
   it("allocates a monthly Benaco bill proportionally by active panos", () => {
     expect(benacoBillCostPerActivePano(1000, 4000)).toBe(0.25);

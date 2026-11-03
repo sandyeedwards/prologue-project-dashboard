@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateCanonicalTaskMetrics, rootTaskIds } from "./canonical-estimates";
 import type { CalculationTaskInput } from "./types";
+import { isProjectFinished } from "./project-completion";
 
 function task(
   id: string,
@@ -25,6 +26,26 @@ function task(
 }
 
 describe("canonical estimate hierarchy", () => {
+  it("clears remaining work for finished projects without changing actual hours or estimates", () => {
+    for (const project of [
+      { status: "closed" },
+      { status: "completed" },
+      { status: "archived" },
+      { status: "active", archivedAt: new Date() },
+      { status: "active", completedAt: new Date() },
+    ]) {
+      const finished = isProjectFinished(project);
+      const rows = [task("p1", 600), task("c2", 300, "p1")];
+      const metrics = calculateCanonicalTaskMetrics(rows, new Map([["c2", 100]]), finished);
+      expect(metrics.get("c2")).toMatchObject({
+        remainingMinutes: 0,
+        ownLoggedMinutes: 100,
+        branchEstimatedMinutes: 300,
+      });
+      expect(rows[1].status).toBe("new");
+    }
+    expect(isProjectFinished({ status: "active" })).toBe(false);
+  });
   it("uses estimated subtasks instead of the parent estimate", () => {
     const rows = [task("p1", 600), task("c2", 240, "p1"), task("c3", 180, "p1")];
     const metrics = calculateCanonicalTaskMetrics(rows, new Map());

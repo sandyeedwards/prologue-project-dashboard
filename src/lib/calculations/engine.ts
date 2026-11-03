@@ -28,7 +28,11 @@ import { collectBranchUserIds, extractAssignments } from "./assignments";
 import { resolveForecastAssignment } from "./forecast-assignment";
 import { calculateHealth } from "./health";
 import { resolveExpenseCoverage } from "./expense-coverage";
-import { createOutsourcedBranchResolver, sumInternalCanonicalEstimatedMinutes } from "./outsourced";
+import {
+  createOutsourcedBranchResolver,
+  sumInternalCanonicalEstimatedMinutes,
+  deliveryCostForecast,
+} from "./outsourced";
 import {
   calculatePlannedFinancials,
   calculateTaskListBudgetCoverage,
@@ -36,8 +40,9 @@ import {
 } from "./planned-financials";
 import type { CalculationTaskInput, Coverage } from "./types";
 import { identifyUnplannedTopLevelTasks } from "./unplanned-work";
+import { isProjectFinished } from "./project-completion";
 
-export const CALCULATION_VERSION = "step7-v1.0.7";
+export const CALCULATION_VERSION = "step7-v1.0.8";
 
 type IssueInsert = typeof dataQualityIssues.$inferInsert;
 type TaskMetricInsert = typeof taskMetrics.$inferInsert;
@@ -237,6 +242,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
     let warningCount = 0;
 
     for (const project of reportingProjects) {
+      const projectFinished = isProjectFinished(project);
       const projectTaskLists = taskListRows.filter(
         (row) => row.projectId === project.id && !row.isDeleted,
       );
@@ -274,7 +280,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         if (!entry.taskId) continue;
         ownLoggedByTask.set(entry.taskId, (ownLoggedByTask.get(entry.taskId) ?? 0) + entry.minutes);
       }
-      const canonical = calculateCanonicalTaskMetrics(taskInputs, ownLoggedByTask);
+      const canonical = calculateCanonicalTaskMetrics(taskInputs, ownLoggedByTask, projectFinished);
       const rawByTaskId = new Map<string, unknown>(projectTasks.map((task) => [task.id, task.raw]));
       const isOutsourcedBranch = createOutsourcedBranchResolver(projectTasks, isOutsourcedName);
       const canonicalEstimatedMinutes = sumInternalCanonicalEstimatedMinutes(
@@ -495,7 +501,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       const actualOutsourced = projectExpenses
         .filter((expense) => expense.isOutsourcedModeling)
         .reduce((sum, expense) => sum + (numeric(expense.totalCost) ?? 0), 0);
-      const remainingOutsourced = Math.max(projectedOutsourced - actualOutsourced, 0);
+      const remainingOutsourced = 0;
 
       const completedTaskListIds = new Set(
         projectTaskLists
@@ -615,8 +621,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       // represented as zero in their individual fields.
       const projectedTotal = projectedLaborKnown + projectedNonLabor;
       const actualTotal = actualLaborKnown + actualNonLaborKnown;
-      const forecastCost =
-        actualLaborKnown + actualNonLaborKnown + remainingLaborKnown + remainingNonLabor;
+      const forecastCost = deliveryCostForecast(actualTotal, remainingLaborKnown, projectFinished);
       const { clientFee, targetCost, targetProfit, targetMarginPercent } = plannedFinancials;
       const forecastProfit = clientFee === null ? null : clientFee - forecastCost;
       const forecastMarginPercent =
@@ -797,18 +802,11 @@ export async function calculateAllProjects(asOfDate = new Date()) {
             : groupKnownExpenseRows.length === 0
               ? null
               : groupActualNonLaborKnown;
-        const groupActualOutsourced = groupExpenseRows
-          .filter((expense) => expense.isOutsourcedModeling)
-          .reduce((sum, expense) => sum + (numeric(expense.totalCost) ?? 0), 0);
-        const groupRemainingOutsourced = Math.max(
-          groupProjectedNonLabor - groupActualOutsourced,
-          0,
+        const groupForecast = deliveryCostForecast(
+          groupActualLaborKnown + groupActualNonLaborKnown,
+          groupRemainingLaborKnown,
+          projectFinished,
         );
-        const groupForecast =
-          groupActualLaborKnown +
-          groupActualNonLaborKnown +
-          groupRemainingLaborKnown +
-          groupRemainingOutsourced;
         const groupBudgets = projectTaskListBudgets.filter((budget) =>
           groupTaskListIds.has(budget.taskListId),
         );
