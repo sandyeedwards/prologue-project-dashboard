@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/db/client";
 import { syncRuns, teamworkConnections } from "@/db/schema";
 import { TeamworkSyncControl } from "./sync-control";
+import { reportingTimestamp } from "@/lib/reporting/format";
 export const dynamic = "force-dynamic";
 export default async function TeamworkAdminPage({
   searchParams,
@@ -44,7 +45,7 @@ export default async function TeamworkAdminPage({
                 <strong>{connection.installationName}</strong>
               </p>
               <p>{connection.apiEndpoint}</p>
-              <p>Last sync: {connection.lastSyncAt?.toLocaleString() ?? "Not run"}</p>
+              <p>Last successful Teamwork import: {reportingTimestamp(connection.lastSyncAt)}</p>
             </>
           ) : (
             <p>
@@ -66,8 +67,8 @@ export default async function TeamworkAdminPage({
             <ul>
               {runs.map((run) => (
                 <li key={run.id}>
-                  {run.kind} — {run.status} — {run.startedAt.toLocaleString()} — {run.recordsRead}{" "}
-                  records read
+                  {run.kind} — {run.status} — {reportingTimestamp(run.startedAt)} —{" "}
+                  {run.recordsRead} records read
                 </li>
               ))}
             </ul>

@@ -1,3 +1,5 @@
+import { readOnlyFetch } from "@/lib/read-only-fetch";
+
 export type HubSpotProperty = {
   name: string;
   label?: string;
@@ -27,7 +29,7 @@ function listApiVersion(): string {
 }
 
 async function hubspotFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${HUBSPOT_API_BASE}${path}`, {
+  const response = await readOnlyFetch(`${HUBSPOT_API_BASE}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${accessToken()}`,
