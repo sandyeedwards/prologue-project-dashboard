@@ -47,6 +47,7 @@ export const CALCULATION_VERSION = "step7-v1.0.8";
 type IssueInsert = typeof dataQualityIssues.$inferInsert;
 type TaskMetricInsert = typeof taskMetrics.$inferInsert;
 type GroupMetricInsert = typeof operationalGroupMetrics.$inferInsert;
+type ProjectMetricInsert = typeof projectMetrics.$inferInsert;
 
 function numeric(value: string | number | null | undefined): number | null {
   if (value === null || value === undefined || value === "") return null;
@@ -114,7 +115,12 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       errors: 1,
       summary: { message: "Previous calculation process ended unexpectedly." },
     })
-    .where(eq(calculationRuns.status, "RUNNING"));
+    .where(
+      and(
+        eq(calculationRuns.status, "RUNNING"),
+        lte(calculationRuns.startedAt, new Date(Date.now() - 2 * 60 * 60 * 1000)),
+      ),
+    );
 
   const [run] = await db
     .insert(calculationRuns)
@@ -202,7 +208,6 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       tagNamesByProject.set(relation.projectId, names);
     }
 
-    await db.delete(taskAssignments);
     const assignmentRows: (typeof taskAssignments.$inferInsert)[] = [];
     for (const task of taskRows.filter(
       (row) => !row.isDeleted && reportingProjectIds.has(row.projectId),
@@ -226,15 +231,8 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         assignmentRows.push({ taskId: task.id, kind: "JOB_ROLE", teamworkAssigneeId });
       }
     }
-    await insertChunks(assignmentRows, async (chunk) => {
-      await db.insert(taskAssignments).values(chunk).onConflictDoNothing();
-    });
-
-    await db.delete(taskMetrics);
-    await db.delete(operationalGroupMetrics);
-    await db.delete(projectMetrics);
-    await db.delete(dataQualityIssues);
-
+    // Build the replacement completely before touching the live reporting tables.
+    const allProjectMetrics: ProjectMetricInsert[] = [];
     const allTaskMetrics: TaskMetricInsert[] = [];
     const allGroupMetrics: GroupMetricInsert[] = [];
     const allIssues: IssueInsert[] = [];
@@ -861,7 +859,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         });
       }
 
-      await db.insert(projectMetrics).values({
+      allProjectMetrics.push({
         projectId: project.id,
         calculationRunId: run.id,
         clientFee: money(clientFee),
@@ -938,16 +936,6 @@ export async function calculateAllProjects(asOfDate = new Date()) {
       });
     }
 
-    await insertChunks(allTaskMetrics, async (chunk) => {
-      await db.insert(taskMetrics).values(chunk);
-    });
-    await insertChunks(allGroupMetrics, async (chunk) => {
-      await db.insert(operationalGroupMetrics).values(chunk);
-    });
-    await insertChunks(allIssues, async (chunk) => {
-      await db.insert(dataQualityIssues).values(chunk);
-    });
-
     const status = warningCount > 0 ? "SUCCEEDED_WITH_WARNINGS" : "SUCCEEDED";
     const summary = {
       projects: reportingProjects.length,
@@ -961,18 +949,43 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         return counts;
       }, {}),
     };
-    await db
-      .update(calculationRuns)
-      .set({
-        status,
-        completedAt: new Date(),
-        projectsRead: reportingProjects.length,
-        projectsCalculated: reportingProjects.length,
-        warnings: warningCount,
-        errors: 0,
-        summary,
-      })
-      .where(eq(calculationRuns.id, run.id));
+
+    // Readers see the previous complete report until this entire replacement
+    // commits. An import/calculation failure cannot leave empty or partial totals.
+    await db.transaction(async (transaction) => {
+      await transaction.delete(taskAssignments);
+      await transaction.delete(taskMetrics);
+      await transaction.delete(operationalGroupMetrics);
+      await transaction.delete(projectMetrics);
+      await transaction.delete(dataQualityIssues);
+      await insertChunks(assignmentRows, async (chunk) => {
+        await transaction.insert(taskAssignments).values(chunk).onConflictDoNothing();
+      });
+      await insertChunks(allProjectMetrics, async (chunk) => {
+        await transaction.insert(projectMetrics).values(chunk);
+      });
+      await insertChunks(allTaskMetrics, async (chunk) => {
+        await transaction.insert(taskMetrics).values(chunk);
+      });
+      await insertChunks(allGroupMetrics, async (chunk) => {
+        await transaction.insert(operationalGroupMetrics).values(chunk);
+      });
+      await insertChunks(allIssues, async (chunk) => {
+        await transaction.insert(dataQualityIssues).values(chunk);
+      });
+      await transaction
+        .update(calculationRuns)
+        .set({
+          status,
+          completedAt: new Date(),
+          projectsRead: reportingProjects.length,
+          projectsCalculated: reportingProjects.length,
+          warnings: warningCount,
+          errors: 0,
+          summary,
+        })
+        .where(eq(calculationRuns.id, run.id));
+    });
 
     return { runId: run.id, status, summary };
   } catch (error) {

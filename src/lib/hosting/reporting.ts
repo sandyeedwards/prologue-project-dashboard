@@ -836,7 +836,7 @@ export async function getHostingDashboardData({
   includeForecast?: boolean;
 }) {
   const sql = getSqlClient();
-  const [deals, sites, syncRuns, benacoBills] = await Promise.all([
+  const [deals, sites, syncRuns, benacoBills, successfulSyncs] = await Promise.all([
     sql<HostingDealRow[]>`
       select
         id,
@@ -928,6 +928,12 @@ export async function getHostingDashboardData({
       where billing_month >= date '2024-01-01'
       order by billing_month desc
     `,
+    sql<HostingSyncRun[]>`
+      select * from hosting_sync_runs
+      where status in ('SUCCEEDED', 'SUCCEEDED_WITH_WARNINGS')
+      order by completed_at desc nulls last, started_at desc
+      limit 1
+    `,
   ]);
 
   const referenceDate = new Date();
@@ -946,6 +952,7 @@ export async function getHostingDashboardData({
     ivionSites: siteRows,
     benacoBills: [...benacoBills],
     syncRuns: [...syncRuns],
+    latestSuccessfulSync: successfulSyncs[0] ?? null,
     report: buildHostingReport(
       dealRows,
       grouping,

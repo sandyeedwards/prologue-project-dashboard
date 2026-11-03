@@ -1,10 +1,10 @@
 import "dotenv/config";
 
 import { getSqlClient } from "@/db/client";
-import { runHostingSync } from "@/lib/hosting/sync";
+import { runScheduledHostingSync } from "@/lib/hosting/scheduled-sync";
 
 async function main() {
-  const result = await runHostingSync("SCHEDULED");
+  const result = await runScheduledHostingSync();
   console.log(JSON.stringify(result, null, 2));
 }
 

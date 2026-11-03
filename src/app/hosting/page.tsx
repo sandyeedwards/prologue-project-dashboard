@@ -38,6 +38,7 @@ import {
   type HostingView,
 } from "@/lib/hosting/reporting";
 import { saveBenacoMonthlyBill } from "./actions";
+import { reportingTimestamp } from "@/lib/reporting/format";
 import { hostingPeriodStatus } from "@/lib/hosting/period-status";
 
 export const dynamic = "force-dynamic";
@@ -175,16 +176,7 @@ function dateLabel(value: Date | string | null): string {
 }
 
 function dateTimeLabel(value: Date | string | null): string {
-  if (!value) return "Not completed";
-  const parsed = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "Invalid date";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(parsed);
+  return reportingTimestamp(value);
 }
 
 function viewHref({
@@ -296,6 +288,12 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
     includeForecast: showForecast,
   });
   const latestSync = data.syncRuns[0] ?? null;
+  const lastSuccessfulSync = data.latestSuccessfulSync;
+  const lastSuccessfulDate = lastSuccessfulSync
+    ? new Date(lastSuccessfulSync.completed_at ?? lastSuccessfulSync.started_at)
+    : null;
+  const hostingStale =
+    !lastSuccessfulDate || new Date().getTime() - lastSuccessfulDate.getTime() > 8 * 60 * 60 * 1000;
   const hasSourceData = Boolean(
     latestSync || data.deals.length || data.ivionSites.length || data.benacoBills.length,
   );
@@ -428,9 +426,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </div>
           <div className="report-titlebar__actions">
             <span className={`report-date-chip ${syncTone}`}>
-              {latestSync
-                ? `${latestSync.kind === "SCHEDULED" ? "Last automatic sync" : "Last sync"} ${dateTimeLabel(latestSync.completed_at ?? latestSync.started_at)}`
-                : "Hosting data not yet synchronized"}
+              {lastSuccessfulSync
+                ? `Last successful sync ${dateTimeLabel(lastSuccessfulSync.completed_at ?? lastSuccessfulSync.started_at)}`
+                : "No successful hosting sync recorded"}
             </span>
           </div>
         </section>
@@ -538,6 +536,16 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               : " · Through today; modeled costs identified below"}
           </p>
         </section>
+
+        {hostingStale && lastSuccessfulSync ? (
+          <section className="notice hosting-status-banner" role="status">
+            <strong>Hosting data is overdue for refresh.</strong>
+            <span>
+              The last successful refresh was more than eight hours ago. The financial charts still
+              use the last imported records.
+            </span>
+          </section>
+        ) : null}
 
         {!latestSync ? (
           <section className="notice hosting-status-banner" aria-live="polite">

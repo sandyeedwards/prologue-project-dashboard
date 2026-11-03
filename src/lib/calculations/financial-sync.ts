@@ -1,4 +1,5 @@
 import { getDb } from "@/db/client";
+import { inArray } from "drizzle-orm";
 import {
   expenses,
   outsourcedTaskAliases,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/teamwork/fields";
 import { activeConnection, teamworkFetch } from "@/lib/teamwork/client";
 import { normalizeTeamworkLabel } from "@/lib/teamwork/normalize";
+import { readFinancialPages } from "./financial-pages";
 import {
   teamworkBudgetMoney,
   teamworkExpenseMoney,
@@ -84,13 +86,19 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
     warnings: [],
   };
 
-  const projectPayload = await teamworkFetch<TeamworkRecord>(
-    connection,
-    "/projects/api/v3/projects.json?includeArchivedProjects=true&includeProjectDates=true&includeProjectProfitability=true&skipCounts=true&include=projectBudgets&page=1&pageSize=500",
+  const { rows: projectRows, payloads } = await readFinancialPages(
+    (page, pageSize) =>
+      teamworkFetch<TeamworkRecord>(
+        connection,
+        `/projects/api/v3/projects.json?includeArchivedProjects=true&includeProjectDates=true&includeProjectProfitability=true&skipCounts=true&include=projectBudgets&page=${page}&pageSize=${pageSize}`,
+      ),
+    ["projects"],
   );
-  const included = (projectPayload.included ?? {}) as TeamworkRecord;
-  const budgetRows = collectionRows<TeamworkRecord>(included.projectBudgets);
-  const projectRows = collectionRows<TeamworkRecord>(projectPayload.projects);
+  const budgetRows = payloads.flatMap((payload) =>
+    collectionRows<TeamworkRecord>(
+      (payload.included as TeamworkRecord | undefined)?.projectBudgets,
+    ),
+  );
   result.projectBudgetsRead = budgetRows.length;
 
   const projectByTeamworkId = new Map(
@@ -98,7 +106,6 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
       (row) => [row.teamworkId, row.id],
     ),
   );
-  await db.update(projectBudgets).set({ isCurrent: false, updatedAt: new Date() });
   const currentBudgetByProjectTeamworkId = new Map<number, number>();
   for (const row of projectRows) {
     const projectTeamworkId = idAtPaths(row, ["id", "projectId"]);
@@ -112,54 +119,60 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
     }
   }
 
-  for (const row of budgetRows) {
-    const teamworkId = idAtPaths(row, ["id", "budgetId"]);
-    const projectTeamworkId = idAtPaths(row, ["projectId", "project.id"]);
-    const projectId =
-      projectTeamworkId === null ? null : projectByTeamworkId.get(projectTeamworkId);
-    if (teamworkId === null || projectTeamworkId === null || !projectId) {
-      result.warnings.push(
-        "A project budget was skipped because its project relationship was missing.",
+  // Only replace current flags for projects with a returned budget relationship.
+  // A partial/permission-filtered response must not clear every stored budget.
+  const returnedBudgetIds = new Set(budgetRows.map((row) => idAtPaths(row, ["id", "budgetId"])));
+  for (const [projectId, budgetId] of currentBudgetByProjectTeamworkId) {
+    if (projectByTeamworkId.has(projectId) && !returnedBudgetIds.has(budgetId)) {
+      throw new Error(
+        `Current budget ${budgetId} for Teamwork project ${projectId} was not included. Previous budgets were preserved.`,
       );
-      continue;
     }
-    const status = textAtPaths(row, ["status"]) ?? "UNKNOWN";
-    const currentBudgetTeamworkId = currentBudgetByProjectTeamworkId.get(projectTeamworkId);
+  }
+  const importedProjectIds = [
+    ...new Set(
+      budgetRows.flatMap((row) => {
+        const id = idAtPaths(row, ["projectId", "project.id"]);
+        const projectId =
+          id === null || !currentBudgetByProjectTeamworkId.has(id)
+            ? undefined
+            : projectByTeamworkId.get(id);
+        return projectId ? [projectId] : [];
+      }),
+    ),
+  ];
+  await db.transaction(async (budgetDb) => {
+    if (importedProjectIds.length)
+      await budgetDb
+        .update(projectBudgets)
+        .set({ isCurrent: false, updatedAt: new Date() })
+        .where(inArray(projectBudgets.projectId, importedProjectIds));
+    for (const row of budgetRows) {
+      const teamworkId = idAtPaths(row, ["id", "budgetId"]);
+      const projectTeamworkId = idAtPaths(row, ["projectId", "project.id"]);
+      const projectId =
+        projectTeamworkId === null ? null : projectByTeamworkId.get(projectTeamworkId);
+      if (teamworkId === null || projectTeamworkId === null || !projectId) {
+        result.warnings.push(
+          "A project budget was skipped because its project relationship was missing.",
+        );
+        continue;
+      }
+      const status = textAtPaths(row, ["status"]) ?? "UNKNOWN";
+      const currentBudgetTeamworkId = currentBudgetByProjectTeamworkId.get(projectTeamworkId);
+      if (currentBudgetTeamworkId === undefined) {
+        result.warnings.push(
+          `Budget ${teamworkId} was left unchanged because the project's current budget reference was unavailable.`,
+        );
+        continue;
+      }
 
-    const isCurrent =
-      currentBudgetTeamworkId !== undefined ? currentBudgetTeamworkId === teamworkId : false;
-    await db
-      .insert(projectBudgets)
-      .values({
-        teamworkId,
-        projectId,
-        status,
-        category: textAtPaths(row, ["budgetCategory", "category", "type"]),
-        currencyCode: textAtPaths(row, ["currencyCode", "currency.code"]) ?? "USD",
-        clientFee:
-          teamworkBudgetMoney(
-            numberAtPaths(row, ["capacity", "budgetAmountFinancial", "amount"]),
-          )?.toString() ?? null,
-        targetCost:
-          teamworkBudgetMoney(
-            numberAtPaths(row, ["budgetExpectedCost", "expectedCost"]),
-          )?.toString() ?? null,
-        targetProfit:
-          teamworkBudgetMoney(
-            numberAtPaths(row, ["budgetExpectedProfit", "expectedProfit"]),
-          )?.toString() ?? null,
-        targetMarginPercent:
-          numberAtPaths(row, ["budgetProfitMargin", "profitMargin"])?.toString() ?? null,
-        startsOn: dateText(firstValue(row, ["startDate", "startDateTime"])),
-        endsOn: dateText(firstValue(row, ["endDate", "endDateTime"])),
-        isCurrent,
-        financialDetailsHidden: firstValue(row, ["financialDetailsHidden"]) === true,
-        teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt", "dateUpdated"])),
-        raw: row,
-      })
-      .onConflictDoUpdate({
-        target: projectBudgets.teamworkId,
-        set: {
+      const isCurrent =
+        currentBudgetTeamworkId !== undefined ? currentBudgetTeamworkId === teamworkId : false;
+      await budgetDb
+        .insert(projectBudgets)
+        .values({
+          teamworkId,
           projectId,
           status,
           category: textAtPaths(row, ["budgetCategory", "category", "type"]),
@@ -184,11 +197,40 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
           financialDetailsHidden: firstValue(row, ["financialDetailsHidden"]) === true,
           teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt", "dateUpdated"])),
           raw: row,
-          updatedAt: new Date(),
-        },
-      });
-    result.projectBudgetsImported += 1;
-  }
+        })
+        .onConflictDoUpdate({
+          target: projectBudgets.teamworkId,
+          set: {
+            projectId,
+            status,
+            category: textAtPaths(row, ["budgetCategory", "category", "type"]),
+            currencyCode: textAtPaths(row, ["currencyCode", "currency.code"]) ?? "USD",
+            clientFee:
+              teamworkBudgetMoney(
+                numberAtPaths(row, ["capacity", "budgetAmountFinancial", "amount"]),
+              )?.toString() ?? null,
+            targetCost:
+              teamworkBudgetMoney(
+                numberAtPaths(row, ["budgetExpectedCost", "expectedCost"]),
+              )?.toString() ?? null,
+            targetProfit:
+              teamworkBudgetMoney(
+                numberAtPaths(row, ["budgetExpectedProfit", "expectedProfit"]),
+              )?.toString() ?? null,
+            targetMarginPercent:
+              numberAtPaths(row, ["budgetProfitMargin", "profitMargin"])?.toString() ?? null,
+            startsOn: dateText(firstValue(row, ["startDate", "startDateTime"])),
+            endsOn: dateText(firstValue(row, ["endDate", "endDateTime"])),
+            isCurrent,
+            financialDetailsHidden: firstValue(row, ["financialDetailsHidden"]) === true,
+            teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt", "dateUpdated"])),
+            raw: row,
+            updatedAt: new Date(),
+          },
+        });
+      result.projectBudgetsImported += 1;
+    }
+  });
 
   const budgetMap = new Map<number, { id: string; teamworkId: number; projectId: string }>(
     (
@@ -233,12 +275,13 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
 
   for (const [budgetTeamworkId, budget] of budgetMap) {
     try {
-      const payload = await teamworkFetch<TeamworkRecord>(
-        connection,
-        `/projects/api/v3/projects/budgets/${budgetTeamworkId}/tasklists/budgets.json?include=tasklists,projectBudgets&page=1&pageSize=250`,
-      );
-      const rows = collectionRows<TeamworkRecord>(
-        payload.tasklistBudgets ?? payload.taskListBudgets,
+      const { rows } = await readFinancialPages(
+        (page, pageSize) =>
+          teamworkFetch<TeamworkRecord>(
+            connection,
+            `/projects/api/v3/projects/budgets/${budgetTeamworkId}/tasklists/budgets.json?include=tasklists,projectBudgets&page=${page}&pageSize=${pageSize}`,
+          ),
+        ["tasklistBudgets", "taskListBudgets"],
       );
       result.taskListBudgetsRead += rows.length;
       for (const row of rows) {
@@ -297,9 +340,16 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
 
   const expenseRows: ExpenseCandidate[] = [];
   try {
-    const legacyPayload = await teamworkFetch<TeamworkRecord>(connection, "/expenses.json");
+    const legacyPayload = await readFinancialPages(
+      (page, pageSize) =>
+        teamworkFetch<TeamworkRecord>(
+          connection,
+          `/expenses.json?page=${page}&pageSize=${pageSize}`,
+        ),
+      ["expenses"],
+    );
     expenseRows.push(
-      ...collectionRows<TeamworkRecord>(legacyPayload.expenses).map((row) => ({
+      ...legacyPayload.rows.map((row) => ({
         row,
         source: "LEGACY" as const,
       })),
@@ -311,15 +361,15 @@ export async function syncFinancialSources(): Promise<FinancialSyncResult> {
   }
   for (const [budgetTeamworkId] of budgetMap) {
     try {
-      const payload = await teamworkFetch<TeamworkRecord>(
-        connection,
-        `/projects/api/v3/projects/budgets/${budgetTeamworkId}/expenses.json?page=1&pageSize=250&showDeleted=true`,
+      const { rows } = await readFinancialPages(
+        (page, pageSize) =>
+          teamworkFetch<TeamworkRecord>(
+            connection,
+            `/projects/api/v3/projects/budgets/${budgetTeamworkId}/expenses.json?page=${page}&pageSize=${pageSize}&showDeleted=true`,
+          ),
+        ["budgetExpenses", "expenses"],
       );
-      expenseRows.push(
-        ...collectionRows<TeamworkRecord>(payload.budgetExpenses ?? payload.expenses).map(
-          (row) => ({ row, source: "BUDGET" as const }),
-        ),
-      );
+      expenseRows.push(...rows.map((row) => ({ row, source: "BUDGET" as const })));
     } catch (error) {
       result.warnings.push(
         `Budget expenses could not be read for Teamwork budget ${budgetTeamworkId}: ${error instanceof Error ? error.message : String(error)}`,
