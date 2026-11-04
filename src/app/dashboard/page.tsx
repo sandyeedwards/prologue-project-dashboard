@@ -161,6 +161,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             </div>
           </div>
           <div className="report-titlebar__actions">
+            <Link
+              className="button button--primary"
+              href="/mmm"
+              title="Monday Morning Meeting report"
+            >
+              MMM
+            </Link>
             <span className="report-date-chip">
               Data as of {displayDate(summary.latestCalculatedAt)}
             </span>
