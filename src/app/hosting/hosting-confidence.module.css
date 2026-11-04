@@ -1,0 +1,12 @@
+.provisional.provisional {
+  border-color: #c49a3e;
+  background: #fffbf0;
+}
+.provisional.provisional :global(.hosting-contribution__value) {
+  color: #805a13;
+}
+.provisional.provisional :global(.hosting-contribution__heading) > span {
+  color: #805a13;
+  border-color: #e8d2a2;
+  background: #fff4d7;
+}

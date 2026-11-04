@@ -10,6 +10,9 @@ import {
 } from "@/lib/reporting/dashboard-data";
 import { dateLabel, hours, money } from "@/lib/reporting/format";
 import { dismissUnplannedWork, reopenUnplannedWork } from "@/app/projects/[projectId]/actions";
+import { getHostingDataIssues } from "@/lib/hosting/data-issues-server";
+import { filterHostingDataIssues } from "@/lib/hosting/data-issues";
+import { HostingDataIssues } from "@/components/hosting-data-issues";
 
 export const dynamic = "force-dynamic";
 
@@ -112,18 +115,52 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
     correctionPath === "ALL" &&
     !projectId &&
     scope === "ALL";
-  const [allIssues, syncDiagnostics, fastCounts] = await Promise.all([
-    useUnplannedFastPath ? getTeamworkUnplannedIssueCenterRows() : getTeamworkIssueCenterRows(),
+  const hostingView = view === "HOSTING";
+  const [allIssues, syncDiagnostics, fastCounts, hostingDataIssues] = await Promise.all([
+    hostingView
+      ? Promise.resolve([])
+      : useUnplannedFastPath
+        ? getTeamworkUnplannedIssueCenterRows()
+        : getTeamworkIssueCenterRows(),
     getLatestTeamworkSyncDiagnostics(),
-    useUnplannedFastPath ? getTeamworkIssueCenterCounts() : Promise.resolve(null),
+    useUnplannedFastPath || hostingView ? getTeamworkIssueCenterCounts() : Promise.resolve(null),
+    getHostingDataIssues(),
   ]);
+  const hostingPlatform = one(params.platform) ?? "ALL";
+  const scopedHostingIssues = filterHostingDataIssues(hostingDataIssues, {
+    query,
+    severity,
+    code,
+    platform: hostingPlatform,
+  }).filter(
+    (issue) =>
+      !projectId &&
+      status !== "REVIEWED" &&
+      (correctionPath === "ALL" ||
+        (correctionPath === "HUBSPOT_REQUIRED" && issue.source === "HUBSPOT") ||
+        (correctionPath === "HOSTING_SETTINGS_REQUIRED" && issue.source === "HOSTING_SETTINGS")),
+  );
+  const visibleHostingIssues =
+    hostingView || view === "ALL"
+      ? scopedHostingIssues
+      : view === "ATTENTION"
+        ? scopedHostingIssues.filter((issue) => issue.severity !== "INFO")
+        : [];
+  const hostingAttentionCount = scopedHostingIssues.filter(
+    (issue) => issue.severity !== "INFO",
+  ).length;
 
   const scopedIssues =
     scope === "DATA_ISSUES"
       ? allIssues.filter((issue) => issue.code !== "UNPLANNED_ACTUAL_WORK")
       : allIssues;
 
-  const issueCodes = [...new Set(scopedIssues.map((issue) => issue.code))].sort();
+  const issueCodes = [
+    ...new Set([
+      ...scopedIssues.map((issue) => issue.code),
+      ...hostingDataIssues.map((issue) => issue.code),
+    ]),
+  ].sort();
 
   const statusScopedIssues = scopedIssues.filter((issue) => {
     if (projectId && issue.projectId !== projectId) return false;
@@ -157,6 +194,7 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
       ? statusScopedIssues
       : statusScopedIssues.filter((issue) => issue.status === status);
   const issues = statusFilteredIssues.filter((issue) => {
+    if (hostingView) return false;
     if (view === "ALL") return true;
     if (view === "REVIEWED") return issue.status === "REVIEWED";
     if (view === "REVIEW_UNPLANNED") {
@@ -214,12 +252,12 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
       <main className="shell shell--wide">
         <section className="page-heading page-heading--split">
           <div>
-            <p className="eyebrow">Administration {"\u00b7"} Teamwork</p>
-            <h1>Teamwork Issues</h1>
+            <p className="eyebrow">Administration {"\u00b7"} Reporting data</p>
+            <h1>Reporting Issues</h1>
             <p className="lede">
-              Review current Teamwork and reporting-data issues across all reporting projects.
-              Source corrections are made in Teamwork; reviewed unplanned-work items are tracked
-              separately in the dashboard.
+              Review Teamwork project issues and hosting-data checks. Correct project records in
+              Teamwork and hosting properties in HubSpot. Reviewed unplanned-work items remain
+              available separately.
             </p>
           </div>
         </section>
@@ -230,29 +268,31 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               <p className="eyebrow">Current issues</p>
               <h2>Company reporting issue register</h2>
               <p className="section-description">
-                Open items require source correction or review. Once corrected in Teamwork, an item
-                disappears after the next sync and calculation run. Reviewed unplanned-work items
-                remain available for reference and can be reopened when needed.
+                Open items require source correction or review. Once corrected, an item disappears
+                after its next source sync and reporting check. Reviewed unplanned-work items remain
+                available for reference and can be reopened when needed.
               </p>
             </div>
             <span className="section-meta">
-              {fastCounts?.attention ?? attentionIssues.length} need attention {"\u00b7"}{" "}
-              {fastCounts?.unplannedOpen ?? unplannedReviewIssues.length} awaiting review {"\u00b7"}{" "}
-              {fastCounts?.reviewed ?? reviewedIssues.length} reviewed
+              {(fastCounts?.attention ?? attentionIssues.length) + hostingAttentionCount} need
+              attention {"\u00b7"} {fastCounts?.unplannedOpen ?? unplannedReviewIssues.length}{" "}
+              awaiting review {"\u00b7"} {fastCounts?.reviewed ?? reviewedIssues.length} reviewed
             </span>
           </div>
 
           <div className="issue-workflow" role="note">
             <strong>Close the loop</strong>
-            <span>1. Open the source record in Teamwork.</span>
-            <span>2. Correct the estimate, assignment, budget, or rate there.</span>
+            <span>1. Open the linked source record in Teamwork or HubSpot.</span>
+            <span>
+              2. Correct the affected dates, counts, fees, estimates, budgets, or rates there.
+            </span>
             <span>
               3. Run the next sync. Corrected items close automatically when the source is
               re-checked.
             </span>
             <small>
-              Teamwork remains the source of truth. The dashboard does not silently overwrite
-              Teamwork records.
+              Source records remain authoritative. The dashboard flags issues without silently
+              changing Teamwork or HubSpot records.
             </small>
           </div>
 
@@ -261,7 +301,8 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               className={view === "ATTENTION" ? "is-active" : ""}
               href="/teamwork-issues?view=ATTENTION"
             >
-              Needs Attention <b>{fastCounts?.attention ?? attentionIssues.length}</b>
+              Needs Attention{" "}
+              <b>{(fastCounts?.attention ?? attentionIssues.length) + hostingAttentionCount}</b>
             </Link>
             <Link
               className={view === "REVIEW_UNPLANNED" ? "is-active" : ""}
@@ -277,96 +318,115 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               Reviewed <b>{fastCounts?.reviewed ?? reviewedIssues.length}</b>
             </Link>
             <Link className={view === "ALL" ? "is-active" : ""} href="/teamwork-issues?view=ALL">
-              All Issues <b>{fastCounts?.total ?? statusScopedIssues.length}</b>
+              All Issues{" "}
+              <b>{(fastCounts?.total ?? statusScopedIssues.length) + scopedHostingIssues.length}</b>
+            </Link>
+            <Link className={hostingView ? "is-active" : ""} href="/teamwork-issues?view=HOSTING">
+              Hosting Data <b>{hostingDataIssues.length}</b>
             </Link>
           </nav>
 
-          <form
-            className="filter-panel teamwork-issues-filter-panel"
-            method="get"
-            action="/teamwork-issues"
-          >
-            <div className="filter-panel__heading">
-              <div>
-                <p className="eyebrow">Issue filters</p>
-                <h2>Find issues that need attention</h2>
-                <p>
-                  Search project and task context, then narrow by status, severity, issue type, or
-                  correction path.
-                </p>
-              </div>
-              <Link className="filter-panel__reset" href="/teamwork-issues">
-                Reset all
-              </Link>
-            </div>
-
-            <div className="teamwork-issues-filter-grid">
-              <label className="filter-field teamwork-issues-filter-grid__search">
-                <span>Search</span>
-                <input
-                  name="q"
-                  defaultValue={query}
-                  placeholder="Project, client, task, issue, or action"
-                  autoComplete="off"
-                />
-              </label>
-
-              <label className="filter-field">
-                <span>Status</span>
-                <select name="status" defaultValue={status}>
-                  <option value="ALL">All statuses</option>
-                  <option value="OPEN">Open</option>
-                  <option value="REVIEWED">Reviewed</option>
-                </select>
-              </label>
-              <input type="hidden" name="view" value={view} />
-
-              <label className="filter-field">
-                <span>Severity</span>
-                <select name="severity" defaultValue={severity}>
-                  <option value="ALL">All severities</option>
-                  <option value="ERROR">Error</option>
-                  <option value="WARNING">Warning</option>
-                  <option value="INFO">Info</option>
-                </select>
-              </label>
-
-              <label className="filter-field">
-                <span>Issue type</span>
-                <select name="code" defaultValue={code}>
-                  <option value="ALL">All issue types</option>
-                  {issueCodes.map((value) => (
-                    <option key={value} value={value}>
-                      {value.replaceAll("_", " ")}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="filter-field">
-                <span>Correction path</span>
-                <select name="path" defaultValue={correctionPath}>
-                  <option value="ALL">All correction paths</option>
-                  <option value="TEAMWORK_REQUIRED">Teamwork required</option>
-                  <option value="TEAMWORK_OR_REVIEW">Teamwork or Admin review</option>
-                </select>
-              </label>
-
-              {projectId ? <input type="hidden" name="project" value={projectId} /> : null}
-              {scope !== "ALL" ? <input type="hidden" name="scope" value={scope} /> : null}
-
-              <div className="teamwork-issues-filter-grid__actions">
-                <button className="button button--primary" type="submit">
-                  Apply filters
-                </button>
-                <Link className="button button--secondary" href="/teamwork-issues">
-                  Clear
+          {!hostingView ? (
+            <form
+              className="filter-panel teamwork-issues-filter-panel"
+              method="get"
+              action="/teamwork-issues"
+            >
+              <div className="filter-panel__heading">
+                <div>
+                  <p className="eyebrow">Issue filters</p>
+                  <h2>Find issues that need attention</h2>
+                  <p>
+                    Search project and task context, then narrow by status, severity, issue type, or
+                    correction path.
+                  </p>
+                </div>
+                <Link className="filter-panel__reset" href="/teamwork-issues">
+                  Reset all
                 </Link>
               </div>
-            </div>
-          </form>
+
+              <div className="teamwork-issues-filter-grid">
+                <label className="filter-field teamwork-issues-filter-grid__search">
+                  <span>Search</span>
+                  <input
+                    name="q"
+                    defaultValue={query}
+                    placeholder="Project, client, task, issue, or action"
+                    autoComplete="off"
+                  />
+                </label>
+
+                <label className="filter-field">
+                  <span>Status</span>
+                  <select name="status" defaultValue={status}>
+                    <option value="ALL">All statuses</option>
+                    <option value="OPEN">Open</option>
+                    <option value="REVIEWED">Reviewed</option>
+                  </select>
+                </label>
+                <input type="hidden" name="view" value={view} />
+
+                <label className="filter-field">
+                  <span>Severity</span>
+                  <select name="severity" defaultValue={severity}>
+                    <option value="ALL">All severities</option>
+                    <option value="ERROR">Error</option>
+                    <option value="WARNING">Warning</option>
+                    <option value="INFO">Info</option>
+                  </select>
+                </label>
+
+                <label className="filter-field">
+                  <span>Issue type</span>
+                  <select name="code" defaultValue={code}>
+                    <option value="ALL">All issue types</option>
+                    {issueCodes.map((value) => (
+                      <option key={value} value={value}>
+                        {value.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="filter-field">
+                  <span>Correction path</span>
+                  <select name="path" defaultValue={correctionPath}>
+                    <option value="ALL">All correction paths</option>
+                    <option value="TEAMWORK_REQUIRED">Teamwork required</option>
+                    <option value="TEAMWORK_OR_REVIEW">Teamwork or Admin review</option>
+                    <option value="HUBSPOT_REQUIRED">HubSpot required</option>
+                    <option value="HOSTING_SETTINGS_REQUIRED">Hosting settings</option>
+                  </select>
+                </label>
+
+                {projectId ? <input type="hidden" name="project" value={projectId} /> : null}
+                {scope !== "ALL" ? <input type="hidden" name="scope" value={scope} /> : null}
+
+                <div className="teamwork-issues-filter-grid__actions">
+                  <button className="button button--primary" type="submit">
+                    Apply filters
+                  </button>
+                  <Link className="button button--secondary" href="/teamwork-issues">
+                    Clear
+                  </Link>
+                </div>
+              </div>
+            </form>
+          ) : null}
 
           <div className="issue-list">
+            {hostingView || visibleHostingIssues.length ? (
+              <HostingDataIssues
+                issues={visibleHostingIssues}
+                allIssues={hostingDataIssues}
+                showFilters={hostingView}
+                query={query}
+                severity={severity}
+                code={code}
+                platform={hostingPlatform}
+              />
+            ) : null}
             {issueGroups.map((group) => (
               <section className="issue-project-group" key={group.projectId}>
                 <header className="issue-project-group__header">
@@ -533,11 +593,11 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
               </section>
             ))}
 
-            {!issues.length ? (
+            {!issues.length && !visibleHostingIssues.length && !hostingView ? (
               <div className="empty-panel">
                 {view === "REVIEW_UNPLANNED"
                   ? "No unplanned-time items are waiting for review."
-                  : "No current Teamwork data-quality issues."}
+                  : "No current reporting data issues match this view."}
               </div>
             ) : null}
           </div>
