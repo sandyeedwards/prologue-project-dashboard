@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { dateLabel, hours, money, percent, reportingTimestamp } from "@/lib/reporting/format";
 import {
   filterMeetingProjects,
@@ -135,7 +135,16 @@ function TaskDetail({
               const overdue = !complete && !!task.dueDate && task.dueDate < today;
               const holder = task.isCanonicalHolder && !task.isOutsourced;
               return (
-                <tr key={task.id}>
+                <tr
+                  key={task.id}
+                  data-tone={
+                    overdue
+                      ? "red"
+                      : holder && !complete && (task.remainingMinutes ?? 0) === 0
+                        ? "amber"
+                        : undefined
+                  }
+                >
                   <td>
                     <div style={{ paddingLeft: `${depth(task) * 0.85}rem` }}>
                       {teamworkBase ? (
@@ -205,6 +214,176 @@ function TaskDetail({
   );
 }
 
+function ProjectBreakdown({
+  project,
+  teamworkBase,
+  today,
+}: {
+  project: MeetingProject;
+  teamworkBase: string | null;
+  today: string;
+}) {
+  return (
+    <div className={styles.projectBody}>
+      <div className={styles.links}>
+        <Link className="button button--secondary button--small" href={`/projects/${project.id}`}>
+          Full project report
+        </Link>
+        {teamworkBase ? (
+          <a
+            className="button button--secondary button--small"
+            href={`${teamworkBase}/app/projects/${project.teamworkId}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open in Teamwork
+          </a>
+        ) : null}
+      </div>
+      <div
+        className={styles.signals}
+        data-tone={
+          project.signals.some((signal) => signal.tone === "red")
+            ? "red"
+            : project.signals.length
+              ? "amber"
+              : "green"
+        }
+      >
+        {project.signals.length ? (
+          <ul>
+            {project.signals.map((signal) => (
+              <li
+                className={signal.tone === "red" ? styles.negative : styles.warning}
+                key={signal.label}
+              >
+                {signal.label}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No current delivery or reporting flags.</p>
+        )}
+      </div>
+      <div className={styles.stats}>
+        <div>
+          <span>Internal estimate</span>
+          <strong>{hours(project.metrics?.canonicalEstimatedMinutes)}</strong>
+        </div>
+        <div>
+          <span>Logged to date</span>
+          <strong>{hours(project.metrics?.loggedMinutes)}</strong>
+        </div>
+        <div data-tone="blue">
+          <span>Estimated remaining</span>
+          <strong>{hours(project.remainingMinutes)}</strong>
+        </div>
+        <div
+          data-tone={
+            project.forecastMinutes === null
+              ? "amber"
+              : (project.varianceMinutes ?? 0) > 0
+                ? "red"
+                : "blue"
+          }
+        >
+          <span>Projected final hours</span>
+          <strong>{hours(project.forecastMinutes)}</strong>
+          <small>{variance(project.varianceMinutes)}</small>
+        </div>
+        <div>
+          <span>Client fee</span>
+          <strong>{money(project.metrics?.clientFee)}</strong>
+        </div>
+        <div>
+          <span>Current costs</span>
+          <strong>{money(project.metrics?.actualTotalCost)}</strong>
+        </div>
+        <div
+          data-tone={
+            project.metrics?.forecastCost == null || project.metrics?.isProvisional
+              ? "amber"
+              : "blue"
+          }
+        >
+          <span>Projected final cost</span>
+          <strong>{money(project.metrics?.forecastCost)}</strong>
+        </div>
+        <div
+          data-tone={
+            project.metrics?.forecastProfit == null
+              ? "amber"
+              : Number(project.metrics.forecastProfit) < 0
+                ? "red"
+                : project.metrics.isProvisional
+                  ? "amber"
+                  : "green"
+          }
+        >
+          <span>Projected profit</span>
+          <strong>{money(project.metrics?.forecastProfit)}</strong>
+          <small>{percent(project.metrics?.forecastMarginPercent)} margin</small>
+        </div>
+      </div>
+      <p className={styles.activity}>
+        <strong>Last week:</strong> {hours(project.lastWeekMinutes)} logged ·{" "}
+        {project.completedLastWeek} tasks completed. <strong>This week:</strong>{" "}
+        {project.dueThisWeek} open tasks due.{" "}
+        {project.unallocatedMinutes > 0
+          ? `${hours(project.unallocatedMinutes)} of total logged time has no task and is included in the project total.`
+          : ""}
+      </p>
+      <h3>Work-group progress</h3>
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Work group</th>
+              <th>Tasks complete</th>
+              <th>Internal estimate</th>
+              <th>Logged</th>
+              <th>Estimated remaining</th>
+              <th>Projected final hours</th>
+            </tr>
+          </thead>
+          <tbody>
+            {project.stages.map((stage) => (
+              <tr key={stage.name}>
+                <td>
+                  <strong>{stage.name}</strong>
+                </td>
+                <td>
+                  {stage.completed}/{stage.tasks.length}
+                </td>
+                <td>{hours(stage.estimatedMinutes)}</td>
+                <td>{hours(stage.loggedMinutes)}</td>
+                <td>{hours(stage.remainingMinutes)}</td>
+                <td
+                  data-tone={
+                    stage.forecastMinutes === null
+                      ? "amber"
+                      : stage.forecastMinutes > (stage.estimatedMinutes ?? 0)
+                        ? "red"
+                        : "blue"
+                  }
+                >
+                  <strong>{hours(stage.forecastMinutes)}</strong>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <h3>Task review</h3>
+      <TaskDetail project={project} teamworkBase={teamworkBase} today={today} />
+      <p className={styles.freshness}>
+        Last source sync: {reportingTimestamp(project.lastSyncedAt)} · Forecast calculated:{" "}
+        {reportingTimestamp(project.metrics?.calculatedAt)}
+      </p>
+    </div>
+  );
+}
+
 export function MeetingWorkspace({
   projects,
   window: period,
@@ -235,12 +414,12 @@ export function MeetingWorkspace({
     .filter((value): value is Date => !!value)
     .sort((a, b) => a.getTime() - b.getTime())[0];
   const review = (id: string) => {
-    setExpanded((previous) => new Set(previous).add(id));
-    requestAnimationFrame(() =>
-      document
-        .getElementById(`meeting-${id}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-    );
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
   const reset = () => {
     setQuery("");
@@ -376,10 +555,30 @@ export function MeetingWorkspace({
               count, not a measure of effort.
             </p>
           </div>
-          <span className="section-meta" aria-live="polite">
-            {visible.length} projects shown
-          </span>
+          <div className={styles.agendaActions}>
+            <span className="section-meta" aria-live="polite">
+              {visible.length} projects shown
+            </span>
+            <button
+              className="button button--secondary button--small"
+              onClick={() => setExpanded(new Set(visible.map((p) => p.id)))}
+            >
+              Expand all shown
+            </button>
+            <button
+              className="button button--secondary button--small"
+              onClick={() => setExpanded(new Set())}
+            >
+              Collapse all
+            </button>
+          </div>
         </div>
+        <p className={styles.legend}>
+          <span data-tone="red">Action needed</span>
+          <span data-tone="amber">Review inputs or estimates</span>
+          <span data-tone="blue">Projected figures</span>
+          <span data-tone="green">No current flags</span>
+        </p>
         <div className="table-wrap">
           <table className={`data-table ${styles.overviewTable}`}>
             <thead>
@@ -394,86 +593,159 @@ export function MeetingWorkspace({
             </thead>
             <tbody>
               {visible.map((project) => (
-                <tr key={project.id}>
-                  <td>
-                    <button className={styles.projectButton} onClick={() => review(project.id)}>
-                      {project.projectNumber && !project.name.includes(project.projectNumber)
-                        ? `${project.projectNumber} · `
-                        : ""}
-                      {project.name}
-                    </button>
-                    <small>
-                      {project.companyName ?? "No client"} · {project.owner ?? "No owner"}
-                    </small>
-                  </td>
-                  <td>
-                    <strong>
-                      {project.completedTasks} / {project.tasks.length}
-                    </strong>
-                    <small>
-                      {project.progressPercent === null
-                        ? "No tasks imported"
-                        : `${percent(project.progressPercent, 0)} complete`}
-                    </small>
-                    {project.tasks.length ? (
-                      <progress
-                        max={project.tasks.length}
-                        value={project.completedTasks}
-                        aria-label={`${project.name}: ${project.completedTasks} of ${project.tasks.length} tasks complete`}
-                      />
-                    ) : null}
-                  </td>
-                  <td>
-                    <strong>{hours(project.metrics?.loggedMinutes)}</strong>
-                    <small>of {hours(project.metrics?.canonicalEstimatedMinutes)} estimated</small>
-                  </td>
-                  <td>
-                    <strong>{hours(project.forecastMinutes)}</strong>
-                    <small
-                      className={(project.varianceMinutes ?? 0) > 0 ? styles.warning : styles.muted}
-                    >
-                      {variance(project.varianceMinutes)}
-                    </small>
-                  </td>
-                  <td>
-                    <strong
-                      className={
-                        project.metrics?.forecastProfit == null
-                          ? styles.muted
-                          : Number(project.metrics.forecastProfit) < 0
-                            ? styles.negative
-                            : styles.positive
+                <Fragment key={project.id}>
+                  <tr
+                    className={styles.projectRow}
+                    data-tone={
+                      project.signals.some((s) => s.tone === "red")
+                        ? "red"
+                        : project.signals.length
+                          ? "amber"
+                          : "green"
+                    }
+                    data-expanded={expanded.has(project.id)}
+                  >
+                    <td>
+                      <button
+                        className={styles.projectButton}
+                        onClick={() => review(project.id)}
+                        aria-expanded={expanded.has(project.id)}
+                        aria-controls={`meeting-${project.id}`}
+                      >
+                        <span className={styles.expandIcon} aria-hidden="true">
+                          {expanded.has(project.id) ? "−" : "+"}
+                        </span>
+                        {project.projectNumber && !project.name.includes(project.projectNumber)
+                          ? `${project.projectNumber} · `
+                          : ""}
+                        {project.name}
+                      </button>
+                      <small>
+                        {project.companyName ?? "No client"} · {project.owner ?? "No owner"}
+                      </small>
+                    </td>
+                    <td>
+                      <strong>
+                        {project.completedTasks} / {project.tasks.length}
+                      </strong>
+                      <small>
+                        {project.progressPercent === null
+                          ? "No tasks imported"
+                          : `${percent(project.progressPercent, 0)} complete`}
+                      </small>
+                      {project.tasks.length ? (
+                        <progress
+                          max={project.tasks.length}
+                          value={project.completedTasks}
+                          aria-label={`${project.name}: ${project.completedTasks} of ${project.tasks.length} tasks complete`}
+                        />
+                      ) : null}
+                    </td>
+                    <td
+                      data-tone={
+                        project.metrics &&
+                        project.metrics.loggedMinutes > project.metrics.canonicalEstimatedMinutes
+                          ? "red"
+                          : undefined
                       }
                     >
-                      {money(project.metrics?.forecastProfit)}
-                    </strong>
-                    <small>
-                      {percent(project.metrics?.forecastMarginPercent)} margin
-                      {project.metrics?.isProvisional ? " · provisional" : ""}
-                    </small>
-                  </td>
-                  <td>
-                    {project.signals.length ? (
-                      <>
-                        <span
-                          className={
-                            project.signals.some((s) => s.tone === "red")
+                      <strong>{hours(project.metrics?.loggedMinutes)}</strong>
+                      <small>
+                        of {hours(project.metrics?.canonicalEstimatedMinutes)} estimated
+                      </small>
+                    </td>
+                    <td
+                      data-tone={
+                        project.forecastMinutes === null
+                          ? "amber"
+                          : (project.varianceMinutes ?? 0) > 0
+                            ? "red"
+                            : "blue"
+                      }
+                    >
+                      <strong>{hours(project.forecastMinutes)}</strong>
+                      <small
+                        className={
+                          (project.varianceMinutes ?? 0) > 0 ? styles.warning : styles.muted
+                        }
+                      >
+                        {variance(project.varianceMinutes)}
+                      </small>
+                    </td>
+                    <td>
+                      <strong
+                        className={
+                          project.metrics?.forecastProfit == null
+                            ? styles.muted
+                            : Number(project.metrics.forecastProfit) < 0
                               ? styles.negative
-                              : styles.warning
-                          }
+                              : project.metrics.isProvisional
+                                ? styles.warning
+                                : styles.positive
+                        }
+                      >
+                        {money(project.metrics?.forecastProfit)}
+                      </strong>
+                      <small>
+                        {percent(project.metrics?.forecastMarginPercent)} margin
+                        {project.metrics?.isProvisional ? " · provisional" : ""}
+                      </small>
+                    </td>
+                    <td>
+                      {project.signals.length ? (
+                        <>
+                          <span
+                            className={styles.statusBadge}
+                            data-tone={
+                              project.signals.some((signal) => signal.tone === "red")
+                                ? "red"
+                                : "amber"
+                            }
+                          >
+                            {project.signals.some((signal) => signal.tone === "red")
+                              ? "Action needed"
+                              : "Review"}
+                          </span>
+                          <span
+                            className={
+                              project.signals.some((s) => s.tone === "red")
+                                ? styles.negative
+                                : styles.warning
+                            }
+                          >
+                            {project.signals[0].label}
+                          </span>
+                          {project.signals.length > 1 ? (
+                            <small>+{project.signals.length - 1} more to review</small>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span className={styles.positive}>No current flags</span>
+                      )}
+                      <small>Ends {dateLabel(project.endDate)}</small>
+                    </td>
+                  </tr>
+                  {expanded.has(project.id) ? (
+                    <tr className={styles.expandedRow}>
+                      <td colSpan={6}>
+                        <section
+                          id={`meeting-${project.id}`}
+                          aria-label={`${project.name} project breakdown`}
+                          className={styles.inlineBreakdown}
                         >
-                          {project.signals[0].label}
-                        </span>
-                        {project.signals.length > 1 ? (
-                          <small>+{project.signals.length - 1} more to review</small>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span className={styles.positive}>No current flags</span>
-                    )}
-                    <small>Ends {dateLabel(project.endDate)}</small>
-                  </td>
-                </tr>
+                          <h3 className={styles.breakdownTitle}>
+                            {project.name} · Project breakdown
+                          </h3>
+                          <ProjectBreakdown
+                            project={project}
+                            teamworkBase={teamworkBase}
+                            today={period.today}
+                          />
+                        </section>
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -482,177 +754,6 @@ export function MeetingWorkspace({
           <p className="empty-panel">No active projects match these filters.</p>
         ) : null}
       </section>
-      <div className={styles.detailActions}>
-        <h2>Project breakdowns</h2>
-        <div>
-          <button
-            className="button button--secondary button--small"
-            onClick={() => setExpanded(new Set(visible.map((p) => p.id)))}
-          >
-            Expand all shown
-          </button>
-          <button
-            className="button button--secondary button--small"
-            onClick={() => setExpanded(new Set())}
-          >
-            Collapse all
-          </button>
-        </div>
-      </div>
-      {visible.map((project) => (
-        <details
-          className={styles.project}
-          id={`meeting-${project.id}`}
-          key={project.id}
-          open={expanded.has(project.id)}
-          onToggle={(event) => {
-            const open = event.currentTarget.open;
-            setExpanded((previous) => {
-              if (previous.has(project.id) === open) return previous;
-              const next = new Set(previous);
-              if (open) next.add(project.id);
-              else next.delete(project.id);
-              return next;
-            });
-          }}
-        >
-          <summary>
-            <div>
-              <strong>{project.name}</strong>
-              <small>
-                {project.owner ?? "No owner"} · {project.companyName ?? "No client"}
-              </small>
-            </div>
-            <span>
-              {project.completedTasks}/{project.tasks.length} tasks complete
-            </span>
-            <span>
-              {project.signals.length
-                ? `${project.signals.length} discussion points`
-                : "No current flags"}
-            </span>
-          </summary>
-          {expanded.has(project.id) ? (
-            <div className={styles.projectBody}>
-              <div className={styles.links}>
-                <Link
-                  className="button button--secondary button--small"
-                  href={`/projects/${project.id}`}
-                >
-                  Full project report
-                </Link>
-                {teamworkBase ? (
-                  <a
-                    className="button button--secondary button--small"
-                    href={`${teamworkBase}/app/projects/${project.teamworkId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open in Teamwork
-                  </a>
-                ) : null}
-              </div>
-              <div className={styles.signals}>
-                {project.signals.length ? (
-                  <ul>
-                    {project.signals.map((signal) => (
-                      <li
-                        className={signal.tone === "red" ? styles.negative : styles.warning}
-                        key={signal.label}
-                      >
-                        {signal.label}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No current delivery or reporting flags.</p>
-                )}
-              </div>
-              <div className={styles.stats}>
-                <div>
-                  <span>Internal estimate</span>
-                  <strong>{hours(project.metrics?.canonicalEstimatedMinutes)}</strong>
-                </div>
-                <div>
-                  <span>Logged to date</span>
-                  <strong>{hours(project.metrics?.loggedMinutes)}</strong>
-                </div>
-                <div>
-                  <span>Estimated remaining</span>
-                  <strong>{hours(project.remainingMinutes)}</strong>
-                </div>
-                <div>
-                  <span>Projected final hours</span>
-                  <strong>{hours(project.forecastMinutes)}</strong>
-                  <small>{variance(project.varianceMinutes)}</small>
-                </div>
-                <div>
-                  <span>Client fee</span>
-                  <strong>{money(project.metrics?.clientFee)}</strong>
-                </div>
-                <div>
-                  <span>Current costs</span>
-                  <strong>{money(project.metrics?.actualTotalCost)}</strong>
-                </div>
-                <div>
-                  <span>Projected final cost</span>
-                  <strong>{money(project.metrics?.forecastCost)}</strong>
-                </div>
-                <div>
-                  <span>Projected profit</span>
-                  <strong>{money(project.metrics?.forecastProfit)}</strong>
-                  <small>{percent(project.metrics?.forecastMarginPercent)} margin</small>
-                </div>
-              </div>
-              <p className={styles.activity}>
-                <strong>Last week:</strong> {hours(project.lastWeekMinutes)} logged ·{" "}
-                {project.completedLastWeek} tasks completed. <strong>This week:</strong>{" "}
-                {project.dueThisWeek} open tasks due.{" "}
-                {project.unallocatedMinutes > 0
-                  ? `${hours(project.unallocatedMinutes)} of total logged time has no task and is included in the project total.`
-                  : ""}
-              </p>
-              <h3>Work-group progress</h3>
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Work group</th>
-                      <th>Tasks complete</th>
-                      <th>Internal estimate</th>
-                      <th>Logged</th>
-                      <th>Estimated remaining</th>
-                      <th>Projected final hours</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {project.stages.map((stage) => (
-                      <tr key={stage.name}>
-                        <td>
-                          <strong>{stage.name}</strong>
-                        </td>
-                        <td>
-                          {stage.completed}/{stage.tasks.length}
-                        </td>
-                        <td>{hours(stage.estimatedMinutes)}</td>
-                        <td>{hours(stage.loggedMinutes)}</td>
-                        <td>{hours(stage.remainingMinutes)}</td>
-                        <td>{hours(stage.forecastMinutes)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <h3>Task review</h3>
-              <TaskDetail project={project} teamworkBase={teamworkBase} today={period.today} />
-              <p className={styles.freshness}>
-                Last source sync: {reportingTimestamp(project.lastSyncedAt)} · Forecast calculated:{" "}
-                {reportingTimestamp(project.metrics?.calculatedAt)}
-              </p>
-            </div>
-          ) : null}
-        </details>
-      ))}
       <section className={`report-section ${styles.notes}`}>
         <h2>How to read this meeting report</h2>
         <p>

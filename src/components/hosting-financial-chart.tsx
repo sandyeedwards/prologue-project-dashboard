@@ -99,14 +99,14 @@ export function HostingFinancialChart({
   const tooltipRows = hoveredPoint
     ? [
         {
-          label: "Client payments",
+          label: "Contracted revenue",
           value: fullCurrency(hoveredPoint.displayedRevenue),
           tone: "revenue",
         },
         ...(view !== "benaco"
           ? [
               {
-                label: "Direct cost – IVION",
+                label: "IVION / NavVis vendor costs",
                 value: fullCurrency(hoveredPoint.displayedIvionCost),
                 tone: "ivion",
               },
@@ -168,12 +168,12 @@ export function HostingFinancialChart({
       <div className="hosting-chart__legend" aria-hidden="true">
         <span>
           <i className="hosting-chart-key hosting-chart-key--revenue" />
-          Client Payments
+          Contracted Revenue
         </span>
         {view !== "benaco" ? (
           <span>
             <i className="hosting-chart-key hosting-chart-key--ivion" />
-            Direct Cost – IVION
+            IVION / NavVis Vendor Costs
           </span>
         ) : null}
         {view !== "ivion" ? (
@@ -184,7 +184,7 @@ export function HostingFinancialChart({
         ) : null}
         <span>
           <i className="hosting-chart-key hosting-chart-key--net" />
-          Net Cash Activity
+          Hosting Contribution
         </span>
         {firstForecastIndex >= 0 ? (
           <span>
@@ -203,10 +203,10 @@ export function HostingFinancialChart({
           onMouseLeave={() => setHovered(null)}
         >
           <title id="hosting-chart-title">
-            Client payments, direct hosting costs, and net cash activity
+            Contracted revenue, hosting costs, and hosting contribution
           </title>
           <desc id="hosting-chart-description">
-            One-time client payments and stacked direct cost bars by period, with a net activity
+            One-time contracted fees and stacked hosting cost bars by period, with a contribution
             line. Hover or focus a period to see exact values.
           </desc>
           {yTicks.map((tick) => (
@@ -298,7 +298,7 @@ export function HostingFinancialChart({
                   height={plotHeight}
                   fill="transparent"
                   tabIndex={0}
-                  aria-label={`${periodLabel(point.period)}: client payments ${fullCurrency(point.displayedRevenue)}, IVION platform cost ${fullCurrency(point.displayedIvionCost)}, Benaco and subscription cost ${fullCurrency(point.displayedBenacoCost)}, total direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, net activity ${fullCurrency(point.displayedNet)}`}
+                  aria-label={`${periodLabel(point.period)}: contracted revenue ${fullCurrency(point.displayedRevenue)}, IVION platform cost ${fullCurrency(point.displayedIvionCost)}, Benaco and subscription cost ${fullCurrency(point.displayedBenacoCost)}, total direct costs ${fullCurrency(point.displayedIvionCost + point.displayedBenacoCost)}, hosting contribution ${fullCurrency(point.displayedNet)}`}
                   onMouseEnter={(event) => inspectAtPointer(event, index)}
                   onMouseMove={(event) => inspectAtPointer(event, index)}
                   onMouseDown={(event) => event.preventDefault()}
@@ -425,7 +425,7 @@ export function HostingFinancialChart({
         </svg>
       </div>
       <p className="hosting-chart__note">
-        Bars and the line show client payments, direct costs, and net activity in each selected
+        Bars and the line show contracted revenue, hosting costs, and contribution in each selected
         period. Hover or focus a period for exact values.
       </p>
     </div>
@@ -509,7 +509,7 @@ export function HostingCumulativeChart({
   const tooltipRows = hoveredPoint
     ? [
         {
-          label: "Total client payments",
+          label: "Total contracted revenue",
           value: fullCurrency(hoveredPoint.cumulativeRevenue),
           tone: "revenue",
         },
@@ -519,7 +519,7 @@ export function HostingCumulativeChart({
           tone: "pano",
         },
         {
-          label: "Cash position to date",
+          label: "Hosting contribution to date",
           value: fullCurrency(hoveredPoint.cumulativeNet),
           tone: hoveredPoint.cumulativeNet < 0 ? "negative-net" : "net",
         },
@@ -561,7 +561,7 @@ export function HostingCumulativeChart({
       <div className="hosting-chart__legend" aria-hidden="true">
         <span>
           <i className="hosting-chart-key hosting-chart-key--revenue" />
-          Total Client Payments
+          Total Contracted Revenue
         </span>
         <span>
           <i className="hosting-chart-key hosting-chart-key--pano" />
@@ -569,7 +569,7 @@ export function HostingCumulativeChart({
         </span>
         <span>
           <i className="hosting-chart-key hosting-chart-key--net" />
-          Cash Position
+          Hosting Contribution
         </span>
       </div>
       <div className="hosting-chart__scroller">
@@ -598,8 +598,8 @@ export function HostingCumulativeChart({
             </linearGradient>
           </defs>
           <desc id="hosting-cumulative-chart-description">
-            Running client payments, direct costs, and resulting cash position from January 2024
-            through the current period.
+            Running contracted revenue, hosting costs, and contribution from January 2024 through
+            the current period.
           </desc>
           {yTicks.map((tick) => (
             <g key={tick}>
@@ -654,7 +654,7 @@ export function HostingCumulativeChart({
                   height={plotHeight}
                   fill="transparent"
                   tabIndex={0}
-                  aria-label={`${periodLabel(point.period)}: total client payments ${fullCurrency(point.cumulativeRevenue)}, total direct costs ${fullCurrency(point.cumulativeCost)}, cash position ${fullCurrency(point.cumulativeNet)}, net activity this period ${fullCurrency(point.periodNet)}`}
+                  aria-label={`${periodLabel(point.period)}: total contracted revenue ${fullCurrency(point.cumulativeRevenue)}, total hosting costs ${fullCurrency(point.cumulativeCost)}, hosting contribution ${fullCurrency(point.cumulativeNet)}, contribution this period ${fullCurrency(point.periodNet)}`}
                   onMouseEnter={(event) => inspectAtPointer(event, index)}
                   onMouseMove={(event) => inspectAtPointer(event, index)}
                   onMouseDown={(event) => event.preventDefault()}
@@ -719,9 +719,9 @@ export function HostingCumulativeChart({
         </svg>
       </div>
       <p className="hosting-chart__note">
-        This chart uses recorded payments, vendor bills, and modeled costs from January 1, 2024
-        through today. Its final cash-position value equals total client payments minus total direct
-        costs.
+        This chart uses contracted fees, recorded vendor charges, and estimated remaining costs
+        assigned to hosting starts from January 1, 2024 through today. Contribution equals
+        contracted revenue minus hosting costs.
       </p>
     </div>
   );

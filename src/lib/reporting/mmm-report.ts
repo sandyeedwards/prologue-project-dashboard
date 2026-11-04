@@ -243,7 +243,12 @@ export function buildMeetingProjects(
           estimatedMinutes: estimate,
           loggedMinutes: logged,
           remainingMinutes: remaining,
-          forecastMinutes: estimate && remaining !== null ? logged + remaining : null,
+          forecastMinutes:
+            completeMetrics &&
+            remaining !== null &&
+            ((estimate !== null && estimate > 0) || stageTasks.every(meetingTaskComplete))
+              ? logged + remaining
+              : null,
         };
       });
     return {
