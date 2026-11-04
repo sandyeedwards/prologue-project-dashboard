@@ -11,10 +11,7 @@ import { requireUser } from "@/lib/auth/session";
 import {
   BENACO_ANNUAL_PANO_COST,
   BENACO_ANNUAL_OVERHEAD,
-  BENACO_GRID_ESTIMATE_RATE,
   BENACO_MONTHLY_OVERHEAD,
-  BENACO_2024_CATCH_UP_TOTAL,
-  BENACO_2024_CATCH_UP_INVOICE_DATE,
   HOSTING_REPORT_START,
   benacoBillCostPerActivePano,
   benacoPanoBasis,
@@ -40,6 +37,12 @@ import {
 import { saveBenacoMonthlyBill } from "./actions";
 import { reportingTimestamp } from "@/lib/reporting/format";
 import { hostingPeriodStatus } from "@/lib/hosting/period-status";
+import {
+  BENACO_PREVIOUSLY_PAID,
+  BENACO_CATCH_UP_PAYMENT,
+  BENACO_VERIFIED_PANO_TOTAL,
+  benacoTourId,
+} from "@/lib/hosting/benaco-billing-history";
 
 export const dynamic = "force-dynamic";
 
@@ -382,8 +385,15 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   ).length;
   const estimatedCost = actualRows.reduce((sum, row) => sum + row.benacoEstimatedPanoCosts, 0);
   const billedCost = actualRows.reduce((sum, row) => sum + row.benacoBilledCost, 0);
-  const billedMonths = actualRows.reduce((sum, row) => sum + row.benacoBilledMonths, 0);
-  const estimatedMonths = actualRows.reduce((sum, row) => sum + row.benacoEstimatedMonths, 0);
+  const selectedBenacoTourCosts = data.benacoTourCosts
+    .filter(
+      (cost) => !cost.start || (cost.start >= displayedRangeFrom && cost.start <= displayedRangeTo),
+    )
+    .sort((a, b) => (a.start ?? "9999").localeCompare(b.start ?? "9999"));
+  const incompleteBenacoCosts = selectedBenacoTourCosts.filter((cost) => cost.missingInputs).length;
+  const earlierBenacoPanoCharges = data.benacoTourCosts
+    .filter((cost) => cost.start && cost.start < HOSTING_REPORT_START)
+    .reduce((sum, cost) => sum + cost.recordedPanoCost, 0);
   const ivionEstimatedCost = displayedRows.reduce(
     (sum, row) => sum + (row.ivionEstimatedCost ?? 0),
     0,
@@ -408,8 +418,8 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <p className="eyebrow">Hosting revenue &amp; platform economics</p>
             <h1>Hosting Reporting</h1>
             <p>
-              Historical client payments and direct hosting costs, with a separate snapshot of the
-              current hosting footprint.
+              Contracted revenue and hosting costs, with a separate snapshot of the current hosting
+              footprint.
             </p>
             <div className="report-titlebar__status" aria-label="Hosting data status">
               <span className="portfolio-status-dot portfolio-status-dot--green" />
@@ -425,6 +435,14 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </div>
           </div>
           <div className="report-titlebar__actions">
+            {session.user.role === "ADMIN" ? (
+              <Link
+                className="button button--secondary button--small"
+                href="/teamwork-issues?view=HOSTING"
+              >
+                Review hosting data issues
+              </Link>
+            ) : null}
             <span className={`report-date-chip ${syncTone}`}>
               {lastSuccessfulSync
                 ? `Last successful sync ${dateTimeLabel(lastSuccessfulSync.completed_at ?? lastSuccessfulSync.started_at)}`
@@ -568,9 +586,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               IVION recorded costs use invoices from January 2024 through September 2026.
             </strong>
             <span>
-              Later invoices have not been loaded. Historical cash activity does not add
-              instance-rate estimates to the supplied bills. Missing later invoices are not
-              confirmation of zero spending.
+              Later invoices have not been loaded. Historical reporting does not add instance-rate
+              estimates to the supplied bills. Missing later invoices are not confirmation of zero
+              spending.
             </span>
           </section>
         ) : null}
@@ -585,29 +603,29 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </section>
         ) : null}
 
-        {view !== "ivion" && estimatedMonths ? (
+        {view !== "ivion" && (estimatedCost > 0 || incompleteBenacoCosts > 0) ? (
           <section className="notice hosting-status-banner" aria-live="polite">
             <strong>
-              {estimatedMonths} displayed Benaco month{estimatedMonths === 1 ? "" : "s"} use the
-              cost model rather than a saved bill.
+              Benaco includes {currency(estimatedCost, 2)} in estimated remaining tour costs.
             </strong>
             <span>
-              Each tour&apos;s full pano cost is recorded once at its start using Counted Grid-Pano,
-              while the {currency(BENACO_MONTHLY_OVERHEAD, 2)} company subscription continues every
-              month. When Counted Grid-Pano is missing, {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of
-              Benaco Total Panos is used; {currency(estimatedCost, 2)} of the displayed pano cost
-              uses that fallback.
+              Recorded pano charges plus estimated uncovered hosting days appear once at tour start.
+              The {currency(BENACO_MONTHLY_OVERHEAD, 2)} company subscription continues monthly.
+              {incompleteBenacoCosts > 0
+                ? ` ${incompleteBenacoCosts} tour(s) need grid counts or complete dates; their costs are incomplete.`
+                : ""}
             </span>
           </section>
         ) : null}
 
-        {view !== "ivion" && billedMonths ? (
+        {view !== "ivion" && billedCost > 0 ? (
           <section className="notice hosting-status-banner" aria-live="polite">
             <strong>
-              {billedMonths} displayed Benaco month{billedMonths === 1 ? "" : "s"} use actual bills.
+              {currency(billedCost, 2)} of Benaco pano charges are supported by billing detail.
             </strong>
             <span>
-              {currency(billedCost, 2)} of displayed Benaco cost comes directly from saved bills.
+              These charges are assigned to tour starts. Prior and catch-up payments settle those
+              same charges and are not added again.
             </span>
           </section>
         ) : null}
@@ -619,26 +637,27 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <div className="hosting-contribution__heading">
               <div>
                 <p className="eyebrow">{viewLabel} selected-period economics</p>
-                <h2>Hosting cash activity in selected range</h2>
+                <h2>Hosting contribution in selected range</h2>
               </div>
               <span>
                 {paymentRetention === null
-                  ? "No client payments"
+                  ? "No contracted revenue"
                   : selectedPeriodTotals.netProfit < 0
-                    ? `${currency(Math.abs(selectedPeriodTotals.netProfit))} cash deficit`
-                    : `${wholePercent(paymentRetention)} of payments retained`}
+                    ? `${currency(Math.abs(selectedPeriodTotals.netProfit))} hosting loss`
+                    : `${wholePercent(paymentRetention)} contribution margin`}
               </span>
             </div>
             <strong className="hosting-contribution__value">
               {hasSourceData ? currency(selectedPeriodTotals.netProfit) : "No data"}
             </strong>
             <p>
-              Client payments and direct costs from {dateLabel(displayedRangeFrom)} through{" "}
-              {dateLabel(displayedRangeTo)}. The report options above change this result.
+              Contracted revenue and recorded or estimated costs from{" "}
+              {dateLabel(displayedRangeFrom)} through {dateLabel(displayedRangeTo)}. The report
+              options above change this result.
             </p>
-            <div className="hosting-contribution__split" aria-label="Payment and cost totals">
+            <div className="hosting-contribution__split" aria-label="Revenue and cost totals">
               <div>
-                <span>Client payments received</span>
+                <span>Contracted revenue</span>
                 <strong>
                   {hasSourceData ? currency(selectedPeriodTotals.revenue) : "No data"}
                 </strong>
@@ -706,13 +725,13 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <h2>{viewLabel} financial position since 2024</h2>
             </div>
             <p>
-              Running client payments, direct costs, and cash position from Jan 1, 2024 through{" "}
+              Running contracted revenue, hosting costs, and contribution from Jan 1, 2024 through{" "}
               {dateLabel(overallThrough)}. Report date filters do not change this chart.
             </p>
           </div>
           <div className="hosting-period-summary" aria-label="All-history hosting totals">
             <div>
-              <span>Total client payments</span>
+              <span>Total contracted revenue</span>
               <strong>{hasSourceData ? currency(overallTotals.revenue) : "No data"}</strong>
             </div>
             <div>
@@ -722,7 +741,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <div
               className={overallTotals.netProfit < 0 ? "hosting-period-summary__loss" : undefined}
             >
-              <span>Current cash position</span>
+              <span>Hosting contribution</span>
               <strong>{hasSourceData ? currency(overallTotals.netProfit) : "No data"}</strong>
             </div>
           </div>
@@ -733,16 +752,16 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           <div className="section-heading">
             <div>
               <p className="eyebrow">Company hosting timeline</p>
-              <h2>{viewLabel} cash activity in selected period</h2>
+              <h2>{viewLabel} profitability in selected period</h2>
             </div>
             <p>
-              One-time client payments at each hosting start date, monthly direct platform costs,
-              and resulting net cash flow.
+              Contracted fees at paid hosting start, full-term Benaco costs at tour start, and the
+              monthly company subscription.
             </p>
           </div>
-          <div className="hosting-period-summary" aria-label="Selected period cash totals">
+          <div className="hosting-period-summary" aria-label="Selected period contribution totals">
             <div>
-              <span>Client payments</span>
+              <span>Contracted revenue</span>
               <strong>{hasSourceData ? currency(selectedPeriodTotals.revenue) : "No data"}</strong>
             </div>
             <div>
@@ -754,7 +773,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 selectedPeriodTotals.netProfit < 0 ? "hosting-period-summary__loss" : undefined
               }
             >
-              <span>Net cash activity</span>
+              <span>Hosting contribution</span>
               <strong>
                 {hasSourceData ? currency(selectedPeriodTotals.netProfit) : "No data"}
               </strong>
@@ -762,24 +781,25 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           </div>
           <HostingFinancialChart rows={displayedRows} view={view} />
           <details className="hosting-methodology">
-            <summary>How historical hosting cash flow is calculated</summary>
+            <summary>How hosting contribution is calculated</summary>
             <p>
               <strong>
-                Client payments received – IVION costs – Benaco pano and subscription costs = net
-                hosting cash flow.
+                Contracted revenue – IVION costs – Benaco pano and subscription costs = hosting
+                contribution.
               </strong>{" "}
-              The complete contracted fee appears once in the hosting-start period. Direct costs
-              remain in the periods when they were incurred, so later periods may show negative cash
-              flow after the upfront payment was received. Complimentary hosting does not create a
-              client payment. The historical totals chart always uses recorded and modeled data from
-              January 1, 2024 through the current period. The summary card, activity chart, and
-              table use the selected report range.
+              The complete contracted fee appears once in the paid hosting-start period. Benaco tour
+              costs combine recorded pano charges with estimates for hosting days after their billed
+              coverage ends, assigned once at tour start. The subscription is monthly. Complimentary
+              and unsold hosting generate costs without client revenue. This is a contribution
+              estimate; payment dates are not inferred from hosting dates. The historical totals
+              chart always uses tour starts and recorded IVION bills from January 1, 2024 through
+              the current period. The summary card, activity chart, and table use the selected
+              report range.
             </p>
             <p>
               IVION history uses the supplied NavVis bills in their invoice months from January 2024
-              through September 2026. Invoice dates stand in for payment dates. After that coverage,
-              historical cash activity awaits additional invoices. Configured instance rates are
-              used only for future forecast months.
+              through September 2026. After that coverage, historical IVION costs await additional
+              invoices. Configured instance rates are used only for future forecast months.
             </p>
           </details>
         </section>
@@ -798,9 +818,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                 <tr>
                   <th>Period</th>
                   <th>Status</th>
-                  <th>Client Payments</th>
+                  <th>Contracted Revenue</th>
                   <th>Direct Costs</th>
-                  <th>Net Cash Flow</th>
+                  <th>Hosting Contribution</th>
                 </tr>
               </thead>
               <tbody>
@@ -828,6 +848,53 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </table>
           </div>
         </details>
+
+        {view !== "ivion" ? (
+          <details className="report-section hosting-report-section hosting-table-disclosure">
+            <summary>
+              <span>
+                <strong>Benaco tour cost breakdown</strong>
+                <small>
+                  Recorded charges and estimated remaining hosting, assigned once per tour
+                </small>
+              </span>
+              <i aria-hidden="true" />
+            </summary>
+            <div className="table-wrap report-table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Tour</th>
+                    <th>Cost assigned at start</th>
+                    <th>Recorded pano charges</th>
+                    <th>Estimated remaining</th>
+                    <th>Total tour cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedBenacoTourCosts.map((cost) => (
+                    <tr key={cost.tourId}>
+                      <td>
+                        <strong>{cost.name}</strong>
+                      </td>
+                      <td>{dateLabel(cost.start)}</td>
+                      <td>{currency(cost.recordedPanoCost, 2)}</td>
+                      <td>
+                        {cost.missingInputs ? "Incomplete" : currency(cost.estimatedPanoCost, 2)}
+                      </td>
+                      <td>{cost.missingInputs ? "Incomplete" : currency(cost.totalPanoCost, 2)}</td>
+                    </tr>
+                  ))}
+                  {!selectedBenacoTourCosts.length ? (
+                    <tr>
+                      <td colSpan={5}>No tour costs start in this date range.</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        ) : null}
 
         <section className="hosting-detail-grid">
           <article className="report-section hosting-report-section">
@@ -875,30 +942,31 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </div>
             <dl className="hosting-cost-model">
               <DetailItem label="Actual monthly bill">
-                Bill total ÷ total active panos = effective monthly cost per active pano
+                Monthly invoice totals are retained for reconciliation against tour-level charges.
               </DetailItem>
               <DetailItem label="Tour allocation">
-                Tour active panos × effective monthly cost per active pano
+                Recorded tour pano charges + grid panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} ×
+                uncovered hosting days ÷ 365
               </DetailItem>
               <DetailItem label="Subscription overhead">
-                Included in the actual bill. Estimates accrue {currency(BENACO_ANNUAL_OVERHEAD)}
+                Company cost of {currency(BENACO_ANNUAL_OVERHEAD)}
                 per year ({currency(BENACO_MONTHLY_OVERHEAD, 2)} per month) since{" "}
                 {dateLabel(HOSTING_REPORT_START)} in this report.
               </DetailItem>
               <DetailItem label="Counted grid panos">
-                Use HubSpot Counted Grid-Pano when entered; otherwise estimate{" "}
-                {wholePercent(BENACO_GRID_ESTIMATE_RATE)} of Benaco Total Panos.
+                Use HubSpot Counted Grid-Pano when entered, otherwise the matched billing detail.
+                Missing counts remain incomplete.
               </DetailItem>
               <DetailItem label="Tour pano cost at start">
-                Counted grid panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} per year × hosting-term
-                years. The full cost appears once in the tour-start period.
+                The full recorded-plus-estimated tour cost appears once in the tour-start period.
+                Covered historical days are not estimated again.
               </DetailItem>
-              <DetailItem label="One-time catch-up invoice">
-                The one-time {currency(BENACO_2024_CATCH_UP_TOTAL, 2)} delayed-tour invoice is
-                recorded once on {dateLabel(BENACO_2024_CATCH_UP_INVOICE_DATE)}. It replaces
-                calculated pano costs for the original 2024 tours and all Benaco tours active on
-                October 30, 2026. New tours after that coverage date have separate calculated pano
-                costs. The $100 monthly subscription remains separate from this pano-only invoice.
+              <DetailItem label="Reconciled historical pano charges">
+                {currency(BENACO_PREVIOUSLY_PAID, 2)} previously paid +{" "}
+                {currency(BENACO_CATCH_UP_PAYMENT, 2)} catch-up ={" "}
+                {currency(BENACO_VERIFIED_PANO_TOTAL, 2)}. The same tour charges are counted once.
+                {currency(earlierBenacoPanoCharges, 2)} relates to tour starts before 2024 and is
+                outside this report. The $100 monthly subscription is separate.
               </DetailItem>
               <DetailItem label="History start">January 2024</DetailItem>
             </dl>
@@ -914,7 +982,8 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <p>
               Enter each new monthly invoice once using its full vendor total, including the $100
               subscription and pano charges. Saving a month that already exists updates that month
-              instead of creating a duplicate.
+              instead of creating a duplicate. These totals are kept for invoice reconciliation;
+              tour-level billing detail supplies recorded pano costs in the profitability report.
             </p>
           </div>
 
@@ -954,7 +1023,7 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                   <th>Month</th>
                   <th>Bill total</th>
                   <th>Active panos</th>
-                  <th>Cost per active pano</th>
+                  <th>Bill per pano, including subscription</th>
                   <th>Notes</th>
                 </tr>
               </thead>
@@ -1073,9 +1142,14 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               const title = deal.site_name ?? deal.deal_name ?? deal.hubspot_deal_id;
               const dealUrl = hubspotDealUrl(deal);
               const fee =
-                Number(deal.ivion_contracted_fee ?? 0) + Number(deal.benaco_contracted_fee ?? 0);
+                (deal.ivion_hosting_start ? Number(deal.ivion_contracted_fee ?? 0) : 0) +
+                (deal.benaco_hosting_start ? Number(deal.benaco_contracted_fee ?? 0) : 0);
               const annualBenacoRunRate = basis.count * BENACO_ANNUAL_PANO_COST;
               const fullBenacoTourCost = benacoTourPanoCost(deal);
+              const tourCost = data.benacoTourCosts.find(
+                (cost) =>
+                  cost.tourId === (benacoTourId(deal.benaco_url) ?? `deal:${deal.hubspot_deal_id}`),
+              );
               const term = hostingDealTermSummary(deal, view);
 
               return (
@@ -1203,8 +1277,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                           <DetailItem label="HubSpot Counted Grid-Pano">
                             {optionalNumber(deal.benaco_counted_grid_panos)}
                           </DetailItem>
-                          <DetailItem label="Calculated full tour cost">
-                            {currency(fullBenacoTourCost, 2)}
+                          <DetailItem label="Full-term tour cost">
+                            {tourCost?.missingInputs
+                              ? "Incomplete — grid count or term dates needed"
+                              : currency(fullBenacoTourCost, 2)}
                           </DetailItem>
                           <DetailItem label="Annual pano rate">
                             {currency(annualBenacoRunRate, 2)}
@@ -1215,8 +1291,12 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                           <DetailItem label="HubSpot annual fee">
                             {optionalCurrency(deal.benaco_annual_fee, 2)}
                           </DetailItem>
-                          <DetailItem label="Contracted fee">
-                            {optionalCurrency(deal.benaco_contracted_fee)}
+                          <DetailItem label="Recognized contracted revenue">
+                            {currency(
+                              deal.benaco_hosting_start
+                                ? Number(deal.benaco_contracted_fee ?? 0)
+                                : 0,
+                            )}
                           </DetailItem>
                         </dl>
                       </section>
