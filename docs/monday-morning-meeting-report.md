@@ -7,8 +7,16 @@ Closed, completed, archived, on-hold, and excluded projects are outside this vie
 
 The agenda defaults to all active projects, sorted by delivery and reporting
 signals. Search and filters narrow by owner, client, overdue work, discussion
-items, or tasks due this week. Selecting an agenda project opens its breakdown.
+items, or tasks due this week. Selecting an agenda project opens its breakdown
+directly below that row, in the same table. The project button toggles it with an
+explicit expanded/collapsed state; there is no separate breakdown list.
 All summaries follow the displayed project selection.
+
+Red row markers and labeled badges identify action items; amber highlights
+reviewable inputs and incomplete/exhausted estimates. Blue cells distinguish
+forecast values, with red for projected overruns/losses and green for known
+positive outcomes. Color always accompanies text or numbers. Provisional profit
+is marked for review rather than presented as a confirmed green result.
 
 Project breakdowns include completion counts, client fee, current and projected
 costs, projected profit/margin, internal estimated/logged/remaining/final hours,

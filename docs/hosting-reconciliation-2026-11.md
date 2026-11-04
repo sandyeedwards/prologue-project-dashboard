@@ -85,6 +85,83 @@ Do not treat these as actual payment dates or label contribution as cash flow.
 IVION continues using its historical invoice cost basis; that data has not been
 re-audited against a freshly supplied NavVis workbook in this pass.
 
+## Production release follow-up — November 4
+
+The hosting reconciliation commit `ab1414d` had not reached `main` when the MMM
+release deployed. The follow-up branch now includes it alongside the MMM layout
+changes. The old cash-position and guessed-grid labels in the production
+screenshot belong to the earlier hosting implementation.
+
+The IVION source ledger contains 17 dated entries from 2024 onward totaling
+$167,988.57: $53,226.83 in 2024, $38,046.74 in 2025, and $76,715.00 in 2026.
+The report already uses those invoice entries without adding current instance
+rates to the same historical dates. A new direct-cost audit exposes the selected
+invoice dates/numbers/amounts and the separate Benaco recorded, estimated, and
+subscription components.
+
+The original read-only extraction was recovered from this chat's October 29
+command output. It confirms the worksheet had only five columns: Date, Type,
+No., Payee, Total. It contained no line-item description, category, product,
+instance identifier, or service coverage dates. Therefore it does not establish
+that every NavVis vendor bill was an IVION instance charge. The original XLS
+itself is no longer at its attached local path; reuploading the same five-column
+summary would not resolve classification.
+
+All 17 entries retain their source invoice numbers. Three Processing allocations
+are now excluded under the user's reporting instruction described below; the
+remaining 14 bills stay included provisionally. Other amounts are not removed
+based on size or repetition. The headline
+identifies provisional contribution and explains how much vendor spending awaits
+classification. Itemized bills or an expense-detail export with descriptions and
+accounts are required to separate instance hosting from hardware, support,
+processing, and other licenses. The user suspects the expense summary included
+other costs and subsequently directed that Processing stay with fieldwork.
+
+### Purchase-history evidence
+
+The user supplied a NavVis purchase-history screenshot on November 4. It
+distinguishes Core subscriptions including Support from Processing packages.
+Core's bundled support remains part of instance hosting. NavVis documents
+[Processing packages](https://knowledge.navvis.com/docs/upgrading-your-data-processing-package)
+and [instance versus Processing storage](https://knowledge.navvis.com/docs/what-is-the-difference-between-ivion-core-and-ivion-processing-storage-1)
+as distinct products/uses.
+
+Three strong Processing candidates total $20,590: invoice INUS20250103070
+($6,750, Jan 23 2025) matches Processing 5 on the same date; INUS20260404639
+($6,920, Apr 27 2026) also matches Processing 5 on the same date; INUS20260504732
+($6,920, May 21 2026) is one day after Processing 10. The screenshot has no
+prices or invoice references, so none establishes that the whole bill consists
+of Processing. The user subsequently directed that Processing stay on the
+fieldwork side. These three identified bills are now allocated entirely to
+Processing for the hosting report: $6,750 in 2025 and $13,840 in 2026. Original
+vendor amounts remain intact, with hosting/processing amounts keyed by invoice
+number. This reporting decision uses the purchase-history matches and the user's
+instruction, not independently verified invoice line items.
+
+The vendor source total remains $167,988.57. After the $20,590 Processing
+allocation, included IVION costs total $147,398.57: $53,226.83 in 2024,
+$31,296.74 in 2025, and $62,875.00 in 2026. No new fieldwork expenses are created;
+Processing was already accounted for there. The cost audit shows the gross
+vendor total, excluded Processing total, and included hosting total separately.
+
+The $966.74 Apr 18 2025 bill has an exact-date Core 200 clue and should not be
+removed merely because it is small. The $160.58 Aug 12 2024 bill follows Core
+100 on Aug 2. Large combined-instance invoices have nearby multi-Core purchase
+rows. These are clues, not reasons to count each purchase row as a new bill.
+
+The Aug 13 2025 Processing purchase falls between the Jul 31 ($6,750) and
+Aug 19 ($11,880) bills; their allocations remain ambiguous. Core and Processing
+purchases also share Jun 28 2024, requiring detail for the June bills. The user
+confirmed that Effective Date means license start date, not invoice date.
+Future 2027 starts are not booked as additional vendor charges. No instance
+start/end settings are overwritten from this
+screenshot. Invoice evidence is retained in `navvis-purchase-evidence.ts`.
+
+The Benaco grid inventory uses HubSpot or matched billing detail, not the former
+28% estimate. Missing counts remain explicit. Historical contract fields do not
+reconstruct client renewal fees that were overwritten; reported contribution is
+not a verified bank balance or proof that every past payment is represented.
+
 The per-tour cost breakdown shows recorded charges separately from remaining-term
 estimates. Missing grids/term ends are exposed instead of replaced with the former
 28% guess or a fabricated one-year term. Billing history supplies missing grid

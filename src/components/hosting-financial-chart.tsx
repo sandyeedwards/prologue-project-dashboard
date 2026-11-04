@@ -106,7 +106,7 @@ export function HostingFinancialChart({
         ...(view !== "benaco"
           ? [
               {
-                label: "Direct cost – IVION",
+                label: "IVION / NavVis vendor costs",
                 value: fullCurrency(hoveredPoint.displayedIvionCost),
                 tone: "ivion",
               },
@@ -173,7 +173,7 @@ export function HostingFinancialChart({
         {view !== "benaco" ? (
           <span>
             <i className="hosting-chart-key hosting-chart-key--ivion" />
-            Direct Cost – IVION
+            IVION / NavVis Vendor Costs
           </span>
         ) : null}
         {view !== "ivion" ? (

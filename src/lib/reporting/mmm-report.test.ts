@@ -159,6 +159,21 @@ describe("Monday meeting report", () => {
     expect(project.varianceMinutes).toBe(-360);
   });
 
+  it("shows actual final hours for a completed zero-estimate work group", () => {
+    const [project] = build([
+      task({
+        countedEstimatedMinutes: 0,
+        isCanonicalHolder: false,
+        remainingMinutes: 0,
+        completedAt: now,
+        status: "complete",
+        isBranchComplete: true,
+      }),
+    ]);
+    expect(project.stages[0].estimatedMinutes).toBe(0);
+    expect(project.stages[0].forecastMinutes).toBe(240);
+  });
+
   it("excludes vendor estimates and inherited vendor subtasks from internal remaining work", () => {
     const vendor = task({
       id: "vendor",

@@ -7,6 +7,8 @@ import {
   HostingFinancialChart,
 } from "@/components/hosting-financial-chart";
 import { HostingSyncControl } from "@/components/hosting-sync-control";
+import { HostingCostAudit } from "@/components/hosting-cost-audit";
+import confidenceStyles from "./hosting-confidence.module.css";
 import { requireUser } from "@/lib/auth/session";
 import {
   BENACO_ANNUAL_PANO_COST,
@@ -330,6 +332,13 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
           false,
         ).filter((row) => !row.forecast);
   const overallTotals = reportTotals(overallActualRows, view);
+  const overallUnclassifiedNavvisCost =
+    view === "benaco"
+      ? 0
+      : overallActualRows.reduce(
+          (sum, row) => sum + row.ivionCost - (row.ivionEstimatedCost ?? 0),
+          0,
+        );
   const filteredDeals = data.deals.filter((deal) =>
     dealMatchesRange(deal, view, displayedRangeFrom, displayedRangeTo),
   );
@@ -372,14 +381,6 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
   );
   const benacoPanoBases = activeBenacoDeals.map(benacoPanoBasis);
   const benacoCountedPanos = benacoPanoBases.reduce((sum, basis) => sum + basis.count, 0);
-  const benacoActualCountedPanos = benacoPanoBases.reduce(
-    (sum, basis) => sum + (basis.source === "actual" ? basis.count : 0),
-    0,
-  );
-  const benacoEstimatedCountedPanos = benacoPanoBases.reduce(
-    (sum, basis) => sum + (basis.source === "estimated" ? basis.count : 0),
-    0,
-  );
   const benacoMissingPanoDeals = benacoPanoBases.filter(
     (basis) => basis.source === "missing",
   ).length;
@@ -398,6 +399,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
     (sum, row) => sum + (row.ivionEstimatedCost ?? 0),
     0,
   );
+  const unclassifiedNavvisCost =
+    view === "benaco"
+      ? 0
+      : displayedRows.reduce((sum, row) => sum + row.ivionCost - (row.ivionEstimatedCost ?? 0), 0);
   const viewLabel = views.find((option) => option.value === view)?.label ?? "Combined";
   const rangeLabel =
     ranges.find((option) => option.value === range)?.label ?? "All available history";
@@ -632,19 +637,25 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
 
         <section className="hosting-overview" aria-label="Hosting financial summary">
           <article
-            className={`hosting-contribution${hasSourceData && selectedPeriodTotals.netProfit < 0 ? " hosting-contribution--loss" : ""}`}
+            className={`hosting-contribution${hasSourceData && selectedPeriodTotals.netProfit < 0 ? " hosting-contribution--loss" : ""}${unclassifiedNavvisCost > 0 ? ` ${confidenceStyles.provisional}` : ""}`}
           >
             <div className="hosting-contribution__heading">
               <div>
                 <p className="eyebrow">{viewLabel} selected-period economics</p>
-                <h2>Hosting contribution in selected range</h2>
+                <h2>
+                  {unclassifiedNavvisCost > 0
+                    ? "Provisional hosting contribution"
+                    : "Hosting contribution in selected range"}
+                </h2>
               </div>
               <span>
-                {paymentRetention === null
-                  ? "No contracted revenue"
-                  : selectedPeriodTotals.netProfit < 0
-                    ? `${currency(Math.abs(selectedPeriodTotals.netProfit))} hosting loss`
-                    : `${wholePercent(paymentRetention)} contribution margin`}
+                {unclassifiedNavvisCost > 0
+                  ? "Costs need classification"
+                  : paymentRetention === null
+                    ? "No contracted revenue"
+                    : selectedPeriodTotals.netProfit < 0
+                      ? `${currency(Math.abs(selectedPeriodTotals.netProfit))} hosting loss`
+                      : `${wholePercent(paymentRetention)} contribution margin`}
               </span>
             </div>
             <strong className="hosting-contribution__value">
@@ -655,6 +666,16 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               {dateLabel(displayedRangeFrom)} through {dateLabel(displayedRangeTo)}. The report
               options above change this result.
             </p>
+            {unclassifiedNavvisCost > 0 ? (
+              <p>
+                <strong>
+                  {currency(unclassifiedNavvisCost, 2)} of NavVis vendor bills are not yet confirmed
+                  as hosting-only costs.
+                </strong>{" "}
+                They remain included provisionally. This result is not a verified hosting profit or
+                loss; open the cost breakdown below to review the invoice numbers.
+              </p>
+            ) : null}
             <div className="hosting-contribution__split" aria-label="Revenue and cost totals">
               <div>
                 <span>Contracted revenue</span>
@@ -686,12 +707,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                   <small>Current active site inventory</small>
                 </article>
                 <article className="hosting-scale__card">
-                  <span>Benaco counted panos</span>
+                  <span>Benaco grid panos</span>
                   <strong>{hasSourceData ? number(benacoCountedPanos) : "No data"}</strong>
                   <small>
-                    {number(benacoActualCountedPanos)} actual ·{" "}
-                    {number(benacoEstimatedCountedPanos)}
-                    {" estimated"}
+                    HubSpot / matched billing detail
                     {benacoMissingPanoDeals ? ` · ${benacoMissingPanoDeals} missing` : ""}
                   </small>
                 </article>
@@ -704,12 +723,10 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
                   <small>{number(ivionTotalPanos)} total across current active deals</small>
                 </article>
                 <article className="hosting-scale__card">
-                  <span>Benaco counted panos</span>
+                  <span>Benaco grid panos</span>
                   <strong>{hasSourceData ? number(benacoCountedPanos) : "No data"}</strong>
                   <small>
-                    {number(benacoActualCountedPanos)} actual ·{" "}
-                    {number(benacoEstimatedCountedPanos)}
-                    {" estimated"}
+                    HubSpot / matched billing detail
                     {benacoMissingPanoDeals ? ` · ${benacoMissingPanoDeals} missing` : ""}
                   </small>
                 </article>
@@ -746,13 +763,20 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </div>
           </div>
           <HostingCumulativeChart rows={overallActualRows} view={view} />
+          {overallUnclassifiedNavvisCost > 0 ? (
+            <p>
+              {currency(overallUnclassifiedNavvisCost, 2)} of the historical cost total is
+              unclassified NavVis vendor spending. The resulting contribution remains provisional
+              until the hosting portions are confirmed.
+            </p>
+          ) : null}
         </section>
 
         <section className="report-section hosting-report-section hosting-chart-section">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Company hosting timeline</p>
-              <h2>{viewLabel} profitability in selected period</h2>
+              <h2>{viewLabel} contribution in selected period</h2>
             </div>
             <p>
               Contracted fees at paid hosting start, full-term Benaco costs at tour start, and the
@@ -803,6 +827,13 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             </p>
           </details>
         </section>
+
+        <HostingCostAudit
+          rows={displayedRows}
+          view={view}
+          from={displayedRangeFrom}
+          to={displayedRangeTo}
+        />
 
         <details className="report-section hosting-report-section hosting-table-disclosure">
           <summary>

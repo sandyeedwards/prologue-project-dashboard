@@ -100,8 +100,7 @@ describe("buildHostingReport", () => {
         { revenue: 0, ivion: 0, overhead: 0 },
       );
     });
-    for (const total of totals)
-      expect(total).toEqual({ revenue: 1000, ivion: 13840, overhead: 400 });
+    for (const total of totals) expect(total).toEqual({ revenue: 1000, ivion: 0, overhead: 400 });
   });
 
   it("keeps monthly bills as reconciliation evidence without adding the tour charges again", () => {
@@ -216,7 +215,7 @@ describe("buildHostingReport", () => {
       const actual = buildHostingReport(deals, grouping, sites, reference, "all", {}, [], false);
       expect(actual[0].periodStart).toBe("2024-01-01");
       expect(actual.reduce((sum, row) => sum + row.ivionRevenue, 0)).toBe(1000);
-      expect(actual.reduce((sum, row) => sum + row.ivionCost, 0)).toBeCloseTo(167988.57, 2);
+      expect(actual.reduce((sum, row) => sum + row.ivionCost, 0)).toBeCloseTo(147398.57, 2);
       expect(actual.reduce((sum, row) => sum + (row.ivionEstimatedCost ?? 0), 0)).toBe(0);
     }
     const projected = buildHostingReport(deals, "month", sites, reference, "all", {}, [], true);
@@ -366,7 +365,7 @@ describe("buildHostingReport", () => {
       { from: "2024-01-01", to: "2026-09-30" },
     );
     expect(report[0].ivionCost).toBeCloseTo(53226.83, 2);
-    expect(report[1].ivionCost).toBeCloseTo(38046.74, 2);
+    expect(report[1].ivionCost).toBeCloseTo(31296.74, 2);
   });
 
   it("does not add instance estimates to recorded invoices after coverage ends", () => {
