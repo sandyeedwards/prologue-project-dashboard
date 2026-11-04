@@ -164,6 +164,62 @@ describe("hosting source-data checks", () => {
     ).toEqual([]);
   });
 
+  it("skips a platform whose instance or tour link is unknown", () => {
+    // 820 Southlake Blvd: Benaco site with IVION pano counts but no IVION instance or dates.
+    const southlake = makeDeal({
+      site_name: "820 Southlake Blvd",
+      benaco_url: null,
+      benaco_hosting_start: null,
+      benaco_hosting_end: null,
+      benaco_contracted_fee: null,
+      benaco_total_panos: null,
+      benaco_counted_grid_panos: null,
+      ivion_instance: null,
+      ivion_total_panos: 841,
+      ivion_active_panos: 200,
+    });
+    expect(check([southlake])).toEqual([]);
+    expect(
+      codes(
+        makeDeal({
+          benaco_url: null,
+          ivion_instance: null,
+          ivion_hosting_start: "2026-01-01",
+          ivion_hosting_end: "2027-01-01",
+          ivion_contracted_fee: 500,
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("treats a fee with only complimentary dates as complimentary hosting", () => {
+    const comp = makeDeal({
+      benaco_hosting_start: null,
+      benaco_hosting_end: null,
+      benaco_comp_start: "2026-01-01",
+      benaco_comp_end: "2027-01-01",
+    });
+    expect(codes(comp)).not.toContain("FEE_WITHOUT_PAID_TERM");
+    expect(codes({ ...comp, benaco_comp_start: null, benaco_comp_end: null })).toContain(
+      "FEE_WITHOUT_PAID_TERM",
+    );
+  });
+
+  it("still checks a platform once its identifier is present", () => {
+    expect(codes(makeDeal({ benaco_url: "not a url" }))).toContain("MISSING_OR_INVALID_BENACO_URL");
+    expect(
+      codes(
+        makeDeal({
+          ivion_instance: "https://unmapped.example/",
+          ivion_hosting_start: "2026-01-01",
+          ivion_hosting_end: "2027-01-01",
+          ivion_contracted_fee: 500,
+          ivion_active_panos: 100,
+        }),
+      ),
+    ).toContain("UNKNOWN_IVION_INSTANCE");
+  });
+
   it("checks current IVION instance mapping but permits different historical instances", () => {
     const input = makeDeal({
       ivion_instance: "https://old.example/",
