@@ -1,5 +1,11 @@
 import { getSqlClient } from "@/db/client";
 import {
+  benacoBillingRecord,
+  benacoTourId,
+  BENACO_VERIFIED_ANNUAL_GRID_RATE,
+} from "./benaco-billing-history";
+import { buildBenacoCostCommitments } from "./benaco-profitability";
+import {
   ivionInvoiceCostBetween,
   IVION_INVOICE_COVERAGE_START,
   IVION_INVOICE_COVERAGE_END,
@@ -14,13 +20,8 @@ export type HostingDealFeeFilter = "all" | "with-fee" | "no-fee";
 
 export const BENACO_MONTHLY_OVERHEAD = 100;
 export const BENACO_ANNUAL_OVERHEAD = BENACO_MONTHLY_OVERHEAD * 12;
-export const BENACO_ANNUAL_PANO_COST = 0.38;
-export const BENACO_GRID_ESTIMATE_RATE = 0.28;
+export const BENACO_ANNUAL_PANO_COST = BENACO_VERIFIED_ANNUAL_GRID_RATE;
 export const BENACO_SUBSCRIPTION_START = "2023-09-01";
-export const BENACO_2024_CATCH_UP_TOTAL = 8466.71;
-export const BENACO_2024_CATCH_UP_INVOICE_DATE = "2026-08-31";
-// Fixed coverage date confirmed by the user. Do not advance this with today's date.
-export const BENACO_CATCH_UP_COVERAGE_DATE = "2026-10-30";
 export const HOSTING_REPORT_START = "2024-01-01";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -146,20 +147,6 @@ export function benacoBillCostPerActivePano(
   return panos > 0 ? numeric(billedAmount) / panos : 0;
 }
 
-export function allocateBenacoTourCost(
-  tourActivePanos: string | number,
-  billedAmount: string | number,
-  totalActivePanos: string | number,
-): number {
-  return numeric(tourActivePanos) * benacoBillCostPerActivePano(billedAmount, totalActivePanos);
-}
-
-export function benacoHistoricalCatchUpCost(monthKey: string): number {
-  return monthKey === BENACO_2024_CATCH_UP_INVOICE_DATE.slice(0, 7)
-    ? BENACO_2024_CATCH_UP_TOTAL
-    : 0;
-}
-
 function numeric(value: unknown): number {
   if (value === null || value === undefined || value === "") return 0;
   const parsed = Number(String(value).replace(/[$,]/g, ""));
@@ -246,7 +233,6 @@ function futureReportEnd(grouping: HostingGrouping, referenceDate: Date): Date {
 }
 
 function parsedCustomBounds(
-  grouping: HostingGrouping,
   from: string | null | undefined,
   to: string | null | undefined,
 ): ReportBounds | null {
@@ -254,8 +240,8 @@ function parsedCustomBounds(
   const parsedTo = dateValue(to);
   if (!parsedFrom || !parsedTo || parsedTo.getTime() < parsedFrom.getTime()) return null;
   return {
-    start: startOfPeriod(parsedFrom, grouping),
-    endExclusive: addPeriod(startOfPeriod(parsedTo, grouping), grouping),
+    start: parsedFrom,
+    endExclusive: addDays(parsedTo, 1),
   };
 }
 
@@ -274,8 +260,7 @@ function reportBounds(
 
   if (range === "custom") {
     return fromHistoryStart(
-      parsedCustomBounds(grouping, custom.from, custom.to) ??
-        defaultReportBounds(grouping, referenceDate),
+      parsedCustomBounds(custom.from, custom.to) ?? defaultReportBounds(grouping, referenceDate),
     );
   }
   if (range === "all") {
@@ -296,7 +281,8 @@ function reportBounds(
       endExclusive: utcDate(referenceDate.getUTCFullYear(), 0),
     });
   }
-  return fromHistoryStart(defaultReportBounds(grouping, referenceDate));
+  // A rolling twelve-month selection has the same dates at every chart grouping.
+  return fromHistoryStart(defaultReportBounds("month", referenceDate));
 }
 
 function earliestReportDate(deals: HostingDealRow[], sites: HostingIvionSite[]): Date {
@@ -340,8 +326,8 @@ export function makeHostingPeriods(
     const endExclusive = addPeriod(cursor, grouping);
     periods.push({
       key: periodLabel(cursor, grouping),
-      start: cursor,
-      endExclusive,
+      start: new Date(Math.max(cursor.getTime(), bounds.start.getTime())),
+      endExclusive: new Date(Math.min(endExclusive.getTime(), bounds.endExclusive.getTime())),
       forecast: cursor.getTime() > referenceDate.getTime(),
     });
     cursor = endExclusive;
@@ -358,31 +344,6 @@ function paymentReceived(fee: number, start: Date | null, period: Period): numbe
     : 0;
 }
 
-function activeDaysAcrossTerm(intervals: Array<{ start: Date | null; end: Date | null }>): number {
-  const termIntervals = intervals
-    .filter((interval): interval is { start: Date; end: Date | null } => interval.start !== null)
-    .map((interval) => ({
-      start: interval.start.getTime(),
-      end: (interval.end ?? addDays(interval.start, 365)).getTime(),
-    }))
-    .filter((interval) => interval.end > interval.start)
-    .sort((left, right) => left.start - right.start);
-
-  if (!termIntervals.length) return 0;
-
-  const merged: Array<{ start: number; end: number }> = [];
-  for (const interval of termIntervals) {
-    const previous = merged.at(-1);
-    if (!previous || interval.start > previous.end) {
-      merged.push({ ...interval });
-    } else {
-      previous.end = Math.max(previous.end, interval.end);
-    }
-  }
-
-  return merged.reduce((sum, interval) => sum + (interval.end - interval.start) / DAY_MS, 0);
-}
-
 function dateInPeriod(value: Date | null, period: Period): boolean {
   return Boolean(
     value &&
@@ -391,35 +352,9 @@ function dateInPeriod(value: Date | null, period: Period): boolean {
   );
 }
 
-function benacoTourStart(deal: HostingDealRow): Date | null {
-  const starts = [dateValue(deal.benaco_hosting_start), dateValue(deal.benaco_comp_start)]
-    .filter((value): value is Date => value !== null)
-    .sort((left, right) => left.getTime() - right.getTime());
-  return starts[0] ?? null;
-}
-
 export function benacoTourPanoCost(deal: HostingDealRow): number {
-  const basis = benacoPanoBasis(deal);
-  const activeDays = activeDaysAcrossTerm([
-    {
-      start: dateValue(deal.benaco_hosting_start),
-      end: dateValue(deal.benaco_hosting_end),
-    },
-    {
-      start: dateValue(deal.benaco_comp_start),
-      end: dateValue(deal.benaco_comp_end),
-    },
-  ]);
-  return basis.count * (BENACO_ANNUAL_PANO_COST / 365) * activeDays;
-}
-
-export function benacoTourCoveredByCatchUp(deal: HostingDealRow): boolean {
-  const start = benacoTourStart(deal);
-  return Boolean(
-    start &&
-    (start.getUTCFullYear() === 2024 ||
-      isHostingDealActiveOn(deal, dateValue(BENACO_CATCH_UP_COVERAGE_DATE)!, "benaco")),
-  );
+  const id = benacoTourId(deal.benaco_url) ?? `deal:${deal.hubspot_deal_id}`;
+  return buildBenacoCostCommitments([deal]).find((cost) => cost.tourId === id)?.totalPanoCost ?? 0;
 }
 
 function subscriptionMonthsInPeriod(period: Period): number {
@@ -465,15 +400,14 @@ function annualSiteCost(site: HostingIvionSite, period: Period): number {
 }
 
 export function benacoPanoBasis(deal: HostingDealRow): BenacoPanoBasis {
-  const countedGridPanos = numeric(deal.benaco_counted_grid_panos);
-  if (countedGridPanos > 0) {
+  const raw = deal.benaco_counted_grid_panos;
+  const countedGridPanos = raw === null || String(raw).trim() === "" ? NaN : Number(raw);
+  if (Number.isFinite(countedGridPanos) && countedGridPanos >= 0) {
     return { count: countedGridPanos, source: "actual" };
   }
 
-  const totalPanos = numeric(deal.benaco_total_panos);
-  if (totalPanos > 0) {
-    return { count: totalPanos * BENACO_GRID_ESTIMATE_RATE, source: "estimated" };
-  }
+  const recorded = benacoBillingRecord(deal.benaco_url);
+  if (recorded && recorded.gridPanos > 0) return { count: recorded.gridPanos, source: "actual" };
 
   return { count: 0, source: "missing" };
 }
@@ -602,7 +536,9 @@ export function filterHostingDeals(
 
     if (!matchesTerm) return false;
 
-    const contractedFee = numeric(deal.ivion_contracted_fee) + numeric(deal.benaco_contracted_fee);
+    const contractedFee =
+      (deal.ivion_hosting_start ? numeric(deal.ivion_contracted_fee) : 0) +
+      (deal.benaco_hosting_start ? numeric(deal.benaco_contracted_fee) : 0);
     const matchesFee =
       feeFilter === "all" ||
       (feeFilter === "with-fee" && contractedFee > 0) ||
@@ -667,6 +603,7 @@ export function buildHostingReport(
         : new Date(Math.min(period.endExclusive.getTime(), cutoff.getTime())),
       forecast: includeForecast && period.endExclusive > cutoff,
     }));
+  const tourCosts = buildBenacoCostCommitments(deals);
   return periods.map((period) => {
     let ivionRevenue = 0;
     let ivionCost = 0;
@@ -676,7 +613,7 @@ export function buildHostingReport(
     let benacoEstimatedPanoCosts = 0;
     let benacoOverhead = 0;
     let benacoBilledCost = 0;
-    let benacoHistoricalCost = 0;
+    const benacoHistoricalCost = 0;
     let benacoBilledMonths = 0;
     let benacoEstimatedMonths = 0;
 
@@ -688,12 +625,19 @@ export function buildHostingReport(
       benacoRevenue += paymentReceived(numeric(deal.benaco_contracted_fee), benacoStart, period);
     }
 
+    for (const tour of tourCosts) {
+      if (!dateInPeriod(dateValue(tour.start), period)) continue;
+      benacoBilledCost += tour.recordedPanoCost;
+      benacoPanoCosts += tour.estimatedPanoCost;
+      benacoEstimatedPanoCosts += tour.estimatedPanoCost;
+    }
+
     let monthStart = startOfPeriod(period.start, "month");
     while (monthStart.getTime() < period.endExclusive.getTime()) {
       const monthEnd = addMonths(monthStart, 1);
       const monthPeriod: Period = {
         key: periodLabel(monthStart, "month"),
-        start: monthStart,
+        start: new Date(Math.max(monthStart.getTime(), period.start.getTime())),
         endExclusive: new Date(Math.min(monthEnd.getTime(), period.endExclusive.getTime())),
         forecast: monthStart.getTime() > referenceDate.getTime(),
       };
@@ -713,37 +657,13 @@ export function buildHostingReport(
         ivionEstimatedCost += estimatedCost;
       }
 
-      // The catch-up is a separate pano-only invoice, independent of regular bills.
-      if (dateInPeriod(dateValue(BENACO_2024_CATCH_UP_INVOICE_DATE), monthPeriod)) {
-        benacoHistoricalCost += BENACO_2024_CATCH_UP_TOTAL;
-      }
-      if (bill) {
-        benacoBilledCost += numeric(bill.billed_amount);
-        benacoBilledMonths += 1;
-      } else {
-        const monthlyOverhead = subscriptionMonthsInPeriod(monthPeriod) * BENACO_MONTHLY_OVERHEAD;
-        let monthlyPanoCosts = 0;
-        let monthlyEstimatedPanoCosts = 0;
-
-        for (const deal of deals) {
-          if (!hasBenacoHosting(deal)) continue;
-          const tourStart = benacoTourStart(deal);
-          if (!dateInPeriod(tourStart, monthPeriod)) continue;
-
-          // Current tours are covered by the fixed catch-up invoice, including
-          // tours that began after 2024. Future tours retain their own cost basis.
-          if (benacoTourCoveredByCatchUp(deal)) continue;
-
-          const basis = benacoPanoBasis(deal);
-          const panoCost = benacoTourPanoCost(deal);
-          monthlyPanoCosts += panoCost;
-          if (basis.source === "estimated") monthlyEstimatedPanoCosts += panoCost;
-        }
-
-        benacoOverhead += monthlyOverhead;
-        benacoPanoCosts += monthlyPanoCosts;
-        benacoEstimatedPanoCosts += monthlyEstimatedPanoCosts;
-        if (monthlyOverhead > 0 || monthlyPanoCosts > 0) benacoEstimatedMonths += 1;
+      // Monthly invoice totals are retained for reconciliation. Their pano
+      // charges cannot also be added to full-term costs already assigned above.
+      // The fixed subscription is counted once, separately, on the first.
+      if (dateInPeriod(monthStart, period)) {
+        benacoOverhead += subscriptionMonthsInPeriod(monthPeriod) * BENACO_MONTHLY_OVERHEAD;
+        if (bill) benacoBilledMonths += 1;
+        else benacoEstimatedMonths += 1;
       }
 
       monthStart = monthEnd;
@@ -953,6 +873,7 @@ export async function getHostingDashboardData({
     benacoBills: [...benacoBills],
     syncRuns: [...syncRuns],
     latestSuccessfulSync: successfulSyncs[0] ?? null,
+    benacoTourCosts: buildBenacoCostCommitments(dealRows),
     report: buildHostingReport(
       dealRows,
       grouping,

@@ -4,6 +4,7 @@ import type { SessionUser } from "@/lib/auth/session";
 import { PrimaryNavigation } from "@/components/primary-navigation";
 import { EasterEggBrand } from "@/components/easter-egg-brand";
 import { getOpenTeamworkIssueCount } from "@/lib/reporting/dashboard-data";
+import { getHostingDataIssues } from "@/lib/hosting/data-issues-server";
 
 function initials(displayName: string): string {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
@@ -23,7 +24,12 @@ export async function AppShell({
   children: ReactNode;
   contentTone?: "default" | "portfolio";
 }) {
-  const issueCount = user.role === "ADMIN" ? await getOpenTeamworkIssueCount() : 0;
+  const [teamworkCount, hostingIssues] =
+    user.role === "ADMIN"
+      ? await Promise.all([getOpenTeamworkIssueCount(), getHostingDataIssues()])
+      : [0, []];
+  const issueCount =
+    teamworkCount + hostingIssues.filter((issue) => issue.severity !== "INFO").length;
   return (
     <div className="app-frame">
       <header className="app-header">

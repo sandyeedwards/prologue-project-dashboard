@@ -18,7 +18,7 @@ const standardItems = [
 
 const teamworkIssuesItem = {
   href: "/teamwork-issues",
-  label: "Teamwork Issues",
+  label: "Reporting Issues",
   shortLabel: "Admin review",
 } as const;
 
@@ -55,7 +55,10 @@ export function PrimaryNavigation({
             <span>
               {item.label}
               {item.href === "/teamwork-issues" && issueCount > 0 ? (
-                <span className="nav-issue-badge" aria-label={`${issueCount} open Teamwork issues`}>
+                <span
+                  className="nav-issue-badge"
+                  aria-label={`${issueCount} open reporting issues`}
+                >
                   {issueCount > 99 ? "99+" : issueCount}
                 </span>
               ) : null}

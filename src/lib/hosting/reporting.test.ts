@@ -3,12 +3,8 @@ import { hostingPeriodStatus } from "./period-status";
 
 import {
   BENACO_ANNUAL_PANO_COST,
-  BENACO_2024_CATCH_UP_INVOICE_DATE,
-  BENACO_2024_CATCH_UP_TOTAL,
   BENACO_MONTHLY_OVERHEAD,
-  allocateBenacoTourCost,
   benacoBillCostPerActivePano,
-  benacoHistoricalCatchUpCost,
   benacoPanoBasis,
   benacoTourPanoCost,
   buildHostingReport,
@@ -19,6 +15,11 @@ import {
   type HostingDealRow,
   type HostingIvionSite,
 } from "./reporting";
+import {
+  BENACO_BILLING_HISTORY,
+  BENACO_PREVIOUSLY_PAID,
+  BENACO_CATCH_UP_PAYMENT,
+} from "./benaco-billing-history";
 
 function deal(overrides: Partial<HostingDealRow> = {}): HostingDealRow {
   return {
@@ -71,6 +72,133 @@ function site(overrides: Partial<HostingIvionSite> = {}): HostingIvionSite {
 }
 
 describe("buildHostingReport", () => {
+  it("keeps exact custom date cutoffs when changing chart groupings", () => {
+    const deals = [
+      deal({ id: "before", ivion_hosting_start: "2026-01-08", ivion_contracted_fee: 9000 }),
+      deal({ id: "within", benaco_hosting_start: "2026-02-05", benaco_contracted_fee: 1000 }),
+      deal({ id: "after", ivion_hosting_start: "2026-05-22", ivion_contracted_fee: 8000 }),
+    ];
+    const totals = (["month", "quarter", "half", "year"] as const).map((grouping) => {
+      const rows = buildHostingReport(
+        deals,
+        grouping,
+        [],
+        new Date("2026-11-03T12:00:00Z"),
+        "custom",
+        { from: "2026-01-09", to: "2026-05-21" },
+        [],
+        false,
+      );
+      expect(rows[0].periodStart).toBe("2026-01-09");
+      expect(rows.at(-1)?.periodEnd).toBe("2026-05-21");
+      return rows.reduce(
+        (sum, row) => ({
+          revenue: sum.revenue + row.revenue,
+          ivion: sum.ivion + row.ivionCost,
+          overhead: sum.overhead + row.benacoOverhead,
+        }),
+        { revenue: 0, ivion: 0, overhead: 0 },
+      );
+    });
+    for (const total of totals)
+      expect(total).toEqual({ revenue: 1000, ivion: 13840, overhead: 400 });
+  });
+
+  it("keeps monthly bills as reconciliation evidence without adding the tour charges again", () => {
+    const bills = [
+      {
+        id: "march",
+        billing_month: "2026-03-01",
+        billed_amount: 500,
+        active_panos: 1000,
+        notes: null,
+        created_at: "2026-04-01",
+        updated_at: "2026-04-01",
+      },
+      {
+        id: "april",
+        billing_month: "2026-04-01",
+        billed_amount: 250,
+        active_panos: 1000,
+        notes: null,
+        created_at: "2026-05-01",
+        updated_at: "2026-05-01",
+      },
+    ];
+    for (const grouping of ["month", "quarter", "half", "year"] as const) {
+      const rows = buildHostingReport(
+        [],
+        grouping,
+        [],
+        new Date("2026-11-03T12:00:00Z"),
+        "custom",
+        { from: "2026-03-15", to: "2026-04-15" },
+        bills,
+        false,
+      );
+      const baseline = buildHostingReport(
+        [],
+        grouping,
+        [],
+        new Date("2026-11-03T12:00:00Z"),
+        "custom",
+        { from: "2026-03-15", to: "2026-04-15" },
+        [],
+        false,
+      );
+      expect(rows.reduce((sum, row) => sum + row.benacoCost, 0)).toBe(
+        baseline.reduce((sum, row) => sum + row.benacoCost, 0),
+      );
+      expect(rows.reduce((sum, row) => sum + row.benacoOverhead, 0)).toBe(100);
+      expect(rows.reduce((sum, row) => sum + row.benacoBilledMonths, 0)).toBe(1);
+    }
+  });
+
+  it("does not count a catch-up payment again after assigning charges to tours", () => {
+    for (const grouping of ["month", "quarter", "half", "year"] as const) {
+      const rows = buildHostingReport(
+        [],
+        grouping,
+        [],
+        new Date("2026-11-03T12:00:00Z"),
+        "custom",
+        { from: "2026-08-31", to: "2026-08-31" },
+        [],
+        false,
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].benacoHistoricalCost).toBe(0);
+      expect(rows[0].benacoOverhead).toBe(0);
+    }
+  });
+
+  it("keeps rolling twelve-month dates and actual totals independent of grouping", () => {
+    const deals = [
+      deal({ id: "outside", ivion_hosting_start: "2025-11-15", ivion_contracted_fee: 9000 }),
+      deal({ id: "inside", ivion_hosting_start: "2025-12-01", ivion_contracted_fee: 1200 }),
+    ];
+    const totals = (["month", "quarter", "half", "year"] as const).map((grouping) => {
+      const rows = buildHostingReport(
+        deals,
+        grouping,
+        [],
+        new Date("2026-11-03T12:00:00Z"),
+        "12m",
+        {},
+        [],
+        false,
+      );
+      expect(rows[0].periodStart).toBe("2025-12-01");
+      expect(rows.at(-1)?.periodEnd).toBe("2026-11-03");
+      return rows.reduce(
+        (sum, row) => ({ revenue: sum.revenue + row.revenue, costs: sum.costs + row.costs }),
+        { revenue: 0, costs: 0 },
+      );
+    });
+    expect(totals[0].revenue).toBe(1200);
+    for (const total of totals) expect(total).toEqual(totals[0]);
+  });
+
   it("counts only 2024-onward invoices in historical IVION costs and keeps rates in the forecast", () => {
     const sites = [16185, 16185, 10905, 11985].map((annual_cost, index) =>
       site({
@@ -175,23 +303,26 @@ describe("buildHostingReport", () => {
     expect(august.at(-1)?.benacoHistoricalCost).toBe(0);
   });
 
-  it("covers existing active tours of every start year once, while costing future tours separately", () => {
+  it("costs unmatched existing and new tours without a blanket date-based exemption", () => {
     const report = buildHostingReport(
       [
         deal({
           id: "existing-2025",
+          hubspot_deal_id: "existing-2025",
           benaco_hosting_start: "2025-01-01",
           benaco_hosting_end: "2028-01-01",
           benaco_counted_grid_panos: 1000,
         }),
         deal({
           id: "existing-2026",
+          hubspot_deal_id: "existing-2026",
           benaco_hosting_start: "2026-06-01",
           benaco_hosting_end: "2028-06-01",
           benaco_counted_grid_panos: 2000,
         }),
         deal({
           id: "new-tour",
+          hubspot_deal_id: "new-tour",
           benaco_hosting_start: "2026-11-01",
           benaco_hosting_end: "2027-11-01",
           benaco_counted_grid_panos: 500,
@@ -214,15 +345,13 @@ describe("buildHostingReport", () => {
         },
       ],
     );
-    expect(report.reduce((sum, row) => sum + row.benacoHistoricalCost, 0)).toBe(
-      BENACO_2024_CATCH_UP_TOTAL,
+    expect(report.reduce((sum, row) => sum + row.benacoHistoricalCost, 0)).toBe(0);
+    expect(report.find((row) => row.period === "2026-08")?.benacoCost).toBeCloseTo(100, 2);
+    expect(report.find((row) => row.period === "2025-01")?.benacoPanoCosts).toBe(1140);
+    expect(report.find((row) => row.period === "2026-06")?.benacoPanoCosts).toBeCloseTo(
+      (2000 * 0.38 * 731) / 365,
+      8,
     );
-    expect(report.find((row) => row.period === "2026-08")?.benacoCost).toBeCloseTo(
-      BENACO_2024_CATCH_UP_TOTAL + 100,
-      2,
-    );
-    expect(report.find((row) => row.period === "2025-01")?.benacoPanoCosts).toBe(0);
-    expect(report.find((row) => row.period === "2026-06")?.benacoPanoCosts).toBe(0);
     expect(report.find((row) => row.period === "2026-11")?.benacoPanoCosts).toBeCloseTo(190, 2);
     expect(report.find((row) => row.period === "2026-12")?.benacoCost).toBe(100);
   });
@@ -251,9 +380,8 @@ describe("buildHostingReport", () => {
     );
     expect(report.map((row) => row.ivionCost)).toEqual([10555, 0]);
   });
-  it("allocates a monthly Benaco bill proportionally by active panos", () => {
+  it("shows the blended invoice amount per pano without using it as the tour hosting rate", () => {
     expect(benacoBillCostPerActivePano(1000, 4000)).toBe(0.25);
-    expect(allocateBenacoTourCost(600, 1000, 4000)).toBe(150);
   });
 
   it("records the full client payment in the hosting-start month", () => {
@@ -284,6 +412,7 @@ describe("buildHostingReport", () => {
           benaco_contracted_fee: 900,
           ivion_total_panos: 100,
           benaco_total_panos: 400,
+          benaco_counted_grid_panos: 112,
         }),
       ],
       "month",
@@ -297,7 +426,7 @@ describe("buildHostingReport", () => {
       benacoOverhead: BENACO_MONTHLY_OVERHEAD,
     });
     expect(june?.benacoRevenue).toBe(900);
-    expect(june?.benacoPanoCosts).toBeCloseTo(400 * 0.28 * (BENACO_ANNUAL_PANO_COST / 365) * 92, 8);
+    expect(june?.benacoPanoCosts).toBeCloseTo(112 * (BENACO_ANNUAL_PANO_COST / 365) * 92, 8);
     expect(june?.benacoEstimatedPanoCosts).toBeCloseTo(june?.benacoPanoCosts ?? 0, 8);
     expect(report.find((row) => row.period === "2026-07")?.benacoPanoCosts).toBe(0);
     expect(report.find((row) => row.period === "2026-07")?.benacoOverhead).toBe(
@@ -359,14 +488,14 @@ describe("buildHostingReport", () => {
     expect(report.map((row) => row.benacoRevenue)).toEqual([21600, 0, 0]);
   });
 
-  it("uses the 28 percent planning estimate only when counted panos are missing", () => {
+  it("marks missing grid counts instead of guessing 28 percent of total panos", () => {
     const estimatedDeal = deal({
       benaco_hosting_start: "2026-06-01",
       benaco_hosting_end: "2026-07-01",
       benaco_total_panos: 1000,
     });
 
-    expect(benacoPanoBasis(estimatedDeal)).toEqual({ count: 280, source: "estimated" });
+    expect(benacoPanoBasis(estimatedDeal)).toEqual({ count: 0, source: "missing" });
 
     const june = buildHostingReport(
       [estimatedDeal],
@@ -375,7 +504,7 @@ describe("buildHostingReport", () => {
       new Date("2026-06-15T12:00:00.000Z"),
     ).find((row) => row.period === "2026-06");
 
-    expect(june?.benacoPanoCosts).toBeCloseTo(280 * (BENACO_ANNUAL_PANO_COST / 365) * 30, 8);
+    expect(june?.benacoPanoCosts).toBe(0);
     expect(june?.benacoEstimatedPanoCosts).toBeCloseTo(june?.benacoPanoCosts ?? 0, 8);
   });
 
@@ -401,11 +530,12 @@ describe("buildHostingReport", () => {
     );
   });
 
-  it("records the one-time catch-up invoice in its invoice month without recurring", () => {
-    const catchUpMonth = BENACO_2024_CATCH_UP_INVOICE_DATE.slice(0, 7);
-    expect(benacoHistoricalCatchUpCost("2024-01")).toBe(0);
-    expect(benacoHistoricalCatchUpCost(catchUpMonth)).toBe(BENACO_2024_CATCH_UP_TOTAL);
-    expect(benacoHistoricalCatchUpCost("2026-09")).toBe(0);
+  it("reconciles prior and catch-up payments to the same historical tour charges", () => {
+    expect(BENACO_PREVIOUSLY_PAID + BENACO_CATCH_UP_PAYMENT).toBeCloseTo(10859.75, 2);
+    expect(BENACO_BILLING_HISTORY.reduce((sum, record) => sum + record.panoCost, 0)).toBeCloseTo(
+      10859.75,
+      2,
+    );
 
     const report = buildHostingReport(
       [],
@@ -420,14 +550,11 @@ describe("buildHostingReport", () => {
     expect(year2024?.benacoHistoricalCost).toBe(0);
     expect(year2024?.benacoOverhead).toBe(BENACO_MONTHLY_OVERHEAD * 12);
     const year2026 = report.find((row) => row.period === "2026");
-    expect(year2026?.benacoHistoricalCost).toBe(BENACO_2024_CATCH_UP_TOTAL);
-    expect(year2026?.benacoCost).toBeCloseTo(
-      BENACO_2024_CATCH_UP_TOTAL + BENACO_MONTHLY_OVERHEAD * 12,
-      8,
-    );
+    expect(year2026?.benacoHistoricalCost).toBe(0);
+    expect(report.reduce((sum, row) => sum + row.benacoBilledCost, 0)).toBeCloseTo(9961.59, 2);
   });
 
-  it("does not double count calculated costs for 2024 tours covered by the catch-up invoice", () => {
+  it("requires a billing match instead of waiving all tours that started in 2024", () => {
     const report = buildHostingReport(
       [
         deal({
@@ -443,10 +570,8 @@ describe("buildHostingReport", () => {
       { from: "2024-01-01", to: "2026-12-31" },
     );
 
-    expect(report.find((row) => row.period === "2024")?.benacoPanoCosts).toBe(0);
-    expect(report.find((row) => row.period === "2026")?.benacoHistoricalCost).toBe(
-      BENACO_2024_CATCH_UP_TOTAL,
-    );
+    expect(report.find((row) => row.period === "2024")?.benacoPanoCosts).toBe(760);
+    expect(report.find((row) => row.period === "2026")?.benacoHistoricalCost).toBe(0);
   });
 
   it("excludes 2023 while retaining the Benaco subscription overhead from 2024 onward", () => {
@@ -458,7 +583,7 @@ describe("buildHostingReport", () => {
     );
   });
 
-  it("uses an entered Benaco bill as the full cost for that month", () => {
+  it("retains monthly bill evidence while counting the subscription and tour charges once", () => {
     const report = buildHostingReport(
       [
         deal({
@@ -487,15 +612,15 @@ describe("buildHostingReport", () => {
 
     const june = report.find((row) => row.period === "2026-06");
     expect(june).toMatchObject({
-      benacoBilledCost: 875.5,
-      benacoEstimatedCost: 0,
+      benacoBilledCost: 19.89,
+      benacoEstimatedCost: 100,
       benacoBilledMonths: 1,
       benacoEstimatedMonths: 0,
-      benacoCost: 875.5,
+      benacoCost: 119.89,
     });
   });
 
-  it("combines actual bills with estimates for uncovered months in a quarter", () => {
+  it("retains three subscription months when a monthly bill is entered", () => {
     const report = buildHostingReport(
       [],
       "quarter",
@@ -517,11 +642,9 @@ describe("buildHostingReport", () => {
     );
 
     expect(report[0]).toMatchObject({
-      benacoBilledCost: 500,
-      benacoEstimatedCost: BENACO_MONTHLY_OVERHEAD * 2,
+      benacoEstimatedCost: BENACO_MONTHLY_OVERHEAD * 3,
       benacoBilledMonths: 1,
       benacoEstimatedMonths: 2,
-      benacoCost: 500 + BENACO_MONTHLY_OVERHEAD * 2,
     });
   });
 
@@ -581,7 +704,7 @@ describe("buildHostingReport", () => {
 
     expect(report.some((row) => row.period.startsWith("2023-"))).toBe(false);
     expect(report.reduce((sum, row) => sum + row.revenue, 0)).toBe(500);
-    expect(report.reduce((sum, row) => sum + row.benacoBilledCost, 0)).toBe(0);
+    expect(report.reduce((sum, row) => sum + row.benacoBilledCost, 0)).toBeCloseTo(2347.14, 2);
   });
 
   it("returns no periods when a custom reporting range ends before 2024", () => {
