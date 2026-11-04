@@ -1,0 +1,301 @@
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 1.1rem;
+}
+.workspace > *,
+.projectBody > * {
+  min-width: 0;
+}
+.workspace :global(.table-wrap) {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+.workspace :global(.metric-grid--four) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.workspace small {
+  display: block;
+}
+.freshness {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+.filters {
+  display: grid;
+  grid-template-columns: minmax(14rem, 2fr) repeat(4, minmax(8rem, 1fr)) auto;
+  gap: 0.8rem;
+  align-items: end;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface);
+}
+.filters label,
+.taskControls label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.filters input,
+.filters select,
+.taskControls input:not([type="checkbox"]) {
+  width: 100%;
+  min-height: 2.7rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+}
+.overviewTable {
+  min-width: 1050px;
+}
+.overviewTable td {
+  vertical-align: top;
+}
+.overviewTable td:first-child {
+  width: 26%;
+}
+.overviewTable small,
+.taskTable small {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.overviewTable progress {
+  width: 100%;
+  max-width: 8rem;
+  height: 0.45rem;
+  accent-color: #2374db;
+}
+.projectButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+.positive {
+  color: #08765c;
+}
+.negative {
+  color: #b52e2a;
+}
+.warning {
+  color: #946000;
+}
+.muted {
+  color: var(--muted);
+}
+.detailActions,
+.detailActions > div,
+.links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.links {
+  justify-content: flex-end;
+}
+.detailActions h2 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+.project {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  scroll-margin-top: 1.5rem;
+  overflow: hidden;
+}
+.project > summary {
+  padding: 1.1rem 1.3rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  cursor: pointer;
+  background: #f5f9ff;
+}
+.project > summary::before {
+  content: "+";
+  font-size: 1.25rem;
+  color: #216ccc;
+}
+.project[open] > summary::before {
+  content: "−";
+}
+.project > summary > div {
+  flex: 1;
+}
+.project > summary small,
+.project > summary > span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.projectBody {
+  padding: 1.3rem;
+  display: grid;
+  gap: 1rem;
+}
+.projectBody h3 {
+  margin: 0.5rem 0 0;
+  font-size: 1rem;
+}
+.signals {
+  background: #fffbf1;
+  border-left: 3px solid #d59a20;
+  padding: 0.7rem 1rem;
+  font-size: 0.85rem;
+}
+.signals ul {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.4rem;
+}
+.signals p {
+  margin: 0;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+}
+.stats > div {
+  padding: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.stats span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 0.45rem;
+}
+.stats strong {
+  font-size: 1.25rem;
+}
+.stats small {
+  font-size: 0.72rem;
+  margin-top: 0.3rem;
+}
+.activity {
+  margin: 0;
+  line-height: 1.7;
+  font-size: 0.85rem;
+}
+.taskControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem;
+}
+.taskControls > label:first-child {
+  min-width: min(24rem, 100%);
+}
+.taskControls .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.7rem;
+}
+.taskControls > span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding-bottom: 0.7rem;
+}
+.taskTable {
+  min-width: 850px;
+}
+.taskTable td {
+  vertical-align: top;
+}
+.taskTable td:first-child {
+  width: 38%;
+}
+.caption {
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding-bottom: 0.7rem;
+}
+.notes p {
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+@media (max-width: 1200px) {
+  .filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .search {
+    grid-column: span 2;
+  }
+}
+@media (max-width: 680px) {
+  .workspace :global(.metric-grid--four) {
+    grid-template-columns: 1fr;
+  }
+  .filters {
+    grid-template-columns: 1fr;
+  }
+  .search {
+    grid-column: auto;
+  }
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .project > summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+  }
+  .project > summary > div {
+    flex-basis: 80%;
+  }
+  .projectBody {
+    padding: 0.85rem;
+  }
+}
+@media print {
+  .filters,
+  .detailActions,
+  .links,
+  .taskControls,
+  .workspace button {
+    display: none;
+  }
+  .workspace .projectButton {
+    display: inline;
+  }
+  .project {
+    break-inside: auto;
+  }
+  .workspace {
+    gap: 0.6rem;
+  }
+  .workspace :global(.table-wrap) {
+    overflow: visible;
+  }
+  .overviewTable,
+  .taskTable {
+    min-width: 0;
+    font-size: 0.65rem;
+  }
+  .workspace :global(.data-table) th,
+  .workspace :global(.data-table) td {
+    padding: 0.35rem;
+  }
+}
