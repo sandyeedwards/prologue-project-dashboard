@@ -32,16 +32,22 @@ export function HealthBadge({ band, score }: { band: HealthBand; score: string |
 export function MarginBadge({
   value,
   digits = 1,
+  provisional = false,
 }: {
   value: string | number | null | undefined;
   digits?: number;
+  /** Provisional margins are ceilings and are never coloured as a confirmed (green) result. */
+  provisional?: boolean;
 }) {
-  const tone = marginTone(value);
+  const tone = marginTone(value, { provisional });
   const parsed = value === null || value === undefined || value === "" ? null : Number(value);
   const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : "N/A";
 
   return (
-    <span className={`margin-badge margin-badge--${tone}`} aria-label={`Margin ${label}`}>
+    <span
+      className={`margin-badge margin-badge--${tone}`}
+      aria-label={`Margin ${label}${provisional && label !== "N/A" ? ", provisional" : ""}`}
+    >
       {label}
     </span>
   );
@@ -50,11 +56,13 @@ export function MarginBadge({
 export function MarginText({
   value,
   digits = 1,
+  provisional = false,
 }: {
   value: string | number | null | undefined;
   digits?: number;
+  provisional?: boolean;
 }) {
-  const tone = marginTone(value);
+  const tone = marginTone(value, { provisional });
   const parsed = value === null || value === undefined || value === "" ? null : Number(value);
   const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : "N/A";
 
@@ -186,7 +194,15 @@ export function ProjectTable({
           {rows.map((row) => {
             const remaining = remainingCost(row.actualTotalCost, row.forecastCost);
             const profitValue = numericMoney(row.forecastProfit);
-            const profitTone = profitValue !== null && profitValue < 0 ? "loss" : "profit";
+            // Green only for a known, non-provisional profit.
+            const profitTone =
+              profitValue === null
+                ? "missing"
+                : profitValue < 0
+                  ? "loss"
+                  : row.isProvisional
+                    ? "provisional"
+                    : "profit";
             const projectPrefix = row.projectNumber ? `${row.projectNumber} - ` : "";
             const projectName =
               projectPrefix && row.name.startsWith(projectPrefix)
@@ -235,7 +251,7 @@ export function ProjectTable({
                   </small>
                 </td>
                 <td>
-                  <MarginBadge value={row.forecastMarginPercent} />
+                  <MarginBadge value={row.forecastMarginPercent} provisional={row.isProvisional} />
                   {row.isProvisional ? (
                     <small className="table-subvalue table-subvalue--warning">Ceiling</small>
                   ) : (

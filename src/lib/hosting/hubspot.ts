@@ -177,3 +177,38 @@ export async function batchReadDeals(ids: string[], properties: string[]): Promi
 
   return deals;
 }
+
+// Read-only batch lookup of deal names by ID. Missing or inaccessible deals are omitted.
+export async function getDealNames(
+  dealIds: readonly string[],
+  options: { timeoutMs?: number } = {},
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const ids = [...new Set(dealIds.filter((id) => /^\d+$/.test(id)))];
+  for (let index = 0; index < ids.length; index += 100) {
+    const response = await readOnlyFetch(
+      `${HUBSPOT_API_BASE}/crm/v3/objects/deals/batch/read`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          properties: ["dealname"],
+          inputs: ids.slice(index, index + 100).map((id) => ({ id })),
+        }),
+      },
+      { attempts: 2, timeoutMs: options.timeoutMs ?? 8000 },
+    );
+    // 207 = some IDs were not found; the found ones are still returned.
+    if (!response.ok && response.status !== 207)
+      throw new Error(`HubSpot deal name lookup failed ${response.status}`);
+    const data = (await response.json()) as { results?: HubSpotDeal[] };
+    for (const deal of data.results ?? []) {
+      const name = deal.properties?.dealname;
+      if (typeof name === "string" && name.trim()) names.set(deal.id, name.trim());
+    }
+  }
+  return names;
+}

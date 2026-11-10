@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 
 export default async function MyPtoPage() {
   const session = await requireUser("/time-reporting/pto");
-  const report = await getTimeReportingReport();
+  // Only the signed-in employee's own records are needed (and loaded) here.
+  const report = await getTimeReportingReport({
+    scopeToTeamworkUserId: session.user.teamworkUserId,
+  });
 
   const employee = report.employees.find((row) => row.teamworkId === session.user.teamworkUserId);
 

@@ -1,4 +1,6 @@
 import { getSqlClient } from "@/db/client";
+import { getDealNames } from "@/lib/hosting/hubspot";
+import { findHubSpotDealReference, hubSpotDealUrl } from "./hubspot-deal-link";
 import { getProjectRows, normalizeDatabaseDate } from "./dashboard-data";
 import {
   buildMeetingProjects,
@@ -62,6 +64,7 @@ export async function getMeetingReport(now = new Date()) {
       from time_entries where project_id in ${sql(ids)} and is_deleted=false group by project_id
     `,
   ]);
+  const dealLinks = await getLinkedHubSpotDeals(ids);
   const tasks = taskRows.map((task) => ({
     ...task,
     completedAt: task.completedAt ? normalizeDatabaseDate(task.completedAt) : null,
@@ -69,9 +72,50 @@ export async function getMeetingReport(now = new Date()) {
   const normalizedSources = active.map((source) => ({
     ...source,
     lastSyncedAt: source.lastSyncedAt ? normalizeDatabaseDate(source.lastSyncedAt) : null,
+    hubspotDeal: dealLinks.get(source.id) ?? null,
   }));
   return {
     projects: buildMeetingProjects(normalizedSources, metrics, tasks, activity, now),
     window,
   };
+}
+
+// Resolve the HubSpot deal linked to each project. Names come from imported hosting deals first,
+// then a read-only HubSpot lookup. A lookup failure never hides the meeting report.
+async function getLinkedHubSpotDeals(projectIds: readonly string[]) {
+  const sql = getSqlClient();
+  const links = new Map<string, { id: string; name: string | null; url: string | null }>();
+  if (!projectIds.length) return links;
+  const rows = await sql<Array<{ id: string; raw: unknown }>>`
+    select id, raw from projects where id in ${sql([...projectIds])}
+  `;
+  const dealIdByProject = new Map<string, string>();
+  for (const row of rows) {
+    const reference = findHubSpotDealReference(row.raw);
+    if (reference) dealIdByProject.set(row.id, reference.dealId);
+  }
+  const dealIds = [...new Set(dealIdByProject.values())];
+  const names = new Map<string, string>();
+  if (dealIds.length) {
+    const known = await sql<Array<{ id: string; name: string | null }>>`
+      select hubspot_deal_id as id, coalesce(nullif(trim(deal_name), ''), nullif(trim(site_name), '')) as name
+      from hosting_deals where hubspot_deal_id in ${sql(dealIds)}
+    `;
+    for (const deal of known) if (deal.name) names.set(deal.id, deal.name);
+    const missing = dealIds.filter((id) => !names.has(id));
+    if (missing.length && process.env.HUBSPOT_ACCESS_TOKEN) {
+      try {
+        for (const [id, name] of await getDealNames(missing)) names.set(id, name);
+      } catch (error) {
+        console.warn("MMM HubSpot deal-name lookup skipped:", (error as Error).message);
+      }
+    }
+  }
+  for (const [projectId, dealId] of dealIdByProject)
+    links.set(projectId, {
+      id: dealId,
+      name: names.get(dealId) ?? null,
+      url: hubSpotDealUrl(dealId, process.env.HUBSPOT_PORTAL_ID?.trim() || undefined),
+    });
+  return links;
 }

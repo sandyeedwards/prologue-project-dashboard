@@ -4,6 +4,7 @@ import { FlexibleDateRangeFields } from "@/components/flexible-date-range-fields
 import { TimeReportingHoverTrack } from "@/components/time-reporting-hover-track";
 import { TimeReportingProjectFilter } from "@/components/time-reporting-project-filter";
 import { MetricCard } from "@/components/reporting-ui";
+import { roleAllows } from "@/lib/auth/authorization";
 import { requireUser } from "@/lib/auth/session";
 import { ptoDaysLabel, ptoHoursLabel } from "@/lib/reporting/pto-display";
 import {
@@ -158,6 +159,9 @@ const presets = [
 export default async function TimeReportingPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireUser("/time-reporting");
   const params = await searchParams;
+  // Other employees' hours, utilization and PTO are a Manager/Admin view. Viewers see only their
+  // own time; the scope is enforced in the query, so an ?employee= URL cannot widen it.
+  const canViewAllEmployees = roleAllows(session.user.role, "MANAGER");
 
   const report = await getTimeReportingReport({
     preset: one(params.preset),
@@ -165,9 +169,10 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
     endDate: one(params.endDate),
     employeeIds: many(params.employee),
     projectIds: many(params.project),
+    ...(canViewAllEmployees ? {} : { scopeToTeamworkUserId: session.user.teamworkUserId }),
   });
 
-  const selectedEmployeeIds = report.filters.employeeIds;
+  const selectedEmployeeIds = canViewAllEmployees ? report.filters.employeeIds : [];
   const selectedProjectIds = report.filters.projectIds;
   const selectedPresetLabel =
     presets.find((preset) => preset.value === report.range.preset)?.label ?? "Custom range";
@@ -204,8 +209,9 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
             <h1>Time Reporting</h1>
 
             <p>
-              Review employee hours, billable utilization, non-billable activity, time-entry
-              expectations, and annual PTO usage.
+              {canViewAllEmployees
+                ? "Review employee hours, billable utilization, non-billable activity, time-entry expectations, and annual PTO usage."
+                : "Review your own hours, billable utilization, non-billable activity, time-entry expectations, and annual PTO usage."}
             </p>
 
             <div className="time-reporting-title-meta">
@@ -297,32 +303,34 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
               </div>
 
               <form className="time-reporting-filter-form" action="/time-reporting" method="get">
-                <div className="time-reporting-filter-field">
-                  <span>Employees</span>
+                {canViewAllEmployees ? (
+                  <div className="time-reporting-filter-field">
+                    <span>Employees</span>
 
-                  <details className="time-reporting-filter-menu">
-                    <summary>
-                      {selectedEmployeeIds.length
-                        ? `${selectedEmployeeIds.length} selected`
-                        : "All employees"}
-                    </summary>
+                    <details className="time-reporting-filter-menu">
+                      <summary>
+                        {selectedEmployeeIds.length
+                          ? `${selectedEmployeeIds.length} selected`
+                          : "All employees"}
+                      </summary>
 
-                    <div className="time-reporting-filter-menu__options">
-                      {report.filterOptions.employees.map((employee) => (
-                        <label key={employee.personId}>
-                          <input
-                            type="checkbox"
-                            name="employee"
-                            value={employee.personId}
-                            defaultChecked={selectedEmployeeIds.includes(employee.personId)}
-                          />
+                      <div className="time-reporting-filter-menu__options">
+                        {report.filterOptions.employees.map((employee) => (
+                          <label key={employee.personId}>
+                            <input
+                              type="checkbox"
+                              name="employee"
+                              value={employee.personId}
+                              defaultChecked={selectedEmployeeIds.includes(employee.personId)}
+                            />
 
-                          <span>{employee.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </details>
-                </div>
+                            <span>{employee.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                ) : null}
 
                 <TimeReportingProjectFilter
                   projects={report.filterOptions.projects}

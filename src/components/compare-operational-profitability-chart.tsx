@@ -11,6 +11,10 @@ import {
   type PointerEvent,
 } from "react";
 import type { PortfolioOperationalGroupRow } from "@/lib/reporting/dashboard-data";
+import {
+  resolveProfitabilityRow,
+  type ResolvedProfitabilityRow,
+} from "@/lib/reporting/forecast-position";
 import { marginTone } from "@/lib/reporting/margin-status";
 
 export type ComparedProfitabilityPosition = {
@@ -46,7 +50,10 @@ type ResolvedPosition = {
   remainingCost: number;
   forecastCost: number;
   forecastProfit: number;
-  marginPercent: number;
+  /** Null when there is no meaningful margin (missing data or a zero fee). */
+  marginPercent: number | null;
+  /** Which values are real; unknown ones are 0 placeholders and must be shown as "Missing". */
+  known: ResolvedProfitabilityRow["known"];
 };
 
 const groupOrder: PortfolioOperationalGroupRow["groupName"][] = [
@@ -57,10 +64,6 @@ const groupOrder: PortfolioOperationalGroupRow["groupName"][] = [
 ];
 function finite(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value);
-}
-
-function nonnegative(value: number | null | undefined): number | null {
-  return finite(value) ? Math.max(value, 0) : null;
 }
 
 function fullCurrency(value: number | null | undefined): string {
@@ -79,60 +82,79 @@ function formatMargin(value: number | null | undefined): string {
   }).format(value)}%`;
 }
 
-function resolvePosition(position: ComparedProfitabilityPosition): ResolvedPosition {
-  const revenue = nonnegative(position.allocatedRevenue) ?? 0;
-  const actual = nonnegative(position.actualCostToDate) ?? 0;
-  const explicitRemaining = nonnegative(position.remainingCost);
-  const explicitForecastCost = nonnegative(position.forecastCost);
-  const remaining = explicitRemaining ?? Math.max((explicitForecastCost ?? actual) - actual, 0);
-  const forecastCost = explicitForecastCost ?? actual + remaining;
-  const forecastProfit = finite(position.forecastProfit)
-    ? position.forecastProfit
-    : revenue - forecastCost;
-  const marginPercent = finite(position.marginPercent)
-    ? position.marginPercent
-    : revenue > 0
-      ? (forecastProfit / revenue) * 100
-      : 0;
-
+// Missing values stay missing: a project without a fee is "Incomplete data", not a $0-revenue
+// loss, and it has no margin rather than 0%.
+export function resolvePosition(position: ComparedProfitabilityPosition): ResolvedPosition {
+  const values = resolveProfitabilityRow({
+    label: "",
+    revenue: position.allocatedRevenue,
+    cost: position.forecastCost,
+    actualCost: position.actualCostToDate,
+    remainingCost: position.remainingCost,
+    profit: position.forecastProfit,
+    margin: position.marginPercent,
+  });
   return {
-    allocatedRevenue: revenue,
-    actualCostToDate: actual,
-    remainingCost: remaining,
-    forecastCost,
-    forecastProfit,
-    marginPercent,
+    allocatedRevenue: values.revenue,
+    actualCostToDate: values.actual,
+    remainingCost: values.remaining,
+    forecastCost: values.forecastCost,
+    forecastProfit: values.profit,
+    marginPercent: values.known.profit ? values.margin : null,
+    known: values.known,
   };
 }
 
-function compareProjects(
+/** Sorts nulls last, whatever the direction. */
+function byNumberDescending(a: number | null, b: number | null): number {
+  if (a === null || b === null) return a === null ? (b === null ? 0 : 1) : -1;
+  return b - a;
+}
+
+export function compareProjects(
   left: ComparedProjectOperationalGroups,
   right: ComparedProjectOperationalGroups,
   sort: ComparisonSort,
 ): number {
   const a = resolvePosition(left.total);
   const b = resolvePosition(right.total);
-  if (sort === "name") return left.projectName.localeCompare(right.projectName);
-  if (sort === "profit") return b.forecastProfit - a.forecastProfit;
-  if (sort === "margin") return b.marginPercent - a.marginPercent;
+  const byName = left.projectName.localeCompare(right.projectName);
+  const aProfit = a.known.profit ? a.forecastProfit : null;
+  const bProfit = b.known.profit ? b.forecastProfit : null;
+  if (sort === "name") return byName;
+  if (sort === "profit") return byNumberDescending(aProfit, bProfit) || byName;
+  if (sort === "margin") return byNumberDescending(a.marginPercent, b.marginPercent) || byName;
 
-  const aLoss = a.forecastProfit < 0 ? 1 : 0;
-  const bLoss = b.forecastProfit < 0 ? 1 : 0;
-  if (aLoss !== bLoss) return bLoss - aLoss;
-  if (a.marginPercent !== b.marginPercent) return a.marginPercent - b.marginPercent;
-  return a.forecastProfit - b.forecastProfit;
+  // Attention first: losses, then incomplete data, then lowest margin.
+  const rank = (profit: number | null) => (profit === null ? 1 : profit < 0 ? 0 : 2);
+  const rankDifference = rank(aProfit) - rank(bProfit);
+  if (rankDifference) return rankDifference;
+  const marginDifference = -byNumberDescending(a.marginPercent, b.marginPercent);
+  if (marginDifference) return marginDifference;
+  return (aProfit ?? 0) - (bProfit ?? 0) || byName;
 }
 
-function performanceStatus(position: ResolvedPosition): {
+export function performanceStatus(
+  position: ResolvedPosition,
+  provisional = false,
+): {
   label: string;
   tone: "good" | "watch" | "loss";
 } {
+  if (!position.known.profit) return { label: "Incomplete data", tone: "watch" };
   if (position.forecastProfit < 0) return { label: "Over budget", tone: "loss" };
-  if (position.marginPercent < 10) return { label: "Low margin", tone: "watch" };
+  if (position.marginPercent === null || position.marginPercent < 10)
+    return { label: "Low margin", tone: "watch" };
   if (position.allocatedRevenue > 0 && position.remainingCost / position.allocatedRevenue > 0.35) {
     return { label: "Work remaining", tone: "watch" };
   }
+  // A provisional forecast cannot be confirmed as on track.
+  if (provisional) return { label: "Provisional", tone: "watch" };
   return { label: "On track", tone: "good" };
+}
+
+function shown(value: number, known: boolean): string {
+  return known ? fullCurrency(value) : "Missing";
 }
 
 function positionForGroup(
@@ -173,12 +195,15 @@ function rowAriaLabel(row: DisplayPosition): string {
   return [
     row.project.projectName,
     row.groupName ? `${row.groupName}.` : "Entire project.",
-    `Allocated revenue ${fullCurrency(position.allocatedRevenue)}.`,
-    `Current Costs ${fullCurrency(position.actualCostToDate)}.`,
-    `Estimated remaining costs ${fullCurrency(position.remainingCost)}.`,
-    `${position.forecastProfit < 0 ? "Projected Loss" : "Projected Profit"} ${fullCurrency(position.forecastProfit)}.`,
+    `Allocated revenue ${shown(position.allocatedRevenue, position.known.revenue)}.`,
+    `Current Costs ${shown(position.actualCostToDate, position.known.actual)}.`,
+    `Estimated remaining costs ${shown(position.remainingCost, position.known.remaining)}.`,
+    `${position.known.profit && position.forecastProfit < 0 ? "Projected Loss" : "Projected Profit"} ${shown(position.forecastProfit, position.known.profit)}.`,
     `Margin ${formatMargin(position.marginPercent)}.`,
-  ].join(" ");
+    row.project.isProvisional ? "Provisional forecast." : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function ComparisonRow({
@@ -246,7 +271,10 @@ function ComparisonRow({
     positionTooltip(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
   };
   const revenueBoundary = 94;
-  const revenue = position.allocatedRevenue;
+  // Draw bars only from real revenue, forecast cost and profit; otherwise the track stays empty.
+  const plotComplete =
+    position.known.revenue && position.known.forecastCost && position.known.profit;
+  const revenue = plotComplete ? position.allocatedRevenue : 0;
   const actualRatio = revenue > 0 ? position.actualCostToDate / revenue : 0;
   const remainingRatio = revenue > 0 ? position.remainingCost / revenue : 0;
   const forecastRatio = revenue > 0 ? position.forecastCost / revenue : 0;
@@ -255,8 +283,8 @@ function ComparisonRow({
     Math.max(remainingRatio, 0),
     Math.max(1 - actualInsideRatio, 0),
   );
-  const loss = Math.max(position.forecastCost - revenue, 0);
-  const profit = Math.max(revenue - position.forecastCost, 0);
+  const loss = plotComplete ? Math.max(position.forecastCost - revenue, 0) : 0;
+  const profit = plotComplete ? Math.max(revenue - position.forecastCost, 0) : 0;
   const profitRatio = revenue > 0 ? profit / revenue : 0;
   const overrunRatio = revenue > 0 ? loss / revenue : loss > 0 ? maximumOverrunRatio : 0;
   const overrunWidth =
@@ -275,9 +303,18 @@ function ComparisonRow({
     "--compare-loss-left": `${revenueBoundary}%`,
     "--compare-loss-width": `${overrunWidth}%`,
   } as CSSProperties;
-  const outcomeTone = position.forecastProfit < 0 ? "loss" : "profit";
-  const marginStatus = marginTone(position.marginPercent);
-  const status = performanceStatus(position);
+  const profitKnown = position.known.profit;
+  const isLoss = profitKnown && position.forecastProfit < 0;
+  // Green only for a known, non-provisional profit; missing or provisional results are neutral.
+  const outcomeTone = isLoss
+    ? "loss"
+    : profitKnown && !row.project.isProvisional
+      ? "profit"
+      : "neutral";
+  const marginStatus = marginTone(position.marginPercent, {
+    provisional: row.project.isProvisional,
+  });
+  const status = performanceStatus(position, row.project.isProvisional);
 
   return (
     <div className="compare-profitability-rows__row">
@@ -323,15 +360,15 @@ function ComparisonRow({
         <div className="compare-profitability-rows__bar-meta">
           <span>
             <small>Actual cost</small>
-            <strong>{fullCurrency(position.actualCostToDate)}</strong>
+            <strong>{shown(position.actualCostToDate, position.known.actual)}</strong>
           </span>
           <span>
             <small>Remaining work</small>
-            <strong>{fullCurrency(position.remainingCost)}</strong>
+            <strong>{shown(position.remainingCost, position.known.remaining)}</strong>
           </span>
           <span>
             <small>{loss > 0 ? "Projected Loss" : "Projected profit"}</small>
-            <strong>{fullCurrency(loss > 0 ? loss : profit)}</strong>
+            <strong>{plotComplete ? fullCurrency(loss > 0 ? loss : profit) : "Missing"}</strong>
           </span>
         </div>
         {tooltip ? (
@@ -354,35 +391,35 @@ function ComparisonRow({
                   <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--revenue" />
                   Allocated revenue
                 </dt>
-                <dd>{fullCurrency(position.allocatedRevenue)}</dd>
+                <dd>{shown(position.allocatedRevenue, position.known.revenue)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--actual" />
                   Current Costs
                 </dt>
-                <dd>{fullCurrency(position.actualCostToDate)}</dd>
+                <dd>{shown(position.actualCostToDate, position.known.actual)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--remaining" />
                   Estimated remaining costs
                 </dt>
-                <dd>{fullCurrency(position.remainingCost)}</dd>
+                <dd>{shown(position.remainingCost, position.known.remaining)}</dd>
               </div>
               <div className="compare-profitability-rows__tooltip-total">
                 <dt>
                   <i
-                    className={`compare-profitability-rows__tooltip-key ${position.forecastProfit < 0 ? "compare-profitability-rows__tooltip-key--loss" : "compare-profitability-rows__tooltip-key--profit"}`}
+                    className={`compare-profitability-rows__tooltip-key ${isLoss ? "compare-profitability-rows__tooltip-key--loss" : "compare-profitability-rows__tooltip-key--profit"}`}
                   />
-                  {position.forecastProfit < 0 ? "Projected Loss" : "Projected Profit"}
+                  {isLoss ? "Projected Loss" : "Projected Profit"}
                 </dt>
                 <dd>
-                  {fullCurrency(
-                    position.forecastProfit < 0
-                      ? Math.abs(position.forecastProfit)
-                      : position.forecastProfit,
-                  )}
+                  {profitKnown
+                    ? fullCurrency(
+                        isLoss ? Math.abs(position.forecastProfit) : position.forecastProfit,
+                      )
+                    : "Missing"}
                 </dd>
               </div>
             </dl>
@@ -401,8 +438,14 @@ function ComparisonRow({
       <div
         className={`compare-profitability-rows__outcome compare-profitability-rows__outcome--${outcomeTone}`}
       >
-        <strong>{fullCurrency(position.forecastProfit)}</strong>
-        <small>{position.forecastProfit < 0 ? "Projected Loss" : "Projected Profit"}</small>
+        <strong>{shown(position.forecastProfit, profitKnown)}</strong>
+        <small>
+          {isLoss
+            ? "Projected Loss"
+            : row.project.isProvisional && profitKnown
+              ? "Known Projected Profit"
+              : "Projected Profit"}
+        </small>
       </div>
 
       <div
@@ -471,6 +514,7 @@ export function CompareOperationalProfitabilityChart({
       section.rows.map((row) => {
         if (row.isMissing) return 0;
         const position = resolvePosition(row);
+        if (!position.known.revenue || !position.known.forecastCost) return 0;
         if (position.allocatedRevenue <= 0) return position.forecastCost > 0 ? 1 : 0;
         return Math.max(position.forecastCost / position.allocatedRevenue - 1, 0);
       }),

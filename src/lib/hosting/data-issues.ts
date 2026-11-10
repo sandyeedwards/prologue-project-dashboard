@@ -127,6 +127,20 @@ export function buildHostingDataIssues(
       // IVION instance. Pano counts, notes or placeholder dates alone (for example a Benaco site
       // carrying stray IVION pano fields) do not establish that the record is on that platform.
       if (!present(benaco ? deal.benaco_url : deal.ivion_instance)) continue;
+      // An IVION record that is only an instance link (no panos, no paid or complimentary dates,
+      // no fee) is an empty placeholder and is not reviewed. Once it has dates or a fee it can
+      // book revenue or cost, so blank pano counts are a real gap and are still reported.
+      if (
+        !benaco &&
+        !present(deal.ivion_active_panos) &&
+        !present(deal.ivion_total_panos) &&
+        !present(start) &&
+        !present(end) &&
+        !present(compStart) &&
+        !present(compEnd) &&
+        !((feeAmount ?? 0) > 0)
+      )
+        continue;
       const paidFrom = date(start),
         paidTo = date(end),
         freeFrom = date(compStart),

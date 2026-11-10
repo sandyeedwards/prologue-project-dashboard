@@ -15,6 +15,8 @@ export type MeetingProjectSource = {
   archivedAt: Date | null;
   completedAt: Date | null;
   lastSyncedAt: Date | null;
+  /** HubSpot deal linked to the Teamwork project, when Teamwork exposes the link. */
+  hubspotDeal?: { id: string; name: string | null; url: string | null } | null;
 };
 
 export type MeetingTask = {
@@ -319,4 +321,34 @@ export function filterMeetingProjects(
       a.name.localeCompare(b.name)
     );
   });
+}
+
+export type ForecastConfidence = {
+  /** Calculated, has a client fee, and is not provisional. */
+  fullyCosted: number;
+  /** Has a forecast (calculated, with a client fee) but it is provisional. */
+  provisional: number;
+  /** Not calculated, or no client fee, so no profit forecast at all. */
+  withoutForecast: number;
+};
+
+/**
+ * Splits the projects shown into three groups that never overlap, so each project is counted
+ * once: fully costed + provisional + without a forecast = projects shown. A provisional project
+ * with no client fee counts only as "without a forecast".
+ */
+export function forecastConfidence(
+  projects: readonly Pick<MeetingProject, "metrics">[],
+): ForecastConfidence {
+  const result: ForecastConfidence = { fullyCosted: 0, provisional: 0, withoutForecast: 0 };
+  for (const { metrics } of projects) {
+    const fee =
+      metrics?.clientFee === null || metrics?.clientFee === undefined || metrics.clientFee === ""
+        ? null
+        : Number(metrics.clientFee);
+    if (!metrics || fee === null || !Number.isFinite(fee)) result.withoutForecast += 1;
+    else if (metrics.isProvisional) result.provisional += 1;
+    else result.fullyCosted += 1;
+  }
+  return result;
 }
