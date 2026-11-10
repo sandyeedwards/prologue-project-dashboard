@@ -14,6 +14,7 @@ import {
 } from "@/components/compare-operational-profitability-chart";
 import { CoverageBadge, MarginBadge, MetricCard } from "@/components/reporting-ui";
 import {
+  operationalGroupDetail,
   summarizeProjects,
   type PortfolioOperationalGroupRow,
   type ProjectReportRow,
@@ -77,6 +78,7 @@ export function ProjectComparisonReport({
       profit: numeric(project.forecastProfit),
       margin: numeric(project.forecastMarginPercent),
       projectCount: 1,
+      provisional: project.isProvisional,
       values: {
         estimated: project.canonicalEstimatedMinutes / 60,
         logged: project.loggedMinutes / 60,
@@ -185,7 +187,10 @@ export function ProjectComparisonReport({
                     </span>
                   </div>
                   <div className="compare-register__margin">
-                    <MarginBadge value={project.forecastMarginPercent} />
+                    <MarginBadge
+                      value={project.forecastMarginPercent}
+                      provisional={project.isProvisional}
+                    />
                     <small>{project.isProvisional ? "Ceiling" : "Forecast"}</small>
                   </div>
                   <div className="compare-register__money">
@@ -197,7 +202,15 @@ export function ProjectComparisonReport({
                     <small>Costed work</small>
                   </div>
                   <div
-                    className={`compare-register__money ${profit !== null && profit < 0 ? "is-loss" : "is-profit"}`}
+                    className={`compare-register__money ${
+                      profit === null
+                        ? "is-missing"
+                        : profit < 0
+                          ? "is-loss"
+                          : project.isProvisional
+                            ? "is-provisional"
+                            : "is-profit"
+                    }`}
                   >
                     <strong>{money(project.forecastProfit)}</strong>
                     <small>
@@ -240,7 +253,7 @@ export function CombinedPortfolioReport({
       : null;
   const profitabilityRows = groups.map((group) => ({
     label: group.groupName,
-    detail: `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`,
+    detail: operationalGroupDetail(group),
     revenue: group.allocatedRevenue,
     cost: group.forecastCost,
     actualCost: group.actualCostToDate,
@@ -248,7 +261,9 @@ export function CombinedPortfolioReport({
     profit: group.forecastProfit,
     margin: group.marginPercent,
     projectCount: group.projectCount,
+    provisional: group.provisionalProjectCount > 0,
   }));
+  const anyGroupFinancials = groups.some((group) => group.financialProjectCount > 0);
   const totalRevenue = profitabilityRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
   const totalForecastCost = profitabilityRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
   const totalRemainingCost = profitabilityRows.reduce((sum, row) => {
@@ -263,7 +278,7 @@ export function CombinedPortfolioReport({
   const remainingCostCompositionComplete = profitabilityRows.every(
     (row) => row.remainingCost !== null && row.remainingCost !== undefined,
   );
-  const totalProfitabilityRow = profitabilityRows.length
+  const totalProfitabilityRow = anyGroupFinancials
     ? {
         label: "All selected groups",
         detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"} · ${profitabilityRows.length} operational group${profitabilityRows.length === 1 ? "" : "s"}`,
@@ -278,6 +293,7 @@ export function CombinedPortfolioReport({
         profit: totalForecastProfit,
         margin: totalRevenue > 0 ? (totalForecastProfit / totalRevenue) * 100 : null,
         projectCount: summary.projectCount,
+        provisional: summary.provisionalCount > 0,
       }
     : null;
   const effortRows = groups.map((group) => ({
@@ -331,7 +347,9 @@ export function CombinedPortfolioReport({
           />
           <MetricCard
             label={summary.provisionalCount ? "Margin Ceiling" : "Forecast Margin"}
-            value={<MarginBadge value={combinedMargin} />}
+            value={
+              <MarginBadge value={combinedMargin} provisional={summary.provisionalCount > 0} />
+            }
             detail={knownFor(summary.forecastMarginKnownCount, summary.projectCount)}
             help="Combined projected profit divided by combined client fees. This is not an average of the selected project margins."
           />

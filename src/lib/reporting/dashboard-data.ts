@@ -315,17 +315,31 @@ export type ProjectFilter = {
 export type PortfolioOperationalGroupRow = {
   groupName: "Fieldwork" | "Mobilization" | "Modeling" | "Admin" | "Unclassified";
   projectCount: number;
-  allocatedRevenue: number;
+  /** Projects with a known client fee and forecast cost: the set the money figures describe. */
+  financialProjectCount: number;
+  /** Projects in this group left out of the money figures because a fee or forecast is missing. */
+  incompleteProjectCount: number;
+  allocatedRevenue: number | null;
   actualCostToDate: number | null;
   remainingCost: number | null;
-  forecastCost: number;
-  forecastProfit: number;
+  forecastCost: number | null;
+  forecastProfit: number | null;
   marginPercent: number | null;
   estimatedMinutes: number;
   loggedMinutes: number;
   provisionalProjectCount: number;
   allocationMethods: string[];
 };
+
+/** Chart-row subtitle for a work group: says when projects were left out of the money totals. */
+export function operationalGroupDetail(
+  group: Pick<PortfolioOperationalGroupRow, "projectCount" | "incompleteProjectCount">,
+): string {
+  const base = `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`;
+  return group.incompleteProjectCount
+    ? `${base} · ${group.incompleteProjectCount} excluded from money totals: fee or forecast missing`
+    : base;
+}
 
 export const PROJECT_TYPE_ORDER = [
   "Scanning & Modeling",
@@ -1050,11 +1064,16 @@ type GroupAccumulator = {
   projectIds: Set<string>;
   allocatedRevenue: number;
   actualCostToDate: number;
-  actualCostKnown: boolean;
+  /** True once any project with known financials lacks a current-cost figure for this group. */
+  actualCostMissing: boolean;
   forecastCost: number;
   forecastProfit: number;
   estimatedMinutes: number;
   loggedMinutes: number;
+  /** Projects whose fee and forecast are known; only these contribute to the money totals. */
+  financialProjectIds: Set<string>;
+  /** Projects left out of the money totals because their fee or forecast cost is missing. */
+  incompleteProjectIds: Set<string>;
   provisionalProjectIds: Set<string>;
   allocationMethods: Set<string>;
 };
@@ -1127,11 +1146,13 @@ export async function getPortfolioOperationalGroups(
       projectIds: new Set(),
       allocatedRevenue: 0,
       actualCostToDate: 0,
-      actualCostKnown: false,
+      actualCostMissing: false,
       forecastCost: 0,
       forecastProfit: 0,
       estimatedMinutes: 0,
       loggedMinutes: 0,
+      financialProjectIds: new Set(),
+      incompleteProjectIds: new Set(),
       provisionalProjectIds: new Set(),
       allocationMethods: new Set(),
     };
@@ -1274,6 +1295,11 @@ export async function getPortfolioOperationalGroups(
             ? costTotal
             : groups.length;
     const clientFee = numberOrNull(project.clientFee);
+    // Missing is never zero: a project without a client fee or forecast cost is counted as
+    // incomplete and left out of the money totals instead of adding $0 revenue or $0 cost.
+    const projectFinancialsKnown =
+      clientFee !== null && numberOrNull(project.forecastCost) !== null && allocationTotal > 0;
+    const projectActualKnown = numberOrNull(project.actualTotalCost) !== null;
 
     groups.forEach((group) => {
       const name = group.groupName as PortfolioOperationalGroupRow["groupName"];
@@ -1281,9 +1307,11 @@ export async function getPortfolioOperationalGroups(
       const target = numberOrNull(group.targetCost) ?? 0;
       const groupActualLabor = numberOrNull(group.actualLaborCost);
       const groupActualNonLabor = numberOrNull(group.actualNonLaborCost);
-      const actualKnown = groupActualLabor !== null || groupActualNonLabor !== null;
+      const actualKnown =
+        projectActualKnown && (groupActualLabor !== null || groupActualNonLabor !== null);
       const actual = Math.max((groupActualLabor ?? 0) + (groupActualNonLabor ?? 0), 0);
-      const forecast = Math.max(numberOrNull(group.forecastCost) ?? 0, 0);
+      const groupForecast = numberOrNull(group.forecastCost);
+      const forecast = Math.max(groupForecast ?? 0, 0);
       const basis =
         allocationMethod === "Task-list target cost"
           ? target
@@ -1292,14 +1320,18 @@ export async function getPortfolioOperationalGroups(
             : allocationMethod === "Forecast cost"
               ? forecast
               : 1;
-      const allocatedRevenue =
-        clientFee === null || allocationTotal <= 0 ? 0 : clientFee * (basis / allocationTotal);
       accumulator.projectIds.add(project.id);
-      accumulator.allocatedRevenue += allocatedRevenue;
-      accumulator.actualCostToDate += actual;
-      accumulator.actualCostKnown = accumulator.actualCostKnown || actualKnown;
-      accumulator.forecastCost += forecast;
-      accumulator.forecastProfit += allocatedRevenue - forecast;
+      if (projectFinancialsKnown && clientFee !== null && groupForecast !== null) {
+        const allocatedRevenue = clientFee * (basis / allocationTotal);
+        accumulator.financialProjectIds.add(project.id);
+        accumulator.allocatedRevenue += allocatedRevenue;
+        accumulator.forecastCost += forecast;
+        accumulator.forecastProfit += allocatedRevenue - forecast;
+        if (actualKnown) accumulator.actualCostToDate += actual;
+        else accumulator.actualCostMissing = true;
+      } else {
+        accumulator.incompleteProjectIds.add(project.id);
+      }
       accumulator.estimatedMinutes += group.estimatedMinutes;
       accumulator.loggedMinutes += group.loggedMinutes;
       if (project.isProvisional) accumulator.provisionalProjectIds.add(project.id);
@@ -1317,23 +1349,33 @@ export async function getPortfolioOperationalGroups(
   return order
     .map((groupName) => output.get(groupName))
     .filter((value): value is GroupAccumulator => Boolean(value))
-    .map((value) => ({
-      groupName: value.groupName,
-      projectCount: value.projectIds.size,
-      allocatedRevenue: value.allocatedRevenue,
-      actualCostToDate: value.actualCostKnown ? value.actualCostToDate : null,
-      remainingCost: value.actualCostKnown
-        ? Math.max(value.forecastCost - value.actualCostToDate, 0)
-        : null,
-      forecastCost: value.forecastCost,
-      forecastProfit: value.forecastProfit,
-      marginPercent:
-        value.allocatedRevenue === 0 ? null : (value.forecastProfit / value.allocatedRevenue) * 100,
-      estimatedMinutes: value.estimatedMinutes,
-      loggedMinutes: value.loggedMinutes,
-      provisionalProjectCount: value.provisionalProjectIds.size,
-      allocationMethods: [...value.allocationMethods].sort(),
-    }));
+    .map((value) => {
+      // Money totals describe only the projects with a known fee and forecast; a group with
+      // none of those has no money figures at all (null), not zeros.
+      const hasFinancials = value.financialProjectIds.size > 0;
+      const actualKnown = hasFinancials && !value.actualCostMissing;
+      return {
+        groupName: value.groupName,
+        projectCount: value.projectIds.size,
+        financialProjectCount: value.financialProjectIds.size,
+        incompleteProjectCount: value.incompleteProjectIds.size,
+        allocatedRevenue: hasFinancials ? value.allocatedRevenue : null,
+        actualCostToDate: actualKnown ? value.actualCostToDate : null,
+        remainingCost: actualKnown
+          ? Math.max(value.forecastCost - value.actualCostToDate, 0)
+          : null,
+        forecastCost: hasFinancials ? value.forecastCost : null,
+        forecastProfit: hasFinancials ? value.forecastProfit : null,
+        marginPercent:
+          !hasFinancials || value.allocatedRevenue === 0
+            ? null
+            : (value.forecastProfit / value.allocatedRevenue) * 100,
+        estimatedMinutes: value.estimatedMinutes,
+        loggedMinutes: value.loggedMinutes,
+        provisionalProjectCount: value.provisionalProjectIds.size,
+        allocationMethods: [...value.allocationMethods].sort(),
+      };
+    });
 }
 
 export async function getComparedProjectOperationalGroups(

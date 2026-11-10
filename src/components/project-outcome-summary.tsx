@@ -4,6 +4,8 @@ type OutcomeRow = {
   label: string;
   detail?: string;
   values: Record<string, number | null>;
+  /** A provisional margin is a ceiling and is never coloured as a confirmed (green) result. */
+  provisional?: boolean;
 };
 
 function finite(value: number | null | undefined): value is number {
@@ -46,7 +48,14 @@ export function ProjectOutcomeSummary({
           const progress = finite(row.values.progress) ? row.values.progress : null;
           const progressWidth = progress === null ? 0 : Math.max(0, Math.min(progress, 100));
           const style = { "--outcome-progress": `${progressWidth}%` } as CSSProperties;
-          const marginTone = margin === null ? "unknown" : margin < 0 ? "loss" : "profit";
+          const marginTone =
+            margin === null
+              ? "unknown"
+              : margin < 0
+                ? "loss"
+                : row.provisional
+                  ? "provisional"
+                  : "profit";
 
           return (
             <div className="project-outcome-summary__row" key={row.label}>
@@ -59,7 +68,11 @@ export function ProjectOutcomeSummary({
               >
                 <strong>{formatPercent(margin)}</strong>
                 <small>
-                  {margin !== null && margin < 0 ? "Forecast loss" : "Margin / ceiling"}
+                  {margin !== null && margin < 0
+                    ? "Forecast loss"
+                    : row.provisional
+                      ? "Margin ceiling"
+                      : "Forecast margin"}
                 </small>
               </div>
               <div className="project-outcome-summary__completion">

@@ -5,6 +5,7 @@ import {
   getPortfolioHistoricalProfitSeries,
   getPortfolioOperationalGroups,
   getProjectRows,
+  operationalGroupDetail,
   summarizeProjects,
   type ProjectFilter,
 } from "@/lib/reporting/dashboard-data";
@@ -44,7 +45,7 @@ export async function getFinancialPageData(
     : undefined;
   const reconciliationRows = operationalGroups.map((group) => ({
     label: group.groupName,
-    detail: `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`,
+    detail: operationalGroupDetail(group),
     revenue: group.allocatedRevenue,
     cost: group.forecastCost,
     actualCost: group.actualCostToDate,
@@ -52,6 +53,7 @@ export async function getFinancialPageData(
     profit: group.forecastProfit,
     margin: group.marginPercent,
     projectCount: group.projectCount,
+    provisional: group.provisionalProjectCount > 0,
   }));
   const profitabilityRows = reconciliationRows.filter((row) => row.label !== "Unclassified");
   const projectById = new Map(projects.map((project) => [project.id, project]));

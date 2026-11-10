@@ -1014,6 +1014,23 @@ textarea {
 .portfolio-composition__hero-metrics .is-loss strong {
   color: var(--red);
 }
+/* Provisional profit is a known subtotal, not a confirmed result; missing profit is neutral. */
+.portfolio-composition__hero-metrics .is-provisional strong,
+.portfolio-composition__outcome.is-provisional strong {
+  color: #8a5a00;
+}
+.portfolio-composition__hero-metrics .is-missing strong,
+.portfolio-composition__outcome.is-missing strong {
+  color: #5b6b80;
+}
+/* Provisional profit is drawn as an amber hatched estimate, not a solid green result. */
+.portfolio-composition__track.is-provisional .portfolio-composition__profit {
+  background: repeating-linear-gradient(-45deg, #f6e3b8 0 6px, #fdf3dc 6px 12px);
+}
+.portfolio-composition__flag {
+  color: #8a5a00;
+  font-weight: 700;
+}
 
 .portfolio-composition__row--hero .portfolio-composition__plot {
   width: 100%;
@@ -2567,6 +2584,11 @@ textarea {
   background: #fbeceb;
 }
 
+/* Missing or provisional profit: neither confirmed green nor loss red. */
+.compare-profitability-rows__outcome--neutral strong {
+  color: #5b6b80;
+}
+
 .compare-profitability-rows__track {
   height: 28px;
   overflow: visible;
@@ -2742,6 +2764,16 @@ textarea {
 }
 .compare-register__money.is-loss strong {
   color: var(--red);
+}
+/* Provisional profit is a known subtotal, not a confirmed result; missing profit is neutral. */
+.compare-register__money.is-provisional strong,
+.project-table__money--provisional strong,
+.project-outcome-summary__margin--provisional strong {
+  color: #8a5a00;
+}
+.compare-register__money.is-missing strong,
+.project-table__money--missing strong {
+  color: #5b6b80;
 }
 
 .compare-register__coverage {
@@ -3244,7 +3276,8 @@ textarea {
   }
 
   .portfolio-composition__identity,
-  .portfolio-composition__plot {
+  .portfolio-composition__plot,
+  .portfolio-composition__hero-metrics {
     grid-column: 1 / -1;
   }
 
@@ -9075,4 +9108,36 @@ textarea {
   .portfolio-standout:last-child {
     border-bottom: 0;
   }
+}
+
+/* Project report and MMM: reuse the Company Overview pulse and forecast strip. */
+.project-pulse__reasons {
+  margin: 0 0 8px;
+  padding-left: 1rem;
+  color: rgb(255 255 255 / 85%);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+.project-titlebar .report-titlebar__status .tag {
+  margin-left: 6px;
+}
+.project-report .chart-grid--project {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.project-report .chart-grid--project .chart-panel:first-child {
+  grid-column: auto;
+}
+@media (max-width: 1100px) {
+  .project-report .chart-grid--project {
+    grid-template-columns: 1fr;
+  }
+}
+/* The green second stat is Company Overview's cost coverage; elsewhere keep it neutral. */
+.project-report .company-pulse__stat:nth-child(2),
+.mmm-report .company-pulse__stat:nth-child(2) {
+  border-top-color: #315f8b;
+}
+.project-report .company-pulse__stat:nth-child(2) strong,
+.mmm-report .company-pulse__stat:nth-child(2) strong {
+  color: #0b2d4d;
 }

@@ -19,3 +19,16 @@ describe("margin tone", () => {
     expect(marginTone(value)).toBe("neutral");
   });
 });
+
+describe("provisional margin tone", () => {
+  it("shows a provisional margin that would be green as yellow", () => {
+    expect(marginTone(75, { provisional: true })).toBe("yellow");
+    expect(marginTone(75, { provisional: false })).toBe("green");
+  });
+
+  it("keeps red, yellow and neutral unchanged for provisional margins", () => {
+    expect(marginTone(10, { provisional: true })).toBe("red");
+    expect(marginTone(40, { provisional: true })).toBe("yellow");
+    expect(marginTone(null, { provisional: true })).toBe("neutral");
+  });
+});
