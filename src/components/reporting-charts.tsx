@@ -519,7 +519,10 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
                 </td>
                 <td>{project.companyName ?? "\u2014"}</td>
                 <td>
-                  <MarginBadge value={project.forecastMarginPercent} />
+                  <MarginBadge
+                    value={project.forecastMarginPercent}
+                    provisional={project.isProvisional}
+                  />
                   {project.isProvisional ? (
                     <small className="table-subvalue table-subvalue--warning">Ceiling</small>
                   ) : (

@@ -8,4 +8,6 @@ export type ProfitabilityRow = {
   profit: number | null;
   margin?: number | null;
   projectCount?: number;
+  /** True when any included project's forecast is provisional; profit is then never green. */
+  provisional?: boolean;
 };

@@ -490,3 +490,100 @@ describe("portfolio operational group model", () => {
     expect(groups.some((group) => group.groupName === "Admin")).toBe(false);
   });
 });
+
+describe("portfolio operational groups with missing financial inputs", () => {
+  const groupRow = (projectId: string, groupName: string, forecastCost: string | null) => ({
+    projectId,
+    groupName,
+    targetCost: null,
+    estimatedMinutes: 60,
+    loggedMinutes: 30,
+    actualLaborCost: "100.00",
+    actualNonLaborCost: "0.00",
+    forecastCost,
+  });
+  const complete: ProjectReportRow = {
+    ...base,
+    id: "complete",
+    teamworkId: 10,
+    clientFee: "1000.00",
+    actualLaborCost: "100.00",
+    actualNonLaborCost: "0.00",
+    actualTotalCost: "100.00",
+    forecastCost: "600.00",
+    canonicalEstimatedMinutes: 60,
+    loggedMinutes: 30,
+    isProvisional: false,
+  };
+
+  it("leaves a project with no client fee out of the money totals instead of booking a loss", async () => {
+    const noFee: ProjectReportRow = { ...complete, id: "no-fee", teamworkId: 11, clientFee: null };
+    const [fieldwork] = await getPortfolioOperationalGroups(
+      [complete, noFee],
+      [groupRow(complete.id, "Fieldwork", "600.00"), groupRow(noFee.id, "Fieldwork", "600.00")],
+    );
+    expect(fieldwork).toMatchObject({
+      groupName: "Fieldwork",
+      projectCount: 2,
+      financialProjectCount: 1,
+      incompleteProjectCount: 1,
+      allocatedRevenue: 1000,
+      forecastCost: 600,
+      forecastProfit: 400,
+      marginPercent: 40,
+      actualCostToDate: 100,
+      remainingCost: 500,
+      // Hours still include every project.
+      estimatedMinutes: 120,
+    });
+  });
+
+  it("does not count a missing forecast cost as $0 (which would make all revenue profit)", async () => {
+    const noForecast: ProjectReportRow = {
+      ...complete,
+      id: "no-forecast",
+      teamworkId: 12,
+      forecastCost: null,
+    };
+    const [fieldwork] = await getPortfolioOperationalGroups(
+      [noForecast],
+      [groupRow(noForecast.id, "Fieldwork", null)],
+    );
+    expect(fieldwork).toMatchObject({
+      financialProjectCount: 0,
+      incompleteProjectCount: 1,
+      allocatedRevenue: null,
+      forecastCost: null,
+      forecastProfit: null,
+      marginPercent: null,
+      actualCostToDate: null,
+      remainingCost: null,
+    });
+  });
+
+  it("marks group current costs unknown when any included project lacks them", async () => {
+    const noActual: ProjectReportRow = {
+      ...complete,
+      id: "no-actual",
+      teamworkId: 13,
+      actualTotalCost: null,
+      actualLaborCost: null,
+      actualNonLaborCost: null,
+    };
+    const [fieldwork] = await getPortfolioOperationalGroups(
+      [complete, noActual],
+      [
+        groupRow(complete.id, "Fieldwork", "600.00"),
+        {
+          ...groupRow(noActual.id, "Fieldwork", "600.00"),
+          actualLaborCost: null,
+          actualNonLaborCost: null,
+        },
+      ],
+    );
+    expect(fieldwork.financialProjectCount).toBe(2);
+    expect(fieldwork.forecastProfit).toBe(800);
+    expect(fieldwork.actualCostToDate).toBeNull();
+    expect(fieldwork.remainingCost).toBeNull();
+  });
+});

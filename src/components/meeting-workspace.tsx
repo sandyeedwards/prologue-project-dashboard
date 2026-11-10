@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { PortfolioFinancialComposition } from "@/components/portfolio-financial-composition";
+import { combineProjectForecasts } from "@/lib/reporting/forecast-position";
 import { dateLabel, hours, money, percent, reportingTimestamp } from "@/lib/reporting/format";
 import {
   filterMeetingProjects,
+  forecastConfidence,
   meetingTaskComplete,
   type MeetingProject,
   type MeetingTask,
@@ -12,27 +15,37 @@ import {
 } from "@/lib/reporting/mmm-report";
 import styles from "@/app/mmm/mmm.module.css";
 
-function MetricCard({
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  detail: string;
-  tone?: string;
-}) {
-  return (
-    <article className={`metric-card metric-card--secondary${tone ? ` metric-card--${tone}` : ""}`}>
-      <header className="metric-card__header">
-        <span className="metric-card__indicator" aria-hidden="true" />
-        <p className="metric-card__label">{label}</p>
-      </header>
-      <div className="metric-card__value">{value}</div>
-      <p className="metric-card__detail">{detail}</p>
-    </article>
-  );
+function amount(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function projectTone(project: MeetingProject): "red" | "amber" | "green" {
+  return project.signals.some((signal) => signal.tone === "red")
+    ? "red"
+    : project.signals.length
+      ? "amber"
+      : "green";
+}
+
+function forecastRow(project: MeetingProject) {
+  const metrics = project.metrics;
+  const revenue = amount(metrics?.clientFee);
+  if (!metrics || revenue === null) return null;
+  const actual = amount(metrics.actualTotalCost);
+  const cost = amount(metrics.forecastCost);
+  return {
+    label: project.name,
+    revenue,
+    cost,
+    actualCost: actual,
+    remainingCost: cost === null || actual === null ? null : Math.max(cost - actual, 0),
+    profit: amount(metrics.forecastProfit),
+    margin: amount(metrics.forecastMarginPercent),
+    projectCount: 1,
+    provisional: metrics.isProvisional,
+  };
 }
 
 function variance(minutes: number | null) {
@@ -223,60 +236,119 @@ function ProjectBreakdown({
   teamworkBase: string | null;
   today: string;
 }) {
+  const tone = projectTone(project);
+  const outlook = forecastRow(project);
+  const openTasks = project.tasks.length - project.completedTasks;
   return (
     <div className={styles.projectBody}>
-      <div className={styles.links}>
-        <Link className="button button--secondary button--small" href={`/projects/${project.id}`}>
-          Full project report
-        </Link>
-        {teamworkBase ? (
-          <a
-            className="button button--secondary button--small"
-            href={`${teamworkBase}/app/projects/${project.teamworkId}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open in Teamwork
-          </a>
-        ) : null}
+      <header className={styles.breakdownHeader} data-tone={tone}>
+        <div>
+          <p className="eyebrow">Project breakdown</p>
+          <h3>{project.name}</h3>
+          <p>
+            {project.companyName ?? "No client"} · {project.owner ?? "No owner"} ·{" "}
+            {dateLabel(project.startDate)} – {dateLabel(project.endDate)}
+          </p>
+          <p>
+            <span className={styles.dealLabel}>HubSpot deal</span>{" "}
+            {project.hubspotDeal ? (
+              project.hubspotDeal.url ? (
+                <a href={project.hubspotDeal.url} target="_blank" rel="noreferrer">
+                  {project.hubspotDeal.name ?? "Linked deal (name unavailable)"}
+                </a>
+              ) : (
+                (project.hubspotDeal.name ?? "Linked deal (name unavailable)")
+              )
+            ) : (
+              <span className={styles.muted}>No linked deal found</span>
+            )}
+          </p>
+        </div>
+        <div className={styles.links}>
+          <Link className="button button--secondary button--small" href={`/projects/${project.id}`}>
+            Full project report
+          </Link>
+          {teamworkBase ? (
+            <a
+              className="button button--secondary button--small"
+              href={`${teamworkBase}/app/projects/${project.teamworkId}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open in Teamwork
+            </a>
+          ) : null}
+        </div>
+      </header>
+
+      <div className={styles.breakdownGrid}>
+        <section className={styles.signals} data-tone={tone} aria-label="Discussion points">
+          <h4>
+            {tone === "red"
+              ? "Action needed"
+              : tone === "amber"
+                ? "Review before relying on the forecast"
+                : "No current flags"}
+          </h4>
+          {project.signals.length ? (
+            <ul>
+              {project.signals.map((signal) => (
+                <li data-tone={signal.tone} key={signal.label}>
+                  {signal.label}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No current delivery or reporting flags.</p>
+          )}
+          <p className={styles.activity}>
+            <strong>Last week:</strong> {hours(project.lastWeekMinutes)} logged ·{" "}
+            {project.completedLastWeek} tasks completed
+            <br />
+            <strong>This week:</strong> {project.dueThisWeek} open tasks due ·{" "}
+            {project.overdueTasks} overdue
+          </p>
+        </section>
+        <section className={styles.outlook} aria-label="Financial outlook">
+          <h4>Profit forecast</h4>
+          {outlook ? (
+            <PortfolioFinancialComposition rows={[outlook]} variant="total" showHeroMetrics />
+          ) : (
+            <p className="chart-empty">
+              {project.metrics
+                ? "No client fee is recorded, so profit cannot be forecast."
+                : "This project has not been calculated yet."}
+            </p>
+          )}
+          {/* With a forecast bar shown, the bar carries the provisional note itself. */}
+          {project.metrics?.isProvisional && !outlook ? (
+            <p className={styles.warning}>Provisional: missing inputs may increase costs.</p>
+          ) : null}
+        </section>
       </div>
-      <div
-        className={styles.signals}
-        data-tone={
-          project.signals.some((signal) => signal.tone === "red")
-            ? "red"
-            : project.signals.length
-              ? "amber"
-              : "green"
-        }
-      >
-        {project.signals.length ? (
-          <ul>
-            {project.signals.map((signal) => (
-              <li
-                className={signal.tone === "red" ? styles.negative : styles.warning}
-                key={signal.label}
-              >
-                {signal.label}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No current delivery or reporting flags.</p>
-        )}
-      </div>
+
       <div className={styles.stats}>
         <div>
-          <span>Internal estimate</span>
-          <strong>{hours(project.metrics?.canonicalEstimatedMinutes)}</strong>
+          <span>Tasks complete</span>
+          <strong>
+            {project.completedTasks} / {project.tasks.length}
+          </strong>
+          <small>
+            {openTasks} open ·{" "}
+            {project.progressPercent === null
+              ? "no tasks"
+              : `${percent(project.progressPercent, 0)} complete`}
+          </small>
         </div>
         <div>
-          <span>Logged to date</span>
+          <span>Logged of internal estimate</span>
           <strong>{hours(project.metrics?.loggedMinutes)}</strong>
+          <small>of {hours(project.metrics?.canonicalEstimatedMinutes)} estimated</small>
         </div>
         <div data-tone="blue">
           <span>Estimated remaining</span>
           <strong>{hours(project.remainingMinutes)}</strong>
+          <small>Unused estimates on open internal work</small>
         </div>
         <div
           data-tone={
@@ -291,51 +363,17 @@ function ProjectBreakdown({
           <strong>{hours(project.forecastMinutes)}</strong>
           <small>{variance(project.varianceMinutes)}</small>
         </div>
-        <div>
-          <span>Client fee</span>
-          <strong>{money(project.metrics?.clientFee)}</strong>
-        </div>
-        <div>
-          <span>Current costs</span>
-          <strong>{money(project.metrics?.actualTotalCost)}</strong>
-        </div>
-        <div
-          data-tone={
-            project.metrics?.forecastCost == null || project.metrics?.isProvisional
-              ? "amber"
-              : "blue"
-          }
-        >
-          <span>Projected final cost</span>
-          <strong>{money(project.metrics?.forecastCost)}</strong>
-        </div>
-        <div
-          data-tone={
-            project.metrics?.forecastProfit == null
-              ? "amber"
-              : Number(project.metrics.forecastProfit) < 0
-                ? "red"
-                : project.metrics.isProvisional
-                  ? "amber"
-                  : "green"
-          }
-        >
-          <span>Projected profit</span>
-          <strong>{money(project.metrics?.forecastProfit)}</strong>
-          <small>{percent(project.metrics?.forecastMarginPercent)} margin</small>
-        </div>
       </div>
-      <p className={styles.activity}>
-        <strong>Last week:</strong> {hours(project.lastWeekMinutes)} logged ·{" "}
-        {project.completedLastWeek} tasks completed. <strong>This week:</strong>{" "}
-        {project.dueThisWeek} open tasks due.{" "}
-        {project.unallocatedMinutes > 0
-          ? `${hours(project.unallocatedMinutes)} of total logged time has no task and is included in the project total.`
-          : ""}
-      </p>
-      <h3>Work-group progress</h3>
+      {project.unallocatedMinutes > 0 ? (
+        <p className={styles.freshness}>
+          {hours(project.unallocatedMinutes)} of logged time has no task and is included in the
+          project total.
+        </p>
+      ) : null}
+
+      <h4>Work-group progress</h4>
       <div className="table-wrap">
-        <table className="data-table">
+        <table className={`data-table ${styles.stageTable}`}>
           <thead>
             <tr>
               <th>Work group</th>
@@ -352,13 +390,21 @@ function ProjectBreakdown({
                 <td>
                   <strong>{stage.name}</strong>
                 </td>
-                <td>
+                <td data-label="Tasks complete">
                   {stage.completed}/{stage.tasks.length}
+                  {stage.tasks.length ? (
+                    <progress
+                      max={stage.tasks.length}
+                      value={stage.completed}
+                      aria-label={`${stage.name}: ${stage.completed} of ${stage.tasks.length} tasks complete`}
+                    />
+                  ) : null}
                 </td>
-                <td>{hours(stage.estimatedMinutes)}</td>
-                <td>{hours(stage.loggedMinutes)}</td>
-                <td>{hours(stage.remainingMinutes)}</td>
+                <td data-label="Internal estimate">{hours(stage.estimatedMinutes)}</td>
+                <td data-label="Logged">{hours(stage.loggedMinutes)}</td>
+                <td data-label="Estimated remaining">{hours(stage.remainingMinutes)}</td>
                 <td
+                  data-label="Projected final hours"
                   data-tone={
                     stage.forecastMinutes === null
                       ? "amber"
@@ -374,8 +420,17 @@ function ProjectBreakdown({
           </tbody>
         </table>
       </div>
-      <h3>Task review</h3>
-      <TaskDetail project={project} teamworkBase={teamworkBase} today={today} />
+
+      <details className={styles.taskReview} data-print-open>
+        <summary>
+          <span>Task review</span>
+          <small>
+            {openTasks} open · {project.overdueTasks} overdue · {project.exhaustedEstimates}{" "}
+            estimate{project.exhaustedEstimates === 1 ? "" : "s"} used up
+          </small>
+        </summary>
+        <TaskDetail project={project} teamworkBase={teamworkBase} today={today} />
+      </details>
       <p className={styles.freshness}>
         Last source sync: {reportingTimestamp(project.lastSyncedAt)} · Forecast calculated:{" "}
         {reportingTimestamp(project.metrics?.calculatedAt)}
@@ -399,6 +454,25 @@ export function MeetingWorkspace({
   const [focus, setFocus] = useState("ALL");
   const [sort, setSort] = useState("PRIORITY");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [focusId, setFocusId] = useState<string | null>(null);
+  // Bring a newly opened project into the middle of the screen. A breakdown taller than the
+  // window is aligned to its project row instead, so the row and summary stay visible.
+  useEffect(() => {
+    if (!focusId) return;
+    const frame = requestAnimationFrame(() => {
+      const row = document.getElementById(`meeting-row-${focusId}`);
+      const panel = document.getElementById(`meeting-${focusId}`);
+      if (!row) return;
+      const top = row.getBoundingClientRect().top + window.scrollY;
+      const height = row.offsetHeight + (panel?.offsetHeight ?? 0);
+      const target =
+        height < window.innerHeight * 0.9 ? top - (window.innerHeight - height) / 2 : top - 16;
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: Math.max(target, 0), behavior: reduce ? "auto" : "smooth" });
+      setFocusId(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusId, expanded]);
   const visible = useMemo(
     () => filterMeetingProjects(projects, { query, owner, client, focus, sort }),
     [projects, query, owner, client, focus, sort],
@@ -408,18 +482,57 @@ export function MeetingWorkspace({
   const openTasks = visible.reduce((sum, p) => sum + p.tasks.length - p.completedTasks, 0);
   const overdue = visible.reduce((sum, p) => sum + p.overdueTasks, 0);
   const knownHours = visible.filter((p) => p.forecastMinutes !== null);
-  const knownProfit = visible.filter((p) => p.metrics?.forecastProfit != null);
+  const needsDiscussion = visible.filter((p) => p.signals.length);
+  const actionNeeded = visible.filter((p) => projectTone(p) === "red");
+  const dueThisWeek = visible.reduce((sum, p) => sum + p.dueThisWeek, 0);
+  const loggedMinutes = visible.reduce((sum, p) => sum + (p.metrics?.loggedMinutes ?? 0), 0);
+  const estimatedMinutes = visible.reduce(
+    (sum, p) => sum + (p.metrics?.canonicalEstimatedMinutes ?? 0),
+    0,
+  );
+  // Each project counted once: fully costed, provisional, or without a forecast.
+  const confidence = forecastConfidence(visible);
+  // Same rule as Company Overview: only projects with a fee, current costs and forecast cost are
+  // combined, so revenue − forecast cost equals the stated profit; the rest are counted.
+  const combined = combineProjectForecasts(visible.flatMap((p) => (p.metrics ? [p.metrics] : [])));
+  const meetingForecast = combined
+    ? {
+        label: "Active projects shown",
+        detail: `${combined.includedCount} of ${visible.length} projects${
+          visible.length - combined.includedCount
+            ? ` · ${visible.length - combined.includedCount} excluded: not calculated, or fee or costs missing`
+            : ""
+        }`,
+        revenue: combined.revenue,
+        cost: combined.forecastCost,
+        actualCost: combined.actualCost,
+        remainingCost: combined.remainingCost,
+        profit: combined.profit,
+        margin: combined.margin,
+        projectCount: combined.includedCount,
+        provisional: combined.provisionalCount > 0,
+      }
+    : null;
+  const meetingPulse = !visible.length
+    ? "No active projects match these filters."
+    : actionNeeded.length
+      ? `${actionNeeded.length} project${actionNeeded.length === 1 ? " needs" : "s need"} action this week${overdue ? `, with ${overdue} overdue task${overdue === 1 ? "" : "s"}` : ""}.`
+      : needsDiscussion.length
+        ? `No urgent actions; ${needsDiscussion.length} project${needsDiscussion.length === 1 ? " has" : "s have"} inputs or estimates to review.`
+        : "Every project shown is on track with no current flags.";
   const oldestCalculation = projects
     .map((p) => p.metrics?.calculatedAt)
     .filter((value): value is Date => !!value)
     .sort((a, b) => a.getTime() - b.getTime())[0];
   const review = (id: string) => {
+    const opening = !expanded.has(id);
     setExpanded((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    if (opening) setFocusId(id);
   };
   const reset = () => {
     setQuery("");
@@ -429,13 +542,13 @@ export function MeetingWorkspace({
     setSort("PRIORITY");
   };
   return (
-    <main className={`shell shell--wide ${styles.workspace}`}>
+    <main className={`shell shell--wide executive-dashboard mmm-report ${styles.workspace}`}>
       <div className="breadcrumb">
         <Link href="/dashboard">Company Overview</Link>
         <span>/</span>
         <span>MMM</span>
       </div>
-      <section className="report-titlebar">
+      <section className="report-titlebar report-titlebar--executive">
         <div className="report-titlebar__copy">
           <p className="eyebrow">Active project review</p>
           <h1>Monday Morning Meeting</h1>
@@ -454,7 +567,14 @@ export function MeetingWorkspace({
             className="button button--secondary"
             onClick={() => {
               setExpanded(new Set(visible.map((project) => project.id)));
-              requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+              requestAnimationFrame(() =>
+                requestAnimationFrame(() => {
+                  document
+                    .querySelectorAll<HTMLDetailsElement>("details[data-print-open]")
+                    .forEach((details) => (details.open = true));
+                  window.print();
+                }),
+              );
             }}
           >
             Print meeting report
@@ -466,6 +586,85 @@ export function MeetingWorkspace({
         their individual sync and calculation times. Last week means{" "}
         {dateLabel(period.lastWeekStart)}–{dateLabel(period.lastWeekEnd)}.
       </p>
+      <section className="company-pulse company-pulse--executive" aria-label="Meeting summary">
+        <div className="company-pulse__summary">
+          <p className="eyebrow">This week</p>
+          <h2>{meetingPulse}</h2>
+          {needsDiscussion.length && focus !== "ATTENTION" ? (
+            <button
+              type="button"
+              className={styles.pulseLink}
+              onClick={() => setFocus("ATTENTION")}
+            >
+              Show {needsDiscussion.length} project{needsDiscussion.length === 1 ? "" : "s"} to
+              discuss
+            </button>
+          ) : null}
+        </div>
+        <div className="company-pulse__stat">
+          <span>Projects to discuss</span>
+          <strong>
+            {needsDiscussion.length} of {visible.length}
+          </strong>
+          <small>
+            {actionNeeded.length} need action · {projects.length} active in total
+          </small>
+        </div>
+        <div className="company-pulse__stat">
+          <span>Open tasks</span>
+          <strong>{openTasks}</strong>
+          <small>
+            {overdue} overdue · {dueThisWeek} due this week
+          </small>
+        </div>
+        <div className="company-pulse__stat">
+          <span>Hours used</span>
+          <strong>
+            {estimatedMinutes ? percent((loggedMinutes / estimatedMinutes) * 100, 0) : "N/A"}
+          </strong>
+          <small>
+            {hours(loggedMinutes)} of {hours(estimatedMinutes)} internal estimate ·{" "}
+            {knownHours.length
+              ? `${hours(knownHours.reduce((total, p) => total + (p.forecastMinutes ?? 0), 0))} projected`
+              : "projection unavailable"}
+          </small>
+        </div>
+        <div className="company-pulse__stat">
+          <span>Forecast confidence</span>
+          <strong>
+            {confidence.fullyCosted} of {visible.length}
+          </strong>
+          <small>
+            {confidence.provisional || confidence.withoutForecast
+              ? [
+                  confidence.provisional ? `${confidence.provisional} provisional` : null,
+                  confidence.withoutForecast
+                    ? `${confidence.withoutForecast} without a forecast`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : "all fully costed"}
+          </small>
+        </div>
+      </section>
+      <section className="report-section company-forecast-strip company-forecast-strip--full">
+        <div className="company-forecast-strip__heading">
+          <div>
+            <p className="eyebrow">Financial outlook</p>
+            <h2>Profit Forecast</h2>
+            <p>
+              Combined forecast for the active projects shown, from the shared project calculation.
+            </p>
+          </div>
+          <span>Reflects the filters below.</span>
+        </div>
+        {meetingForecast ? (
+          <PortfolioFinancialComposition rows={[meetingForecast]} variant="total" showHeroMetrics />
+        ) : (
+          <div className="chart-empty">No calculated client fees for the projects shown.</div>
+        )}
+      </section>
       <section className={styles.filters} aria-label="Meeting report filters">
         <label className={styles.search}>
           Find a project
@@ -513,37 +712,6 @@ export function MeetingWorkspace({
         <button className="button button--secondary" onClick={reset}>
           Reset
         </button>
-      </section>
-      <section className="metric-grid metric-grid--four" aria-label="Meeting summary">
-        <MetricCard
-          label="Active projects shown"
-          value={visible.length}
-          detail={`${visible.filter((p) => p.signals.length).length} need discussion · ${projects.length} active in total`}
-        />
-        <MetricCard
-          label="Open tasks"
-          value={openTasks}
-          detail={`${overdue} overdue · ${visible.reduce((sum, p) => sum + p.dueThisWeek, 0)} due this week`}
-          tone={overdue ? "warning" : undefined}
-        />
-        <MetricCard
-          label="Projected internal hours"
-          value={
-            knownHours.length
-              ? hours(knownHours.reduce((sum, p) => sum + (p.forecastMinutes ?? 0), 0))
-              : "Not available"
-          }
-          detail={`Known forecast for ${knownHours.length} of ${visible.length} projects; excludes vendor estimates`}
-        />
-        <MetricCard
-          label="Known projected profit"
-          value={
-            knownProfit.length
-              ? money(knownProfit.reduce((sum, p) => sum + Number(p.metrics!.forecastProfit), 0))
-              : "Not available"
-          }
-          detail={`${knownProfit.length} of ${visible.length} projects · ${visible.filter((p) => p.metrics?.isProvisional).length} provisional forecasts`}
-        />
       </section>
       <section className="report-section">
         <div className="section-heading">
@@ -595,6 +763,7 @@ export function MeetingWorkspace({
               {visible.map((project) => (
                 <Fragment key={project.id}>
                   <tr
+                    id={`meeting-row-${project.id}`}
                     className={styles.projectRow}
                     data-tone={
                       project.signals.some((s) => s.tone === "red")
@@ -623,8 +792,13 @@ export function MeetingWorkspace({
                       <small>
                         {project.companyName ?? "No client"} · {project.owner ?? "No owner"}
                       </small>
+                      {project.hubspotDeal ? (
+                        <small className={styles.dealName}>
+                          HubSpot: {project.hubspotDeal.name ?? "linked deal (name unavailable)"}
+                        </small>
+                      ) : null}
                     </td>
-                    <td>
+                    <td data-label="Task completion">
                       <strong>
                         {project.completedTasks} / {project.tasks.length}
                       </strong>
@@ -642,6 +816,7 @@ export function MeetingWorkspace({
                       ) : null}
                     </td>
                     <td
+                      data-label="Logged / estimated"
                       data-tone={
                         project.metrics &&
                         project.metrics.loggedMinutes > project.metrics.canonicalEstimatedMinutes
@@ -655,6 +830,7 @@ export function MeetingWorkspace({
                       </small>
                     </td>
                     <td
+                      data-label="Projected finish hours"
                       data-tone={
                         project.forecastMinutes === null
                           ? "amber"
@@ -672,7 +848,7 @@ export function MeetingWorkspace({
                         {variance(project.varianceMinutes)}
                       </small>
                     </td>
-                    <td>
+                    <td data-label="Projected profit">
                       <strong
                         className={
                           project.metrics?.forecastProfit == null
@@ -691,7 +867,7 @@ export function MeetingWorkspace({
                         {project.metrics?.isProvisional ? " · provisional" : ""}
                       </small>
                     </td>
-                    <td>
+                    <td data-label="Discuss / delivery">
                       {project.signals.length ? (
                         <>
                           <span
@@ -733,9 +909,6 @@ export function MeetingWorkspace({
                           aria-label={`${project.name} project breakdown`}
                           className={styles.inlineBreakdown}
                         >
-                          <h3 className={styles.breakdownTitle}>
-                            {project.name} · Project breakdown
-                          </h3>
                           <ProjectBreakdown
                             project={project}
                             teamworkBase={teamworkBase}

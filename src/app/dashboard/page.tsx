@@ -6,11 +6,11 @@ import { requireUser } from "@/lib/auth/session";
 import {
   filterAndSortProjects,
   getAvailableProjectTypes,
-  getPortfolioOperationalGroups,
   getProjectRows,
   summarizeProjects,
   type ProjectFilter,
 } from "@/lib/reporting/dashboard-data";
+import { combineProjectForecasts } from "@/lib/reporting/forecast-position";
 import { hours, money } from "@/lib/reporting/format";
 import { getPortfolioStandouts } from "@/lib/reporting/portfolio-standouts";
 import { projectWatchReasons } from "@/lib/reporting/project-watch-reasons";
@@ -61,7 +61,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   };
   const projects = filterAndSortProjects(allProjects, filter);
   const summary = summarizeProjects(projects);
-  const operationalGroups = await getPortfolioOperationalGroups(projects);
+  // One consistent project set for revenue, costs and profit: missing values are excluded and
+  // counted, never added as zero.
+  const companyForecast = combineProjectForecasts(projects);
   const statuses = [...new Set(allProjects.map((row) => row.status).filter(Boolean))].sort();
   const clients = [
     ...new Set(
@@ -69,36 +71,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     ),
   ].sort();
   const types = getAvailableProjectTypes(allProjects);
-  const reconciliationRows = operationalGroups.map((group) => ({
-    label: group.groupName,
-    detail: `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`,
-    revenue: group.allocatedRevenue,
-    cost: group.forecastCost,
-    actualCost: group.actualCostToDate,
-    remainingCost: group.remainingCost,
-    profit: group.forecastProfit,
-    margin: group.marginPercent,
-    projectCount: group.projectCount,
-  }));
-  const totalRemainingCost = reconciliationRows.length
-    ? reconciliationRows.reduce((sum, row) => {
-        if (row.remainingCost !== null && row.remainingCost !== undefined)
-          return sum + row.remainingCost;
-        if (
-          row.cost !== null &&
-          row.cost !== undefined &&
-          row.actualCost !== null &&
-          row.actualCost !== undefined
-        ) {
-          return sum + Math.max(row.cost - row.actualCost, 0);
-        }
-        return sum;
-      }, 0)
-    : null;
-  const forecastMargin =
-    summary.totalClientFee && summary.totalForecastProfit !== null
-      ? (summary.totalForecastProfit / summary.totalClientFee) * 100
-      : null;
   const hoursProgress = summary.totalEstimatedMinutes
     ? (summary.totalLoggedMinutes / summary.totalEstimatedMinutes) * 100
     : null;
@@ -127,17 +99,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     })
     .slice(0, 5);
   const portfolioStandouts = getPortfolioStandouts(projects);
-  const companyProfitabilityRow = summary.projectCount
+  const companyProfitabilityRow = companyForecast
     ? {
         label: "Company forecast",
-        detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"}`,
-        revenue: summary.totalClientFee,
-        cost: summary.totalForecastCost,
-        actualCost: summary.totalActualCost,
-        remainingCost: totalRemainingCost,
-        profit: summary.totalForecastProfit,
-        margin: forecastMargin,
-        projectCount: summary.projectCount,
+        detail: companyForecast.excludedCount
+          ? `${companyForecast.includedCount} of ${summary.projectCount} projects · ${companyForecast.excludedCount} excluded: client fee or costs missing`
+          : `${companyForecast.includedCount} project${companyForecast.includedCount === 1 ? "" : "s"}`,
+        revenue: companyForecast.revenue,
+        cost: companyForecast.forecastCost,
+        actualCost: companyForecast.actualCost,
+        remainingCost: companyForecast.remainingCost,
+        profit: companyForecast.profit,
+        margin: companyForecast.margin,
+        projectCount: companyForecast.includedCount,
+        provisional: companyForecast.provisionalCount > 0,
       }
     : null;
 
@@ -262,7 +237,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               showHeroMetrics
             />
           ) : (
-            <div className="chart-empty">No financial data matches these filters.</div>
+            <div className="chart-empty">
+              {summary.projectCount
+                ? "No project in this view has a client fee, current costs and forecast cost, so a profit forecast cannot be shown."
+                : "No financial data matches these filters."}
+            </div>
           )}
         </section>
 

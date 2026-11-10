@@ -123,16 +123,24 @@ export function buildHostingDataIssues(
       const compEnd = benaco ? deal.benaco_comp_end : deal.ivion_comp_end;
       const fee = benaco ? deal.benaco_contracted_fee : deal.ivion_contracted_fee;
       const feeAmount = numeric(fee);
-      const hasPlatform =
-        [start, end, compStart, compEnd, benaco ? deal.benaco_url : deal.ivion_instance].some(
-          present,
-        ) ||
-        [
-          fee,
-          benaco ? deal.benaco_total_panos : deal.ivion_total_panos,
-          benaco ? deal.benaco_counted_grid_panos : deal.ivion_active_panos,
-        ].some((value) => present(value) && numeric(value) !== 0);
-      if (!hasPlatform) continue;
+      // A platform is only checked once its identifier is known: the Benaco tour URL or the
+      // IVION instance. Pano counts, notes or placeholder dates alone (for example a Benaco site
+      // carrying stray IVION pano fields) do not establish that the record is on that platform.
+      if (!present(benaco ? deal.benaco_url : deal.ivion_instance)) continue;
+      // An IVION record that is only an instance link (no panos, no paid or complimentary dates,
+      // no fee) is an empty placeholder and is not reviewed. Once it has dates or a fee it can
+      // book revenue or cost, so blank pano counts are a real gap and are still reported.
+      if (
+        !benaco &&
+        !present(deal.ivion_active_panos) &&
+        !present(deal.ivion_total_panos) &&
+        !present(start) &&
+        !present(end) &&
+        !present(compStart) &&
+        !present(compEnd) &&
+        !((feeAmount ?? 0) > 0)
+      )
+        continue;
       const paidFrom = date(start),
         paidTo = date(end),
         freeFrom = date(compStart),
@@ -216,7 +224,10 @@ export function buildHostingDataIssues(
           [{ field: "Contracted fee", value: visible(fee) }],
           "ERROR",
         );
-      if ((feeAmount ?? 0) > 0 && !present(start) && !present(end))
+      // A fee with no paid term but populated complimentary dates is treated as complimentary
+      // hosting: the report already places revenue only at a paid start, so no warning is needed.
+      const complimentaryOnly = present(compStart) || present(compEnd);
+      if ((feeAmount ?? 0) > 0 && !present(start) && !present(end) && (loss || !complimentaryOnly))
         add(
           platform,
           loss ? "UNSOLD_CONTRACTED_FEE" : "FEE_WITHOUT_PAID_TERM",
@@ -348,11 +359,11 @@ export function buildHostingDataIssues(
       if (benaco) {
         const id = benacoTourId(deal.benaco_url);
         if (id) tourGroups.set(id, [...(tourGroups.get(id) ?? []), deal]);
-        else if (present(deal.benaco_url) || !knownClosed)
+        else
           add(
             platform,
             "MISSING_OR_INVALID_BENACO_URL",
-            "Benaco tour link is missing or invalid",
+            "Benaco tour link is invalid",
             "The record needs a Benaco tour URL that identifies its tour.",
             "It cannot be matched safely to billing detail; costs may be duplicated or remain unallocated.",
             "Copy the tour's Benaco view link into Benaco URL.",

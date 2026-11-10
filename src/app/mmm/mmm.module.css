@@ -171,8 +171,7 @@
   background: #f2f7fd;
 }
 .inlineBreakdown {
-  width: min(1380px, calc(100vw - 100px));
-  max-width: 100%;
+  width: 100%;
   white-space: normal;
 }
 .breakdownTitle {
@@ -278,15 +277,151 @@
   display: grid;
   gap: 1rem;
 }
-.projectBody h3 {
-  margin: 0.5rem 0 0;
-  font-size: 1rem;
+.projectBody h4 {
+  margin: 0.4rem 0 0;
+  color: #0b2d4d;
+  font-size: 0.95rem;
+}
+.breakdownHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid #c5d2df;
+  border-left: 5px solid #178065;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 6px 16px rgb(15 50 87 / 6%);
+}
+.breakdownHeader[data-tone="red"] {
+  border-left-color: #bb3834;
+}
+.breakdownHeader[data-tone="amber"] {
+  border-left-color: #bd8214;
+}
+.breakdownHeader h3 {
+  margin: 0.1rem 0 0.3rem;
+  color: #0b2d4d;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+.breakdownHeader p {
+  margin: 0.15rem 0 0;
+  color: #4d6178;
+  font-size: 0.82rem;
+}
+.dealLabel {
+  display: inline-block;
+  margin-right: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  background: #fff1e8;
+  color: #a2481a;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dealName {
+  color: #a2481a !important;
+  font-weight: 700;
+}
+.breakdownGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+.outlook {
+  padding: 0.9rem 1rem;
+  border: 1px solid #c5d2df;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+.outlook h4,
+.signals h4 {
+  margin: 0 0 0.6rem;
+}
+.stageTable progress {
+  display: block;
+  width: 100%;
+  max-width: 7rem;
+  height: 0.4rem;
+  margin-top: 0.35rem;
+  accent-color: #2374db;
+}
+.taskReview {
+  border: 1px solid #c5d2df;
+  border-radius: 0.75rem;
+  background: #fff;
+  overflow: hidden;
+}
+.taskReview > summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  padding: 0.85rem 1.1rem;
+  background: #f5f9ff;
+  cursor: pointer;
+  list-style: none;
+}
+.taskReview > summary::-webkit-details-marker {
+  display: none;
+}
+.taskReview > summary::before {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 0.3rem;
+  background: #e8f1fe;
+  color: #1d5aa1;
+}
+.taskReview[open] > summary::before {
+  content: "−";
+}
+.taskReview > summary > span {
+  font-weight: 800;
+  color: #0b2d4d;
+}
+.taskReview > summary > small {
+  margin: 0 !important;
+}
+.taskReview[open] > summary {
+  border-bottom: 1px solid #dce5ef;
+}
+.taskReview > :not(summary) {
+  margin: 0.9rem 1.1rem;
+}
+.pulseLink {
+  margin-top: 0.3rem;
+  padding: 6px 10px;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  font: inherit;
+  font-size: 0.67rem;
+  font-weight: 800;
+  cursor: pointer;
 }
 .signals {
   background: #fffbf1;
-  border-left: 3px solid #d59a20;
-  padding: 0.7rem 1rem;
+  border: 1px solid #f0dcae;
+  border-left: 5px solid #d59a20;
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem;
   font-size: 0.85rem;
+}
+.signals li[data-tone="red"] {
+  color: #b52e2a;
+}
+.signals li[data-tone="amber"] {
+  color: #7a5108;
 }
 .signals ul {
   margin: 0;
@@ -298,18 +433,30 @@
   margin: 0;
 }
 .signals[data-tone="red"] {
-  background: #fff0ee;
+  background: #fff6f5;
+  border-color: #f1cdc9;
   border-left-color: #bb3834;
 }
 .signals[data-tone="green"] {
   background: #edf8f2;
+  border-color: #c8e6d7;
   border-left-color: #178065;
+}
+.signals .activity {
+  margin-top: 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgb(0 0 0 / 8%);
 }
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--border);
-  border-radius: 0.65rem;
+  overflow: hidden;
+  border: 1px solid #c5d2df;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+.stats > div + div {
+  border-left: 1px solid #dce5ef;
 }
 .stats > div {
   padding: 0.9rem;
@@ -368,6 +515,10 @@
   color: var(--muted);
   padding-bottom: 0.7rem;
 }
+.notes h2 {
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
 .notes p {
   font-size: 0.85rem;
   line-height: 1.7;
@@ -378,6 +529,11 @@
   }
   .search {
     grid-column: span 2;
+  }
+}
+@media (max-width: 1100px) {
+  .breakdownGrid {
+    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 680px) {
@@ -405,7 +561,155 @@
     padding: 0.85rem;
   }
 }
+/* Narrow screens: the agenda becomes a stack of project cards, so neither the agenda nor an
+   opened breakdown needs sideways scrolling. Print keeps the table layout. */
+@media screen and (max-width: 900px) {
+  .overviewTable {
+    min-width: 0;
+  }
+  .overviewTable,
+  .overviewTable > tbody {
+    display: block;
+  }
+  .overviewTable > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .overviewTable > tbody > .projectRow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    margin-top: 0.75rem;
+    padding: 0.9rem 0.9rem 0.9rem 1.1rem;
+    border: 1px solid #c5d2df;
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: inset 4px 0 #178065;
+  }
+  .overviewTable > tbody > .projectRow[data-tone="red"] {
+    background: #fff6f5;
+    box-shadow: inset 4px 0 #bb3834;
+  }
+  .overviewTable > tbody > .projectRow[data-tone="amber"] {
+    background: #fffaf0;
+    box-shadow: inset 4px 0 #bd8214;
+  }
+  .overviewTable > tbody > .projectRow[data-expanded="true"] {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .overviewTable > tbody > .projectRow > td {
+    display: block;
+    width: auto !important;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none !important;
+  }
+  /* Project name and discussion points use the full card width. */
+  .overviewTable > tbody > .projectRow > td:first-child,
+  .overviewTable > tbody > .projectRow > td:last-child {
+    grid-column: 1 / -1;
+  }
+  .overviewTable > tbody > .projectRow > td[data-tone] {
+    padding: 0.45rem 0.55rem;
+    border-radius: 0.45rem;
+  }
+  .overviewTable > tbody > .projectRow > td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.2rem;
+    color: #4d6178;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .projectButton {
+    text-align: left;
+    font-size: 0.95rem;
+  }
+  .overviewTable > tbody > .expandedRow,
+  .overviewTable > tbody > .expandedRow > td {
+    display: block;
+  }
+  .overviewTable > tbody > .expandedRow > td {
+    /* Overrides the desktop "first column is 26% wide" rule, which also matches this cell. */
+    width: auto !important;
+    border: 1px solid #b8cfea;
+    border-top: 0;
+    border-radius: 0 0 0.75rem 0.75rem;
+  }
+  .breakdownHeader h3 {
+    overflow-wrap: anywhere;
+  }
+  .breakdownHeader .links {
+    width: 100%;
+  }
+}
+/* Phones: each work group becomes a compact labelled block instead of a wide table row. */
+@media screen and (max-width: 600px) {
+  .stageTable,
+  .stageTable > tbody {
+    display: block;
+  }
+  .stageTable > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .stageTable > tbody > tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem 0.9rem;
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid #dce5ef;
+  }
+  .stageTable > tbody > tr > td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .stageTable > tbody > tr > td:first-child {
+    grid-column: 1 / -1;
+  }
+  .stageTable > tbody > tr > td[data-tone] {
+    padding: 0.3rem 0.45rem;
+    border-radius: 0.4rem;
+  }
+  .stageTable > tbody > tr > td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: #4d6178;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}
+@media screen and (max-width: 480px) {
+  .overviewTable > tbody > .projectRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .projectBody {
+    padding: 0.6rem;
+  }
+  .breakdownHeader {
+    padding: 0.85rem;
+  }
+  .stats strong {
+    font-size: 1.05rem;
+  }
+}
 @media print {
+  .pulseLink,
   .filters,
   .detailActions,
   .links,

@@ -33,6 +33,7 @@
     "teamwork:key": "node -e \"console.log(require('node:crypto').randomBytes(32).toString('base64url'))\"",
     "teamwork:reset-import": "tsx src/commands/reset-teamwork-import.ts",
     "teamwork:verify": "tsx src/commands/verify-teamwork-import.ts",
+    "teamwork:hubspot-links": "tsx src/commands/teamwork-hubspot-links.ts",
     "step6:restart": "tsx src/commands/restart-step6.ts",
     "teamwork:sync-financials": "tsx src/commands/sync-teamwork-financials.ts",
     "hosting:sync": "tsx src/commands/sync-hosting.ts",

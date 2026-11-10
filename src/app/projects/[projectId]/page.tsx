@@ -2,14 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ChartPanel, CostPerformanceChart, GroupedBarChart } from "@/components/reporting-charts";
-import { ProjectFinancialPosition } from "@/components/project-financial-position";
-import {
-  CoverageBadge,
-  MarginBadge,
-  MarginText,
-  MetricCard,
-  ProvisionalNotice,
-} from "@/components/reporting-ui";
+import { PortfolioFinancialComposition } from "@/components/portfolio-financial-composition";
+import { CoverageBadge, MarginText, ProvisionalNotice } from "@/components/reporting-ui";
 import { requireUser } from "@/lib/auth/session";
 import {
   getProjectById,
@@ -22,6 +16,7 @@ import {
 } from "@/lib/reporting/dashboard-data";
 import { dateLabel, hours, money, percent } from "@/lib/reporting/format";
 import { buildMobAreaBreakdown } from "@/lib/reporting/mob-area-breakdown";
+import { projectWatchReasons } from "@/lib/reporting/project-watch-reasons";
 import { dismissAllUnplannedWork, dismissUnplannedWork, reopenUnplannedWork } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +34,20 @@ function numeric(value: string | null): number | null {
   if (value === null || value.trim() === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function healthTone(band: string): "green" | "amber" | "red" | "gray" {
+  return band === "GREEN" ? "green" : band === "AMBER" ? "amber" : band === "RED" ? "red" : "gray";
+}
+
+function healthLabel(band: string): string {
+  return band === "GREEN"
+    ? "Healthy"
+    : band === "AMBER"
+      ? "At risk"
+      : band === "RED"
+        ? "Unhealthy"
+        : "Health not available";
 }
 
 export default async function ProjectDetailPage({ params, searchParams }: PageProps) {
@@ -92,6 +101,24 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
     project.plannedLoggedMinutes !== null && project.canonicalEstimatedMinutes > 0
       ? Math.max(project.plannedLoggedMinutes - project.canonicalEstimatedMinutes, 0)
       : null;
+  const watchReasons = projectWatchReasons(project);
+  const projectPulse =
+    project.healthBand === "RED"
+      ? `Needs attention: ${watchReasons[0] ?? "delivery or forecast risk"}.`
+      : project.healthBand === "AMBER"
+        ? `Watch closely: ${watchReasons[0] ?? "some health signals are below target"}.`
+        : project.healthBand === "GREEN"
+          ? project.isProvisional
+            ? "On track, but the forecast is provisional until missing inputs are completed."
+            : "On track: no current delivery or forecast flags."
+          : "Health cannot be scored yet; required inputs are missing.";
+  let teamworkBase: string | null = null;
+  try {
+    const source = new URL(process.env.TEAMWORK_SITE_URL ?? "");
+    if (source.protocol === "https:") teamworkBase = source.origin;
+  } catch {
+    /* The Teamwork button stays hidden until a site URL is configured. */
+  }
   const taskQuery = one(query.task)?.trim().toLowerCase() ?? "";
   const groupFilter = one(query.group) ?? "ALL";
   const coverageFilter = one(query.coverage) ?? "ALL";
@@ -145,137 +172,155 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
 
   return (
     <AppShell user={session.user}>
-      <main className="shell shell--wide">
+      <main className="shell shell--wide executive-dashboard project-report">
         <div className="breadcrumb">
           <Link href="/projects">Projects</Link>
           <span>/</span>
           <span>{project.projectNumber ?? project.name}</span>
         </div>
-        <section className="page-heading page-heading--split project-heading">
-          <div>
-            <div className="heading-badges">
-              <MarginBadge value={project.forecastMarginPercent} />
-              {project.isProvisional ? <span className="tag tag--warning">Provisional</span> : null}
-            </div>
+        <section className="report-titlebar report-titlebar--executive project-titlebar">
+          <div className="report-titlebar__copy">
+            <p className="eyebrow">Project report</p>
             <h1>{project.name}</h1>
-            <p className="lede">
+            <p>
               {project.companyName ?? "No client company"} ·{" "}
               {isArchived ? "archived" : project.status} ·{" "}
               {projectTypes.length ? projectTypes.join(" + ") : "Unclassified"}
             </p>
+            <div className="report-titlebar__status" aria-label="Project health">
+              <span
+                className={`portfolio-status-dot portfolio-status-dot--${healthTone(project.healthBand)}`}
+              />
+              {healthLabel(project.healthBand)}
+              {project.isProvisional ? (
+                <span className="tag tag--warning">Provisional forecast</span>
+              ) : null}
+            </div>
           </div>
-          <div className="project-dates">
-            <span>
-              Start <strong>{dateLabel(project.startDate)}</strong>
+          <div className="report-titlebar__actions">
+            <span className="report-date-chip">
+              {dateLabel(project.startDate)} – {dateLabel(project.endDate)}
             </span>
-            <span>
-              End <strong>{dateLabel(project.endDate)}</strong>
+            <span className="report-date-chip">
+              Data as of {dateLabel(project.calculatedAt?.toISOString().slice(0, 10) ?? null)}
             </span>
+            {teamworkBase ? (
+              <a
+                className="button button--secondary"
+                href={`${teamworkBase}/app/projects/${project.teamworkId}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open in Teamwork
+              </a>
+            ) : null}
           </div>
         </section>
 
         <ProvisionalNotice row={project} />
 
         <section
-          className="executive-kpis project-financial-kpis"
-          aria-label="Project financial summary"
+          className="company-pulse company-pulse--executive"
+          aria-label="Project performance at a glance"
         >
-          <div className="executive-kpis__primary">
-            <MetricCard
-              priority="primary"
-              label="Current Costs"
-              value={money(project.actualTotalCost)}
-              detail="Internal labor plus active expenses"
-            />
-            <MetricCard
-              priority="primary"
-              label="Estimated Remaining Costs"
-              value={money(remainingCost)}
-              detail={
-                project.isProvisional
-                  ? "Known costed work; incomplete inputs may increase this amount"
-                  : "Forecast cost less current costs"
-              }
-            />
-            <MetricCard
-              priority="primary"
-              label={project.isProvisional ? "Known Projected Profit" : "Projected Profit"}
-              value={money(project.forecastProfit)}
-              detail={
-                <>
-                  <MarginText value={project.forecastMarginPercent} />{" "}
-                  {project.isProvisional ? "margin ceiling" : "forecast margin"}
-                </>
-              }
-              tone={project.isProvisional ? "warning" : undefined}
-            />
+          <div className="company-pulse__summary">
+            <p className="eyebrow">Project pulse</p>
+            <h2>{projectPulse}</h2>
+            {watchReasons.length > 1 ? (
+              <ul className="project-pulse__reasons">
+                {watchReasons.slice(1, 4).map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            ) : null}
+            {issues.length ? (
+              <a href="#source-data-issues">
+                Review {issues.length} data issue{issues.length === 1 ? "" : "s"}
+              </a>
+            ) : null}
           </div>
-          <div className="executive-kpis__secondary">
-            <MetricCard
-              label="Client Fee"
-              value={money(project.clientFee)}
-              detail="Teamwork fixed-fee budget"
-            />
-            <MetricCard
-              label="Profit to Date"
-              value={money(actualProfit)}
-              detail={
-                <>
-                  <MarginText value={actualMargin} /> margin to date
-                </>
-              }
-            />
-            <MetricCard
-              label="Planned Cost"
-              value={money(project.targetCost)}
-              detail="Sum of Teamwork task-list cost budgets"
-            />
+          <div className="company-pulse__stat">
+            <span>Task completion</span>
+            <strong>{percent(project.progressPercent, 0)}</strong>
+            <small>
+              {project.completedTaskCount} of {project.totalTaskCount} tasks complete
+            </small>
+          </div>
+          <div className="company-pulse__stat">
+            <span>Hours used</span>
+            <strong>{percent(plannedEstimateConsumptionPercent, 0)}</strong>
+            <small>
+              {hours(project.loggedMinutes)} logged of {hours(project.canonicalEstimatedMinutes)}{" "}
+              estimated
+              {plannedOverEstimateMinutes ? ` · ${hours(plannedOverEstimateMinutes)} over` : ""}
+              {project.unplannedLoggedMinutes
+                ? ` · ${hours(project.unplannedLoggedMinutes)} unplanned`
+                : ""}
+            </small>
+          </div>
+          <div className="company-pulse__stat">
+            <span>Profit to date</span>
+            <strong>{money(actualProfit)}</strong>
+            <small>
+              <MarginText value={actualMargin} /> margin to date
+            </small>
+          </div>
+          <div className="company-pulse__stat">
+            <span>Planned cost</span>
+            <strong>{money(project.targetCost)}</strong>
+            <small>
+              Task-list budgets · {money(project.actualNonLaborCost)} in {expenses.length} expense
+              {expenses.length === 1 ? "" : "s"}
+            </small>
           </div>
         </section>
 
         <section
-          className="metric-grid metric-grid--four project-operational-kpis"
-          aria-label="Project delivery summary"
+          id="profit-forecast"
+          className="report-section company-forecast-strip company-forecast-strip--full"
         >
-          <MetricCard
-            label="Task Completion"
-            value={percent(project.progressPercent)}
-            detail={`${project.completedTaskCount} of ${project.totalTaskCount} tasks complete`}
-          />
-          <MetricCard
-            label="Logged Hours"
-            value={hours(project.loggedMinutes)}
-            detail={`${percent(plannedEstimateConsumptionPercent)} planned estimate consumed \u00b7 ${
-              plannedOverEstimateMinutes === null ? "N/A" : hours(plannedOverEstimateMinutes)
-            } over estimate \u00b7 ${hours(project.unplannedLoggedMinutes)} unplanned`}
-          />
-          <MetricCard
-            label="Estimated Hours"
-            value={hours(project.canonicalEstimatedMinutes)}
-            detail="Canonical estimate without double counting"
-          />
-          <MetricCard
-            label="Expenses"
-            value={money(project.actualNonLaborCost)}
-            detail={`${expenses.length} active Teamwork expense${expenses.length === 1 ? "" : "s"}`}
-            accent="purple"
-          />
+          <div className="company-forecast-strip__heading">
+            <div>
+              <p className="eyebrow">Financial outlook</p>
+              <h2>Profit Forecast</h2>
+              <p>
+                Current costs and estimated remaining costs against the {money(project.clientFee)}{" "}
+                Teamwork fixed-fee budget.
+              </p>
+            </div>
+            <span>
+              {project.isProvisional
+                ? "Provisional: missing inputs may increase costs."
+                : "Uses the shared project calculation."}
+            </span>
+          </div>
+          {clientFee !== null ? (
+            <PortfolioFinancialComposition
+              rows={[
+                {
+                  label: "Project forecast",
+                  detail: project.projectNumber ?? undefined,
+                  revenue: clientFee,
+                  cost: forecastCost,
+                  actualCost: actualTotalCost,
+                  remainingCost,
+                  profit: numeric(project.forecastProfit),
+                  margin: numeric(project.forecastMarginPercent),
+                  projectCount: 1,
+                  provisional: project.isProvisional,
+                },
+              ]}
+              variant="total"
+              showHeroMetrics
+            />
+          ) : (
+            <div className="chart-empty">
+              No client fee is recorded in Teamwork Finance, so profit cannot be forecast.
+            </div>
+          )}
         </section>
 
         <section className="chart-grid chart-grid--project" aria-label="Project performance graphs">
-          <ChartPanel
-            eyebrow="Financial position"
-            title="Revenue Consumption & Forecasted Outcome"
-            description="Actual cost, estimated remaining costs, and projected profit are shown together against the project fee."
-          >
-            <ProjectFinancialPosition
-              revenue={clientFee}
-              actualCost={actualTotalCost}
-              remainingCost={remainingCost}
-              forecastProfit={numeric(project.forecastProfit)}
-              provisional={project.isProvisional}
-            />
-          </ChartPanel>
           <ChartPanel
             eyebrow="Effort by operation"
             title="Estimated and logged hours by group"
@@ -805,7 +850,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           </section>
         ) : null}
 
-        <section className="report-section">
+        <section id="source-data-issues" className="report-section">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Data quality</p>

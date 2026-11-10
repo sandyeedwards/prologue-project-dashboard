@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildMeetingProjects,
   filterMeetingProjects,
+  forecastConfidence,
   meetingWindow,
   type MeetingProjectSource,
   type MeetingTask,
@@ -312,5 +313,23 @@ describe("Monday meeting report", () => {
     ).toHaveLength(1);
     expect(filterMeetingProjects(rows, { owner: "Someone else" })).toHaveLength(0);
     expect(rows[0].forecastMinutes).toBe(600);
+  });
+});
+
+describe("MMM forecast confidence", () => {
+  it("counts each project once: fully costed, provisional, or without a forecast", () => {
+    const projects = [
+      { metrics: metric }, // A: fee, fully costed
+      { metrics: { ...metric, id: "b" } }, // B: fee, fully costed
+      { metrics: { ...metric, id: "c", isProvisional: true } }, // C: fee, provisional
+      { metrics: { ...metric, id: "d", clientFee: null, isProvisional: true } }, // D: no fee
+      { metrics: { ...metric, id: "e", clientFee: null, isProvisional: true } }, // E: no fee
+      { metrics: null }, // not calculated
+    ];
+    expect(forecastConfidence(projects)).toEqual({
+      fullyCosted: 2,
+      provisional: 1,
+      withoutForecast: 3,
+    });
   });
 });

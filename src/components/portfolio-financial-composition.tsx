@@ -9,6 +9,13 @@ import {
   type PointerEvent,
 } from "react";
 import type { ProfitabilityRow } from "@/components/profitability-chart-types";
+import {
+  profitabilityPlotComplete,
+  profitLabel,
+  profitTone,
+  resolveProfitabilityRow,
+  type ResolvedProfitabilityRow,
+} from "@/lib/reporting/forecast-position";
 
 function finite(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -40,38 +47,24 @@ function formatMargin(value: number | null | undefined): string {
   }).format(value)}%`;
 }
 
-type ResolvedRow = {
-  revenue: number;
-  actual: number;
-  remaining: number;
-  forecastCost: number;
-  profit: number;
-  margin: number | null;
-};
+type ResolvedRow = ResolvedProfitabilityRow;
+const resolveRow = resolveProfitabilityRow;
 
-function resolveRow(row: ProfitabilityRow): ResolvedRow {
-  const revenue = finite(row.revenue) ? Math.max(row.revenue, 0) : 0;
-  const actual = finite(row.actualCost) ? Math.max(row.actualCost, 0) : 0;
-  const remaining = finite(row.remainingCost)
-    ? Math.max(row.remainingCost, 0)
-    : finite(row.cost)
-      ? Math.max(row.cost - actual, 0)
-      : 0;
-  const forecastCost = finite(row.cost) ? Math.max(row.cost, 0) : actual + remaining;
-  const profit = finite(row.profit) ? row.profit : revenue - forecastCost;
-  const margin = finite(row.margin) ? row.margin : revenue > 0 ? (profit / revenue) * 100 : null;
-  return { revenue, actual, remaining, forecastCost, profit, margin };
+// A missing value is shown as "Missing", never as $0.
+function shown(value: number, known: boolean): string {
+  return known ? fullCurrency(value) : "Missing";
 }
 
 function ariaLabel(row: ProfitabilityRow, values: ResolvedRow): string {
   return [
     row.label,
     row.detail,
-    `Allocated revenue ${fullCurrency(values.revenue)}.`,
-    `Current Costs ${fullCurrency(values.actual)}.`,
-    `Estimated remaining costs ${fullCurrency(values.remaining)}.`,
-    `${values.profit < 0 ? "Projected Loss" : "Projected Profit"} ${fullCurrency(values.profit)}.`,
+    `Allocated revenue ${shown(values.revenue, values.known.revenue)}.`,
+    `Current Costs ${shown(values.actual, values.known.actual)}.`,
+    `Estimated remaining costs ${shown(values.remaining, values.known.remaining)}.`,
+    `${profitLabel(row, values)} ${shown(values.profit, values.known.profit)}.`,
     `Forecast margin ${formatMargin(values.margin)}.`,
+    row.provisional ? "Provisional: missing inputs may increase costs." : null,
   ]
     .filter(Boolean)
     .join(" ");
@@ -93,7 +86,9 @@ function CompositionRow({
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
   const values = resolveRow(row);
   const revenueBoundary = maximumOverrunRatio > 0 ? 94 : 100;
-  const revenue = values.revenue;
+  // Without a real revenue and forecast cost there is nothing truthful to draw.
+  const complete = profitabilityPlotComplete(values);
+  const revenue = complete ? values.revenue : 0;
   const actualRatio = revenue > 0 ? values.actual / revenue : 0;
   const remainingRatio = revenue > 0 ? values.remaining / revenue : 0;
   const actualInsideRatio = Math.min(Math.max(actualRatio, 0), 1);
@@ -101,8 +96,8 @@ function CompositionRow({
     Math.max(remainingRatio, 0),
     Math.max(1 - actualInsideRatio, 0),
   );
-  const profit = Math.max(revenue - values.forecastCost, 0);
-  const loss = Math.max(values.forecastCost - revenue, 0);
+  const profit = complete ? Math.max(revenue - values.forecastCost, 0) : 0;
+  const loss = complete ? Math.max(values.forecastCost - revenue, 0) : 0;
   const profitRatio = revenue > 0 ? profit / revenue : 0;
   const overrunRatio = revenue > 0 ? loss / revenue : loss > 0 ? maximumOverrunRatio : 0;
   const overrunWidth =
@@ -162,15 +157,15 @@ function CompositionRow({
         <div className="portfolio-composition__hero-metrics" aria-hidden="true">
           <span>
             <small>Current Costs</small>
-            <strong>{fullCurrency(values.actual)}</strong>
+            <strong>{shown(values.actual, values.known.actual)}</strong>
           </span>
           <span>
             <small>Estimated Remaining Costs</small>
-            <strong>{fullCurrency(values.remaining)}</strong>
+            <strong>{shown(values.remaining, values.known.remaining)}</strong>
           </span>
-          <span className={values.profit < 0 ? "is-loss" : "is-profit"}>
-            <small>{values.profit < 0 ? "Projected Loss" : "Projected Profit"}</small>
-            <strong>{fullCurrency(values.profit)}</strong>
+          <span className={profitTone(row, values)}>
+            <small>{profitLabel(row, values)}</small>
+            <strong>{shown(values.profit, values.known.profit)}</strong>
           </span>
           <span>
             <small>Forecast Margin</small>
@@ -181,7 +176,7 @@ function CompositionRow({
 
       <div className="portfolio-composition__plot" ref={plotRef}>
         <div
-          className="portfolio-composition__track"
+          className={`portfolio-composition__track${row.provisional ? " is-provisional" : ""}`}
           style={style}
           role="img"
           tabIndex={0}
@@ -203,11 +198,16 @@ function CompositionRow({
         </div>
         <div className="portfolio-composition__meta">
           <span>
-            Revenue <strong>{fullCurrency(values.revenue)}</strong>
+            Revenue <strong>{shown(values.revenue, values.known.revenue)}</strong>
           </span>
           <span>
-            Forecast cost <strong>{fullCurrency(values.forecastCost)}</strong>
+            Forecast cost <strong>{shown(values.forecastCost, values.known.forecastCost)}</strong>
           </span>
+          {row.provisional ? (
+            <span className="portfolio-composition__flag">
+              Provisional: missing inputs may increase costs
+            </span>
+          ) : null}
         </div>
 
         {tooltip ? (
@@ -227,28 +227,28 @@ function CompositionRow({
                   <i className="is-revenue" />
                   Allocated revenue
                 </dt>
-                <dd>{fullCurrency(values.revenue)}</dd>
+                <dd>{shown(values.revenue, values.known.revenue)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="is-actual" />
                   Current Costs
                 </dt>
-                <dd>{fullCurrency(values.actual)}</dd>
+                <dd>{shown(values.actual, values.known.actual)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="is-remaining" />
                   Estimated remaining costs
                 </dt>
-                <dd>{fullCurrency(values.remaining)}</dd>
+                <dd>{shown(values.remaining, values.known.remaining)}</dd>
               </div>
-              <div className={values.profit < 0 ? "is-loss" : "is-profit"}>
+              <div className={profitTone(row, values)}>
                 <dt>
                   <i />
-                  {values.profit < 0 ? "Projected Loss" : "Projected Profit"}
+                  {profitLabel(row, values)}
                 </dt>
-                <dd>{fullCurrency(values.profit)}</dd>
+                <dd>{shown(values.profit, values.known.profit)}</dd>
               </div>
             </dl>
             <footer>
@@ -260,11 +260,9 @@ function CompositionRow({
       </div>
 
       {!hero ? (
-        <div
-          className={`portfolio-composition__outcome${values.profit < 0 ? " is-loss" : " is-profit"}`}
-        >
-          <strong>{compactCurrency(values.profit)}</strong>
-          <small>{values.profit < 0 ? "Projected Loss" : "Projected Profit"}</small>
+        <div className={`portfolio-composition__outcome ${profitTone(row, values)}`}>
+          <strong>{values.known.profit ? compactCurrency(values.profit) : "Missing"}</strong>
+          <small>{profitLabel(row, values)}</small>
           <span>{formatMargin(values.margin)} margin</span>
         </div>
       ) : null}
@@ -292,6 +290,7 @@ export function PortfolioFinancialComposition({
     0,
     ...available.map((row) => {
       const values = resolveRow(row);
+      if (!profitabilityPlotComplete(values)) return 0;
       if (values.revenue <= 0) return values.forecastCost > 0 ? 1 : 0;
       return Math.max(values.forecastCost / values.revenue - 1, 0);
     }),
