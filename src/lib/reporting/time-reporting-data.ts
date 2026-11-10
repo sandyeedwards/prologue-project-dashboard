@@ -142,6 +142,9 @@ function cleanUuid(value: string | null | undefined): string | null {
   return UUID_PATTERN.test(normalized) ? normalized : null;
 }
 
+/** A valid UUID no person has: makes a scoped filter match nobody. */
+const NO_EMPLOYEE_ID = "00000000-0000-0000-0000-000000000000";
+
 function cleanUuidList(values: readonly string[] | undefined): string[] {
   return [
     ...new Set(
@@ -180,6 +183,12 @@ export async function getTimeReportingReport(
     employeeIds?: readonly string[];
     projectIds?: readonly string[];
     now?: Date;
+    /**
+     * Limits the report to one employee, identified by Teamwork user ID; any requested employee
+     * filter is ignored. `null` means the signed-in user has no linked Teamwork person, so no
+     * employee data is returned. Omit it (undefined) for an all-employee view.
+     */
+    scopeToTeamworkUserId?: number | null;
   } = {},
 ): Promise<TimeReportingReport> {
   const now = input.now ?? new Date();
@@ -193,9 +202,7 @@ export async function getTimeReportingReport(
     now,
   );
 
-  const selectedEmployeeIds = cleanUuidList(input.employeeIds);
   const selectedProjectIds = cleanUuidList(input.projectIds);
-  const employeeFilterCsv = selectedEmployeeIds.join(",");
   const projectFilterCsv = selectedProjectIds.join(",");
 
   const today = currentTimeReportingDate(now);
@@ -214,7 +221,7 @@ export async function getTimeReportingReport(
 
   const sql = getSqlClient();
 
-  const employeeOptionRows = (await sql`
+  const allEmployeeOptionRows = (await sql`
     select
       person.id as "personId",
       person.teamwork_id as "teamworkId",
@@ -230,6 +237,24 @@ export async function getTimeReportingReport(
       lower(coalesce(person.last_name, '')),
       person.teamwork_id
   `) as unknown as EmployeeOptionDbRow[];
+
+  // Scoped view: only the signed-in employee's own person record. With no linked person the
+  // filter matches nobody (an empty filter would otherwise mean "all employees").
+  const scoped = input.scopeToTeamworkUserId !== undefined;
+  const ownPerson = scoped
+    ? (allEmployeeOptionRows.find(
+        (row) =>
+          input.scopeToTeamworkUserId !== null &&
+          Number(row.teamworkId) === input.scopeToTeamworkUserId,
+      ) ?? null)
+    : null;
+  const employeeOptionRows = scoped
+    ? allEmployeeOptionRows.filter((row) => row === ownPerson)
+    : allEmployeeOptionRows;
+  const selectedEmployeeIds = scoped
+    ? [ownPerson?.personId ?? NO_EMPLOYEE_ID]
+    : cleanUuidList(input.employeeIds);
+  const employeeFilterCsv = selectedEmployeeIds.join(",");
 
   const projectOptionRows = (await sql`
     select distinct
