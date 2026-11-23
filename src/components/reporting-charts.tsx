@@ -321,10 +321,13 @@ export function MarginSummaryDonut({ projects }: { projects: ProjectReportRow[] 
 export type { ProfitabilityRow } from "@/components/profitability-chart-types";
 
 export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
-  const resolvedRows = rows.map((row) => {
-    const values = resolveProfitabilityRow(row);
-    return { row, values, tone: profitTone(row, values) };
-  });
+  // Cost-only rows (Admin) have no fee, so they have no profit or loss to plot.
+  const resolvedRows = rows
+    .filter((row) => !row.costOnly)
+    .map((row) => {
+      const values = resolveProfitabilityRow(row);
+      return { row, values, tone: profitTone(row, values) };
+    });
   const knownRows = resolvedRows.filter((entry) => entry.values.known.profit);
   if (!knownRows.length)
     return <div className="chart-empty">No profit or loss positions are available.</div>;
@@ -462,6 +465,20 @@ export function OperationalBreakdown({ rows }: { rows: ProfitabilityRow[] }) {
             {rows.map((row) => {
               const values = resolveProfitabilityRow(row);
               const tone = profitTone(row, values);
+              if (row.costOnly)
+                return (
+                  <tr key={row.label}>
+                    <td>
+                      <strong>{row.label}</strong>
+                      <small className="table-subvalue">Cost only: no share of the fee</small>
+                    </td>
+                    <td>{row.projectCount ?? "—"}</td>
+                    <td>{"—"}</td>
+                    <td>{finite(row.cost) ? compactCurrency(row.cost) : MISSING}</td>
+                    <td>{finite(row.cost) ? `−${compactCurrency(row.cost)}` : MISSING}</td>
+                    <td>{"—"}</td>
+                  </tr>
+                );
               return (
                 <tr key={row.label}>
                   <td>
@@ -497,7 +514,8 @@ function numericProjectValue(value: string | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function AnalysisTakeaway({ rows }: { rows: ProfitabilityRow[] }) {
+function AnalysisTakeaway({ rows: allRows }: { rows: ProfitabilityRow[] }) {
+  const rows = allRows.filter((row) => !row.costOnly);
   const profitable = rows
     .filter((row) => finite(row.profit) && (row.profit ?? 0) > 0)
     .sort((a, b) => (b.profit ?? 0) - (a.profit ?? 0));

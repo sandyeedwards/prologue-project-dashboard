@@ -97,3 +97,20 @@ describe("HoursCompletionSummary", () => {
     expect(markup.indexOf("Missing estimate")).toBeLessThan(markup.indexOf("Smaller overrun"));
   });
 });
+
+describe("Admin hours with no budget", () => {
+  it("shows Admin as a share of all hours, never as over estimate", () => {
+    const html = renderToStaticMarkup(
+      createElement(HoursCompletionSummary, {
+        rows: [
+          { label: "Admin", tracking: "share", values: { estimated: 115.8, logged: 227.6 } },
+          { label: "Fieldwork", values: { estimated: 1713.8, logged: 1200.3 } },
+        ],
+      }),
+    );
+    expect(html).toContain("No budget");
+    expect(html).toContain("Of all hours");
+    expect(html).toContain("15.9%");
+    expect(html).not.toContain("197%");
+  });
+});

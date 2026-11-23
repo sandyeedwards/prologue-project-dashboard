@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addWeeks,
   carryForward,
+  easternMidnight,
   emptyNotes,
   mondayOf,
   parseNotes,
@@ -57,5 +58,12 @@ describe("all-hands notes", () => {
     expect(next.longRange).toBe("RBT 12/10");
     expect(next.technology).toBe("IVION release");
     expect(next.actionItems.map((item) => item.id)).toEqual(["a"]);
+  });
+});
+
+describe("easternMidnight", () => {
+  it("is 05:00 UTC in winter and 04:00 UTC in summer", () => {
+    expect(easternMidnight("2026-11-23").toISOString()).toBe("2026-11-23T05:00:00.000Z");
+    expect(easternMidnight("2026-07-06").toISOString()).toBe("2026-07-06T04:00:00.000Z");
   });
 });

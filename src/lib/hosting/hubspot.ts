@@ -223,3 +223,29 @@ export async function searchOpenDeals(
   } while (after && deals.length < maxDeals);
   return deals;
 }
+
+/** Deals marked closed-won with a close date in [since, until), read-only. */
+export async function searchWonDeals(
+  since: Date,
+  until: Date,
+  properties: string[],
+): Promise<HubSpotDeal[]> {
+  const data = await hubspotFetch<{ results?: HubSpotDeal[] }>("/crm/v3/objects/deals/search", {
+    method: "POST",
+    body: JSON.stringify({
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: "hs_is_closed_won", operator: "EQ", value: "true" },
+            { propertyName: "closedate", operator: "GTE", value: String(since.getTime()) },
+            { propertyName: "closedate", operator: "LT", value: String(until.getTime()) },
+          ],
+        },
+      ],
+      properties,
+      sorts: [{ propertyName: "amount", direction: "DESCENDING" }],
+      limit: 100,
+    }),
+  });
+  return data.results || [];
+}

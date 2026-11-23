@@ -9116,3 +9116,11 @@ textarea {
   color: #5b6b80;
   font-size: 0.74rem;
 }
+
+/* Admin: cost with no share of the fee. Neutral, never the loss or missing colour. */
+.portfolio-composition__outcome.is-cost strong {
+  color: var(--text);
+}
+.portfolio-composition__row--cost-only .portfolio-composition__meta span:first-child {
+  color: var(--muted);
+}

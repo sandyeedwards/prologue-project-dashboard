@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeDateValue, summarizePipelines } from "./pipeline";
+import { closeDateValue, summarizePipelines, summarizeWonDeals } from "./pipeline";
 
 const pipelines = [
   {
@@ -55,5 +55,18 @@ describe("pipeline summary", () => {
     expect(sales.pastClose.map((row) => row.name)).toEqual(["Virginia Housing HQ"]);
     expect(sales.pastClose[0].amount).toBeNull();
     expect(sales.undated).toBe(1);
+  });
+});
+
+describe("won deals", () => {
+  it("sorts biggest first and keeps a missing amount missing", () => {
+    const won = summarizeWonDeals([
+      { id: "a", properties: { dealname: "Small", amount: "500" } },
+      { id: "b", properties: { dealname: "No amount", amount: "" } },
+      { id: "c", properties: { dealname: "Big", amount: "20000" } },
+    ]);
+    expect(won.deals.map((deal) => deal.name)).toEqual(["Big", "Small", "No amount"]);
+    expect(won.amount).toBe(20500);
+    expect(won.unpriced).toBe(1);
   });
 });

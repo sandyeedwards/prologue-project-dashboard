@@ -106,3 +106,18 @@ export function carryForward(previous: AllHandsNotes): AllHandsNotes {
   next.actionItems = previous.actionItems.filter((item) => !item.done && item.text.trim());
   return next;
 }
+
+/** Eastern midnight at the start of a YYYY-MM-DD day, as an instant (handles daylight saving). */
+export function easternMidnight(date: string): Date {
+  // The Eastern UTC offset around local midnight (05:00 UTC is 00:00 or 01:00 Eastern).
+  const offset =
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", timeZoneName: "shortOffset" })
+      .formatToParts(new Date(`${date}T05:00:00.000Z`))
+      .find((part) => part.type === "timeZoneName")
+      ?.value.match(/GMT([+-]\d{1,2})/)?.[1] ?? "-5";
+  const hoursOffset = Number(offset);
+  const sign = hoursOffset < 0 ? "-" : "+";
+  return new Date(
+    `${date}T00:00:00.000${sign}${String(Math.abs(hoursOffset)).padStart(2, "0")}:00`,
+  );
+}

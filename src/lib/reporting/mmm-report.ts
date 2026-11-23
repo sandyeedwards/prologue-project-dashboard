@@ -90,7 +90,7 @@ export function meetingTaskComplete(task: Pick<MeetingTask, "status" | "complete
 export type MeetingSignal = { tone: "red" | "amber"; label: string };
 export type MeetingStage = {
   name: string;
-  /** Name shown on MMM: Ready Set Admin is called "Project Management". */
+  /** Name shown on MMM. */
   label: string;
   /**
    * Unbudgeted Admin: no task in the group has an estimate, so its hours are tracked as a share
@@ -168,10 +168,6 @@ export function adminBenchmark(
     highPercent: percentile(shares, 0.75),
     projectCount: shares.length,
   };
-}
-
-export function stageLabel(group: string, jobType: string | undefined): string {
-  return group === "Admin" && jobType === "Ready Set" ? "Project Management" : group;
 }
 
 const groupOrder = ["Admin", "Mobilization", "Fieldwork", "Modeling"];
@@ -400,7 +396,7 @@ export function buildMeetingProjects(
         const unbudgeted = name === "Admin" && adminUnbudgeted;
         return {
           name,
-          label: stageLabel(name, source.jobType),
+          label: name,
           unbudgeted,
           sharePercent: taskLoggedMinutes > 0 ? (logged / taskLoggedMinutes) * 100 : null,
           tasks: stageTasks,

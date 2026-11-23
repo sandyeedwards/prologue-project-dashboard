@@ -8,12 +8,13 @@ import {
   getLastWeekUtilization,
   getPipelineState,
   getProjectInsights,
+  getWeekHighlights,
 } from "@/lib/all-hands/all-hands-data";
 import { roleAllows } from "@/lib/auth/authorization";
 import { requireUser } from "@/lib/auth/session";
 import { dateLabel, easternIsoDate, reportingTimestamp } from "@/lib/reporting/format";
 import styles from "./all-hands.module.css";
-import { Insights, Pipeline, Utilization } from "./sections";
+import { Glance, Insights, Pipeline, Utilization, WeekAhead, Wins } from "./sections";
 
 export const dynamic = "force-dynamic";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -40,24 +41,32 @@ export default async function AllHandsPage({ searchParams }: { searchParams: Sea
   const weekStart = requested ?? defaultWeek(easternIsoDate());
   const canSeePeople = roleAllows(session.user.role, "MANAGER");
 
-  const [notes, pipeline, insights, utilization, lastSyncAt] = await Promise.all([
+  const [notes, pipeline, insights, utilization, highlights, lastSyncAt] = await Promise.all([
     getAgendaNotes(weekStart),
-    getPipelineState(),
+    getPipelineState(weekStart),
     settle(getProjectInsights()),
     settle(getLastWeekUtilization(weekStart, canSeePeople)),
+    settle(getWeekHighlights(weekStart)),
     settle(getLastSyncAt()),
   ]);
+  let teamworkBase: string | null = null;
+  try {
+    const source = new URL(process.env.TEAMWORK_SITE_URL ?? "");
+    if (source.protocol === "https:") teamworkBase = source.origin;
+  } catch {
+    /* Task links stay plain text until a Teamwork site URL is configured. */
+  }
 
   return (
     <AppShell user={session.user}>
       <main className={`shell shell--wide ${styles.page}`}>
         <section className="report-titlebar report-titlebar--executive">
           <div className="report-titlebar__copy">
-            <p className="eyebrow">Prologue scheduling, PM &amp; alignment · Mondays 10–11</p>
-            <h1>All-Hands · Week of {dateLabel(weekStart)}</h1>
+            <p className="eyebrow">Monday all-hands · 10:00–11:00 · breakout 11:00–11:30</p>
+            <h1>Week of {dateLabel(weekStart)}</h1>
             <p>
-              The Monday agenda. Pipeline, projects and utilization fill in on their own; type the
-              rest below. Breakout 11–11:30.
+              Numbers fill in from Teamwork, HubSpot and Time Reporting. Type in the white boxes;
+              notes save automatically.
             </p>
           </div>
           <div className="report-titlebar__actions">
@@ -96,6 +105,18 @@ export default async function AllHandsPage({ searchParams }: { searchParams: Sea
           }
           scheduledHost={scheduledHost(weekStart)}
           nextWeekHost={scheduledHost(addWeeks(weekStart, 1))}
+          glance={
+            <Glance
+              highlights={highlights}
+              utilization={utilization}
+              pipeline={pipeline}
+              insights={insights}
+            />
+          }
+          wins={<Wins highlights={highlights} pipeline={pipeline} />}
+          weekAhead={
+            <WeekAhead weekStart={weekStart} highlights={highlights} teamworkBase={teamworkBase} />
+          }
           pipeline={<Pipeline state={pipeline} />}
           insights={<Insights insights={insights} />}
           utilization={<Utilization data={utilization} />}

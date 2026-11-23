@@ -145,3 +145,27 @@ export function summarizePipelines(
     })
     .sort((a, b) => b.openCount - a.openCount || a.label.localeCompare(b.label));
 }
+
+export type WonDeals = {
+  deals: Array<{ id: string; name: string; amount: number | null; closeDate: string | null }>;
+  /** Sum of the won deals that have an amount. */
+  amount: number;
+  unpriced: number;
+};
+
+/** Deals won last week, biggest first. A deal without an amount is counted, never as $0. */
+export function summarizeWonDeals(deals: readonly PipelineDealInput[]): WonDeals {
+  const rows = deals
+    .map((deal) => ({
+      id: deal.id,
+      name: textValue(deal.properties?.dealname) || "Unnamed deal",
+      amount: amountValue(deal.properties?.amount),
+      closeDate: closeDateValue(deal.properties?.closedate),
+    }))
+    .sort((a, b) => (b.amount ?? -1) - (a.amount ?? -1) || a.name.localeCompare(b.name));
+  return {
+    deals: rows,
+    amount: rows.reduce((sum, row) => sum + (row.amount ?? 0), 0),
+    unpriced: rows.filter((row) => row.amount === null).length,
+  };
+}

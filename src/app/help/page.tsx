@@ -112,8 +112,11 @@ export default async function HelpPage() {
             </p>
             <p>
               Task-list budgets cover Prologue cost only, so work-group budget comparisons leave
-              vendor bills out and show them on their own line. Admin has no budget: its hours are
-              cost, shown as a share of the project.
+              vendor bills out and show them on their own line. Admin has no budget and no share of
+              the fee (the admin fee is profit), on old and new projects alike: its hours are cost,
+              shown as a share of all hours. On Ready Set and Data Hall projects there is no Admin:
+              their Admin, Project Setup and Project Management lists count as Fieldwork (project
+              management), never as a mobilization or an area.
             </p>
           </article>
 

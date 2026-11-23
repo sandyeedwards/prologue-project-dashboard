@@ -428,7 +428,7 @@ describe("unbudgeted Admin", () => {
     expect(project.signals.some((s) => s.label.startsWith("Admin is"))).toBe(false);
   });
 
-  it("reviews estimated Ready Set Project Management like other work", () => {
+  it("reviews an Admin list that has estimates (older projects) like other work", () => {
     const [project] = buildMeetingProjects(
       [{ ...source, jobType: "Ready Set" }],
       [{ ...metric, totalTaskCount: 2 }],
@@ -442,7 +442,7 @@ describe("unbudgeted Admin", () => {
     );
     const stage = project.stages.find((s) => s.name === "Admin");
     expect(stage?.unbudgeted).toBe(false);
-    expect(stage?.label).toBe("Project Management");
+    expect(stage?.label).toBe("Admin");
     expect(stage?.estimatedMinutes).toBe(900);
   });
 

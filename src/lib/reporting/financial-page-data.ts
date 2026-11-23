@@ -50,6 +50,7 @@ export async function getFinancialPageData(
     cost: group.forecastCost,
     actualCost: group.actualCostToDate,
     outsourcedCost: group.outsourcedCost,
+    costOnly: group.costOnly,
     remainingCost: group.remainingCost,
     profit: group.forecastProfit,
     margin: group.marginPercent,
@@ -90,6 +91,7 @@ export async function getFinancialPageData(
     .map((group) => ({
       label: group.groupName,
       detail: `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`,
+      tracking: group.groupName === "Admin" ? ("share" as const) : undefined,
       values: {
         estimated: group.estimatedMinutes / 60,
         logged: group.loggedMinutes / 60,

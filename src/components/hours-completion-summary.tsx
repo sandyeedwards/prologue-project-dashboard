@@ -3,6 +3,11 @@ import type { CSSProperties } from "react";
 type HoursSummaryRow = {
   label: string;
   detail?: string;
+  /**
+   * "share": no budget (Admin). Logged hours are shown as a share of all hours instead of
+   * against an estimate, even where older projects still carry an Admin estimate.
+   */
+  tracking?: "share";
   values: Record<string, number | null>;
   breakdown?: Array<{
     label: string;
@@ -45,11 +50,15 @@ export function HoursCompletionSummary({
   rows: HoursSummaryRow[];
   emptyMessage?: string;
 }) {
+  const totalLogged = rows.reduce(
+    (sum, row) => sum + (finite(row.values.logged) ? Math.max(row.values.logged ?? 0, 0) : 0),
+    0,
+  );
   const normalized = rows
     .map((row) => {
-      const estimatedValue = finite(row.values.estimated)
-        ? Math.max(row.values.estimated ?? 0, 0)
-        : null;
+      const share = row.tracking === "share";
+      const estimatedValue =
+        !share && finite(row.values.estimated) ? Math.max(row.values.estimated ?? 0, 0) : null;
       const estimated = estimatedValue !== null && estimatedValue > 0 ? estimatedValue : null;
       const logged = finite(row.values.logged) ? Math.max(row.values.logged ?? 0, 0) : null;
       const percent = estimated !== null && logged !== null ? (logged / estimated) * 100 : null;
@@ -65,9 +74,10 @@ export function HoursCompletionSummary({
               : "on-track";
       const breakdown = (row.breakdown ?? [])
         .map((item) => {
-          const itemEstimatedValue = finite(item.values.estimated)
-            ? Math.max(item.values.estimated ?? 0, 0)
-            : null;
+          const itemEstimatedValue =
+            !share && finite(item.values.estimated)
+              ? Math.max(item.values.estimated ?? 0, 0)
+              : null;
           const itemEstimated =
             itemEstimatedValue !== null && itemEstimatedValue > 0 ? itemEstimatedValue : null;
           const itemLogged = finite(item.values.logged)
@@ -86,6 +96,9 @@ export function HoursCompletionSummary({
 
       return {
         ...row,
+        share,
+        sharePercent:
+          share && logged !== null && totalLogged > 0 ? (logged / totalLogged) * 100 : null,
         estimated,
         logged,
         percent,
@@ -188,13 +201,27 @@ export function HoursCompletionSummary({
                 <div className="hours-completion__stats">
                   <span>{formatHours(row.logged)} logged</span>
                   <span>
-                    {row.estimated === null ? "No estimate" : formatHours(row.estimated) + " est."}
+                    {row.share
+                      ? "No budget"
+                      : row.estimated === null
+                        ? "No estimate"
+                        : formatHours(row.estimated) + " est."}
                   </span>
                 </div>
               </div>
 
-              <div className={"hours-completion__badge hours-completion__badge--" + row.tone}>
-                {row.estimated === null ? (
+              <div
+                className={
+                  "hours-completion__badge hours-completion__badge--" +
+                  (row.share ? "on-track" : row.tone)
+                }
+              >
+                {row.share ? (
+                  <>
+                    <strong>{formatPercent(row.sharePercent)}</strong>
+                    <small>Of all hours</small>
+                  </>
+                ) : row.estimated === null ? (
                   <>
                     <strong>No estimate</strong>
                     <small>{"Logged " + formatHours(row.logged)}</small>
