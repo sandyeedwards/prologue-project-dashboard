@@ -7,6 +7,7 @@ import {
   getPortfolioOperationalGroups,
   getProjectTypeFacets,
   normalizeDatabaseDate,
+  projectJobType,
   summarizeProjects,
   type HistoricalCostRecord,
   type ProjectReportRow,
@@ -585,5 +586,19 @@ describe("portfolio operational groups with missing financial inputs", () => {
     expect(fieldwork.forecastProfit).toBe(800);
     expect(fieldwork.actualCostToDate).toBeNull();
     expect(fieldwork.remainingCost).toBeNull();
+  });
+});
+
+describe("project job type", () => {
+  it.each([
+    [{ tags: ["Scanning", "Modeling"] }, "Scanning and Modeling"],
+    [{ tags: ["Scanning"] }, "Scanning"],
+    [{ tags: ["Modeling"] }, "Modeling"],
+    [{ tags: ["Ready Set", "Modeling"] }, "Ready Set"],
+    [{ tags: ["DataHall"] }, "Data Hall"],
+    [{ tags: ["NoReport"], projectType: null }, "Other"],
+    [{}, "Other"],
+  ] as const)("labels %j as %s", (row, expected) => {
+    expect(projectJobType(row)).toBe(expected);
   });
 });
