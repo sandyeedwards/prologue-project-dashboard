@@ -260,6 +260,7 @@ export function CombinedPortfolioReport({
     revenue: group.allocatedRevenue,
     cost: group.forecastCost,
     actualCost: group.actualCostToDate,
+    outsourcedCost: group.outsourcedCost,
     remainingCost: group.remainingCost,
     profit: group.forecastProfit,
     margin: group.marginPercent,

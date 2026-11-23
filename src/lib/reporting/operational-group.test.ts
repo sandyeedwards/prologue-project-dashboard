@@ -142,3 +142,40 @@ describe("helpers", () => {
     },
   );
 });
+
+describe("estimating app task-list names", () => {
+  it.each([
+    "Modeling - Project Setup & Sheeting",
+    "Modeling - Level 1",
+    "Modeling - Base Scope",
+    "Modeling - Main House (Option A)",
+    "Modeling",
+  ])("files %s under Modeling, even with an admin phrase in the name", (name) => {
+    expect(classifyTaskList(name)).toBe("Modeling");
+    expect(
+      classifyTaskListFromTasks(name, ["Prologue Model Management & Production (log time)"]),
+    ).toBe("Modeling");
+  });
+
+  it("keeps Admin, Project Management and template Model Setup where they were", () => {
+    expect(classifyTaskList("Admin")).toBe("Admin");
+    expect(classifyTaskList("Project Management", { isReadySet: true })).toBe("Admin");
+    expect(classifyTaskList("Model Setup")).toBe("Admin");
+    expect(classifyTaskList("Model Setup", { isReadySet: true })).toBe("Modeling");
+  });
+
+  it.each(["Mob 1 – Level 1 SOG", "Mob 10 SOG Pour 6 (11-19-26)", "Mob 3", "MOB 2 (trip 1 of 2)"])(
+    "recognizes Ready Set mobilization list %s",
+    (name) => {
+      expect(isReadySetMobilizationTaskList(name)).toBe(true);
+      expect(classifyTaskList(name, { isReadySet: true })).toBe("Fieldwork");
+    },
+  );
+
+  it.each(["Mobilization", "Mobile Scanning", "Mob10x", "Mob 1a"])(
+    "does not treat %s as a Mob list",
+    (name) => {
+      expect(isReadySetMobilizationTaskList(name)).toBe(false);
+    },
+  );
+});

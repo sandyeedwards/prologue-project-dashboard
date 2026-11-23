@@ -36,7 +36,7 @@ export default async function HelpPage() {
                 <strong>Company Overview</strong>
                 <span>
                   A quick read of company profit, project health, workload, and data confidence. The
-                  MMM button opens the Monday Morning Meeting page.
+                  MMM and All-Hands buttons open the Monday meeting pages.
                 </span>
               </li>
               <li>
@@ -98,6 +98,22 @@ export default async function HelpPage() {
             <p>
               <span className="health-badge health-badge--gray">Grey</span> Missing data. It is
               never counted as zero.
+            </p>
+          </article>
+
+          <article className="help-card">
+            <p className="eyebrow">Costs</p>
+            <h2>How costs are counted</h2>
+            <p>
+              Profit is the client fee minus all labor and all expenses. Outsourced modeling vendor
+              bills count as actual cost once they are entered as expenses in Teamwork Finance; they
+              are never estimated. Outsourced Modeling hours are left out of remaining hours and
+              remaining cost.
+            </p>
+            <p>
+              Task-list budgets cover Prologue cost only, so work-group budget comparisons leave
+              vendor bills out and show them on their own line. Admin has no budget: its hours are
+              cost, shown as a share of the project.
             </p>
           </article>
 

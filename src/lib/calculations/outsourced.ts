@@ -58,3 +58,20 @@ export function sumInternalCanonicalEstimatedMinutes(
     return sum + metric.countedEstimatedMinutes;
   }, 0);
 }
+
+/**
+ * Recorded outsourced-modeling vendor cost (actual, never estimated). Null when a vendor bill has
+ * no amount, so a missing bill is never shown as $0.
+ */
+export function outsourcedExpenseCost(
+  expenses: readonly { isOutsourcedModeling: boolean; totalCost: string | number | null }[],
+): number | null {
+  const vendor = expenses.filter((expense) => expense.isOutsourcedModeling);
+  let total = 0;
+  for (const expense of vendor) {
+    const value = expense.totalCost === null ? NaN : Number(expense.totalCost);
+    if (!Number.isFinite(value)) return null;
+    total += value;
+  }
+  return total;
+}

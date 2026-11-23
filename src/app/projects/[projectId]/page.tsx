@@ -157,15 +157,22 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
       forecast: numeric(group.forecastCost),
     },
   }));
+  // Task-list budgets are Prologue cost only, so outsourced vendor bills are left out of the
+  // budget comparison here; they still count in the project's costs and profit.
   const groupCostPerformanceRows = visibleGroups.map((group) => {
     const actualLabor = numeric(group.actualLaborCost);
     const actualNonLabor = numeric(group.actualNonLaborCost);
+    const vendor = numeric(group.outsourcedExpenseCost) ?? 0;
+    const forecast = numeric(group.forecastCost);
     return {
       label: group.groupName,
       target: numeric(group.targetCost),
       targetCoverage: group.targetCostCoverage,
-      actual: actualLabor === null || actualNonLabor === null ? null : actualLabor + actualNonLabor,
-      forecast: numeric(group.forecastCost),
+      actual:
+        actualLabor === null || actualNonLabor === null
+          ? null
+          : actualLabor + actualNonLabor - vendor,
+      forecast: forecast === null ? null : forecast - vendor,
       progressPercent: numeric(group.progressPercent),
     };
   });
@@ -339,7 +346,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <ChartPanel
             eyebrow="Cost performance"
             title="Cost against target by group"
-            description="Current costs and estimated remaining costs build to the forecast cost. Green shows forecast headroom below a complete planned-cost target; red shows cost above target. Groups without a complete target show no target comparison."
+            description="Prologue's current costs and estimated remaining costs against each group's task-list budget. Outsourced modeling vendor bills are left out here because budgets cover Prologue cost only; they still count in the project's costs and profit. Green shows headroom below a complete budget; red shows cost above it. Groups without a complete budget show no comparison."
           >
             <CostPerformanceChart rows={groupCostPerformanceRows} />
           </ChartPanel>
@@ -659,12 +666,30 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                       <small>Planned cost</small>
                       <strong>{money(group.targetCost)}</strong>
                     </span>
-                    <span>
-                      <small>Expenses</small>
-                      <strong>{money(group.actualNonLaborCost)}</strong>
-                    </span>
-                    <span>
-                      <small>Variance</small>
+                    {(numeric(group.outsourcedExpenseCost) ?? 0) > 0 ? (
+                      <>
+                        <span>
+                          <small>Outsourced vendor</small>
+                          <strong>{money(group.outsourcedExpenseCost)}</strong>
+                        </span>
+                        <span>
+                          <small>Other expenses</small>
+                          <strong>
+                            {money(
+                              (numeric(group.actualNonLaborCost) ?? 0) -
+                                (numeric(group.outsourcedExpenseCost) ?? 0),
+                            )}
+                          </strong>
+                        </span>
+                      </>
+                    ) : (
+                      <span>
+                        <small>Expenses</small>
+                        <strong>{money(group.actualNonLaborCost)}</strong>
+                      </span>
+                    )}
+                    <span title="Task-list budget minus Prologue's forecast cost (vendor bills left out)">
+                      <small>Variance to budget</small>
                       <strong>{money(group.varianceToTarget)}</strong>
                     </span>
                     <span>

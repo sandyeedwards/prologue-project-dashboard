@@ -492,6 +492,62 @@ describe("portfolio operational group model", () => {
   });
 });
 
+describe("outsourced modeling vendor cost by work group", () => {
+  const project: ProjectReportRow = {
+    ...base,
+    id: "vendor",
+    teamworkId: 9,
+    targetCost: null,
+    canonicalEstimatedMinutes: 100,
+    loggedMinutes: 100,
+    actualLaborCost: "500.00",
+    actualNonLaborCost: "1200.00",
+    actualTotalCost: "1700.00",
+    forecastCost: "2000.00",
+  };
+  const row = (groupName: string, fields: Record<string, unknown>) => ({
+    projectId: project.id,
+    groupName,
+    targetCost: null,
+    estimatedMinutes: 50,
+    loggedMinutes: 50,
+    actualLaborCost: "250.00",
+    actualNonLaborCost: "0.00",
+    forecastCost: "400.00",
+    outsourcedExpenseCost: "0",
+    ...fields,
+  });
+
+  it("reports the vendor bills inside Modeling's actual cost", async () => {
+    const groups = await getPortfolioOperationalGroups(
+      [project],
+      [
+        row("Fieldwork", {}),
+        row("Modeling", {
+          actualNonLaborCost: "1200.00",
+          forecastCost: "1600.00",
+          outsourcedExpenseCost: "1200",
+        }),
+      ],
+    );
+    const modeling = groups.find((group) => group.groupName === "Modeling");
+    expect(modeling?.outsourcedCost).toBe(1200);
+    expect(modeling?.actualCostToDate).toBe(1450);
+    expect(groups.find((group) => group.groupName === "Fieldwork")?.outsourcedCost).toBe(0);
+  });
+
+  it("shows the vendor figure as missing, not $0, before a recalculation stores it", async () => {
+    const groups = await getPortfolioOperationalGroups(
+      [project],
+      [
+        row("Fieldwork", {}),
+        row("Modeling", { outsourcedExpenseCost: undefined, forecastCost: "1600.00" }),
+      ],
+    );
+    expect(groups.find((group) => group.groupName === "Modeling")?.outsourcedCost).toBeNull();
+  });
+});
+
 describe("portfolio operational groups with missing financial inputs", () => {
   const groupRow = (projectId: string, groupName: string, forecastCost: string | null) => ({
     projectId,
