@@ -1,7 +1,5 @@
 import { getSqlClient } from "@/db/client";
-import { getDealNames } from "@/lib/hosting/hubspot";
-import { findHubSpotDealReference, hubSpotDealUrl } from "./hubspot-deal-link";
-import { getProjectRows, normalizeDatabaseDate } from "./dashboard-data";
+import { getProjectRows, normalizeDatabaseDate, projectJobType } from "./dashboard-data";
 import {
   buildMeetingProjects,
   isActiveMeetingProject,
@@ -19,9 +17,15 @@ export async function getMeetingReport(now = new Date()) {
       select p.id, p.teamwork_id as "teamworkId", p.name, p.project_number as "projectNumber",
         c.name as "companyName", nullif(trim(concat_ws(' ', owner.first_name, owner.last_name)), '') as owner,
         p.status, p.start_date as "startDate", p.end_date as "endDate",
-        p.archived_at as "archivedAt", p.completed_at as "completedAt", p.last_synced_at as "lastSyncedAt"
+        p.archived_at as "archivedAt", p.completed_at as "completedAt", p.last_synced_at as "lastSyncedAt",
+        p.project_type as "projectType", coalesce(tg.tags, array[]::text[]) as tags
       from projects p left join companies c on c.id=p.company_id
       left join people owner on owner.id=p.owner_person_id
+      left join lateral (
+        select array_agg(t.name order by t.name) as tags
+        from project_tags pt join tags t on t.id = pt.tag_id
+        where pt.project_id = p.id
+      ) tg on true
       where p.excluded_from_reporting=false and lower(trim(p.status))='active'
         and p.archived_at is null and p.completed_at is null
       order by p.name
@@ -41,7 +45,15 @@ export async function getMeetingReport(now = new Date()) {
         tm.counted_estimated_minutes as "countedEstimatedMinutes", tm.branch_logged_minutes as "branchLoggedMinutes",
         tm.remaining_minutes as "remainingMinutes", tm.is_canonical_holder as "isCanonicalHolder",
         tm.is_branch_complete as "isBranchComplete", coalesce(tm.is_outsourced, false) as "isOutsourced",
-        tm.details->>'coveredByCanonicalTaskId' as "coveredByTaskId", (tm.task_id is not null) as "metricsAvailable"
+        tm.details->>'coveredByCanonicalTaskId' as "coveredByTaskId", (tm.task_id is not null) as "metricsAvailable",
+        t.estimated_minutes as "ownEstimatedMinutes",
+        coalesce((
+          select array_agg(tg.name order by tg.name)
+          from jsonb_array_elements_text(
+            case when jsonb_typeof(t.raw->'tagIds') = 'array' then t.raw->'tagIds' else '[]'::jsonb end
+          ) tag_id
+          join tags tg on tg.teamwork_id::text = tag_id
+        ), array[]::text[]) as tags
       from tasks t inner join task_lists tl on tl.id=t.task_list_id
       left join project_metrics pm on pm.project_id=t.project_id
       left join task_metrics tm on tm.task_id=t.id and tm.calculation_run_id=pm.calculation_run_id
@@ -64,7 +76,6 @@ export async function getMeetingReport(now = new Date()) {
       from time_entries where project_id in ${sql(ids)} and is_deleted=false group by project_id
     `,
   ]);
-  const dealLinks = await getLinkedHubSpotDeals(ids);
   const tasks = taskRows.map((task) => ({
     ...task,
     completedAt: task.completedAt ? normalizeDatabaseDate(task.completedAt) : null,
@@ -72,50 +83,10 @@ export async function getMeetingReport(now = new Date()) {
   const normalizedSources = active.map((source) => ({
     ...source,
     lastSyncedAt: source.lastSyncedAt ? normalizeDatabaseDate(source.lastSyncedAt) : null,
-    hubspotDeal: dealLinks.get(source.id) ?? null,
+    jobType: projectJobType(source),
   }));
   return {
     projects: buildMeetingProjects(normalizedSources, metrics, tasks, activity, now),
     window,
   };
-}
-
-// Resolve the HubSpot deal linked to each project. Names come from imported hosting deals first,
-// then a read-only HubSpot lookup. A lookup failure never hides the meeting report.
-async function getLinkedHubSpotDeals(projectIds: readonly string[]) {
-  const sql = getSqlClient();
-  const links = new Map<string, { id: string; name: string | null; url: string | null }>();
-  if (!projectIds.length) return links;
-  const rows = await sql<Array<{ id: string; raw: unknown }>>`
-    select id, raw from projects where id in ${sql([...projectIds])}
-  `;
-  const dealIdByProject = new Map<string, string>();
-  for (const row of rows) {
-    const reference = findHubSpotDealReference(row.raw);
-    if (reference) dealIdByProject.set(row.id, reference.dealId);
-  }
-  const dealIds = [...new Set(dealIdByProject.values())];
-  const names = new Map<string, string>();
-  if (dealIds.length) {
-    const known = await sql<Array<{ id: string; name: string | null }>>`
-      select hubspot_deal_id as id, coalesce(nullif(trim(deal_name), ''), nullif(trim(site_name), '')) as name
-      from hosting_deals where hubspot_deal_id in ${sql(dealIds)}
-    `;
-    for (const deal of known) if (deal.name) names.set(deal.id, deal.name);
-    const missing = dealIds.filter((id) => !names.has(id));
-    if (missing.length && process.env.HUBSPOT_ACCESS_TOKEN) {
-      try {
-        for (const [id, name] of await getDealNames(missing)) names.set(id, name);
-      } catch (error) {
-        console.warn("MMM HubSpot deal-name lookup skipped:", (error as Error).message);
-      }
-    }
-  }
-  for (const [projectId, dealId] of dealIdByProject)
-    links.set(projectId, {
-      id: dealId,
-      name: names.get(dealId) ?? null,
-      url: hubSpotDealUrl(dealId, process.env.HUBSPOT_PORTAL_ID?.trim() || undefined),
-    });
-  return links;
 }

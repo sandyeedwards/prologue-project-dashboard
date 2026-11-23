@@ -15,8 +15,11 @@ export type MeetingProjectSource = {
   archivedAt: Date | null;
   completedAt: Date | null;
   lastSyncedAt: Date | null;
-  /** HubSpot deal linked to the Teamwork project, when Teamwork exposes the link. */
-  hubspotDeal?: { id: string; name: string | null; url: string | null } | null;
+  /** Teamwork project type and tags, used to show the job type (Scanning, Modeling, ...). */
+  projectType?: string | null;
+  tags?: string[];
+  /** One job type label (Scanning, Modeling, Scanning and Modeling, Ready Set, Data Hall, Other). */
+  jobType?: string;
 };
 
 export type MeetingTask = {
@@ -41,7 +44,22 @@ export type MeetingTask = {
   isOutsourced: boolean;
   coveredByTaskId: string | null;
   metricsAvailable: boolean;
+  /** The task's own Teamwork estimate, used for tasks added since the last calculation. */
+  ownEstimatedMinutes?: number | null;
+  /** Teamwork task tag names, e.g. "Estimate Hours". */
+  tags?: string[];
 };
+
+export type MeetingTaskRef = Pick<
+  MeetingTask,
+  "id" | "teamworkId" | "name" | "taskListName" | "group"
+>;
+
+const normalizedTag = (value: string) => value.replace(/[^a-z0-9]/gi, "").toLowerCase();
+/** Tasks tagged "Estimate Hours" in Teamwork must carry an hour estimate. */
+export function taskRequiresEstimate(task: Pick<MeetingTask, "tags">): boolean {
+  return (task.tags ?? []).some((tag) => normalizedTag(tag) === "estimatehours");
+}
 
 export function meetingWindow(now = new Date()) {
   const today = currentTimeReportingDate(now);
@@ -90,6 +108,10 @@ export type MeetingProject = MeetingProjectSource & {
   undatedTasks: number;
   unestimatedTasks: number;
   exhaustedEstimates: number;
+  /** Open tasks tagged "Estimate Hours" that have no estimate: why projected hours are missing. */
+  missingEstimateTasks: MeetingTaskRef[];
+  /** Open tasks added since the last calculation; their own Teamwork estimates are used. */
+  uncalculatedTasks: number;
   progressPercent: number | null;
   remainingMinutes: number | null;
   forecastMinutes: number | null;
@@ -149,18 +171,66 @@ export function buildMeetingProjects(
       projectMetrics &&
       typeof projectMetrics.totalTaskCount === "number" &&
       projectMetrics.totalTaskCount !== tasks.length;
-    const missingMetrics =
-      !projectMetrics || !!taskCountChanged || tasks.some((task) => !task.metricsAvailable);
+    const hasChildren = (task: MeetingTask) =>
+      tasks.some((child) => child.parentTaskId === task.id);
+    // A task under a calculated estimate holder is already covered by that holder's estimate.
+    const underCalculatedHolder = (task: MeetingTask): boolean => {
+      const seen = new Set<string>();
+      let parent = task.parentTaskId ? byId.get(task.parentTaskId) : undefined;
+      while (parent && !seen.has(parent.id)) {
+        seen.add(parent.id);
+        if (parent.metricsAvailable && parent.isCanonicalHolder) return true;
+        parent = parent.parentTaskId ? byId.get(parent.parentTaskId) : undefined;
+      }
+      return false;
+    };
     const holders = tasks.filter((task) => task.isCanonicalHolder && !task.isOutsourced);
-    const remainingMinutes = missingMetrics
-      ? null
-      : holders.reduce(
-          (sum, task) => sum + (task.isBranchComplete ? 0 : (task.remainingMinutes ?? 0)),
-          0,
-        );
+    // Tasks added since the last calculation: count their own estimate less their own time, so
+    // projected hours stay current instead of going blank until the next recalculation.
+    const uncalculated = open.filter(
+      (task) =>
+        !task.metricsAvailable &&
+        !task.isOutsourced &&
+        !hasChildren(task) &&
+        !underCalculatedHolder(task),
+    );
+    const hasEstimate = (task: MeetingTask) =>
+      (task.ownEstimatedMinutes ?? 0) > 0 || (task.countedEstimatedMinutes ?? 0) > 0;
+    // Projected hours are only "missing" when a task that must be estimated ("Estimate Hours"
+    // tag) has no estimate. Those tasks are named so they can be fixed in Teamwork.
+    const missingEstimateTasks: MeetingTaskRef[] = open
+      .filter(
+        (task) =>
+          taskRequiresEstimate(task) &&
+          !task.isOutsourced &&
+          !hasEstimate(task) &&
+          !(task.coveredByTaskId && task.coveredByTaskId !== task.id) &&
+          !tasks.some((child) => child.parentTaskId === task.id && hasEstimate(child)),
+      )
+      .map(({ id, teamworkId, name, taskListName, group }) => ({
+        id,
+        teamworkId,
+        name,
+        taskListName,
+        group,
+      }));
+    const taskRemaining = (task: MeetingTask) =>
+      task.metricsAvailable
+        ? task.isBranchComplete
+          ? 0
+          : (task.remainingMinutes ?? 0)
+        : Math.max((task.ownEstimatedMinutes ?? 0) - task.ownLoggedMinutes, 0);
+    const remainingMinutes = tasks.length
+      ? holders.reduce((sum, task) => sum + taskRemaining(task), 0) +
+        uncalculated.reduce((sum, task) => sum + taskRemaining(task), 0)
+      : null;
+    const loggedBase =
+      projectMetrics?.loggedMinutes ??
+      tasks.reduce((sum, task) => sum + task.ownLoggedMinutes, 0) +
+        (activityById.get(source.id)?.unallocatedMinutes ?? 0);
     const forecastMinutes =
-      projectMetrics && remainingMinutes !== null && projectMetrics.canonicalEstimatedMinutes > 0
-        ? projectMetrics.loggedMinutes + remainingMinutes
+      remainingMinutes !== null && !missingEstimateTasks.length
+        ? loggedBase + remainingMinutes
         : null;
     const unestimatedTasks = open.filter(
       (task) =>
@@ -215,7 +285,17 @@ export function buildMeetingProjects(
         "amber",
         "Task list changed since the forecast calculation; recalculate before relying on hours",
       );
-    if (missingMetrics) signal("amber", "Calculations are missing for this project or some tasks");
+    if (missingEstimateTasks.length)
+      signal(
+        "amber",
+        `${missingEstimateTasks.length} task${missingEstimateTasks.length === 1 ? " is" : "s are"} tagged Estimate Hours but ${missingEstimateTasks.length === 1 ? "has" : "have"} no estimate`,
+      );
+    if (!projectMetrics) signal("amber", "Not calculated yet; hours use Teamwork task estimates");
+    else if (uncalculated.length)
+      signal(
+        "amber",
+        `${uncalculated.length} task${uncalculated.length === 1 ? "" : "s"} added since the last calculation; their own estimates are used`,
+      );
     if (projectMetrics?.isProvisional)
       signal("amber", "Provisional forecast: cost or budget inputs need review");
     if (projectMetrics?.dataQualityIssueCount)
@@ -226,31 +306,24 @@ export function buildMeetingProjects(
       .sort(compareMeetingGroups)
       .map((name) => {
         const stageTasks = tasks.filter((task) => task.group === name);
-        const completeMetrics = stageTasks.every((task) => task.metricsAvailable);
         const internal = stageTasks.filter((task) => !task.isOutsourced && task.isCanonicalHolder);
-        const estimate = completeMetrics
-          ? internal.reduce((sum, task) => sum + (task.countedEstimatedMinutes ?? 0), 0)
-          : null;
-        const remaining = completeMetrics
-          ? internal.reduce(
-              (sum, task) => sum + (task.isBranchComplete ? 0 : (task.remainingMinutes ?? 0)),
-              0,
-            )
-          : null;
+        const stageNew = uncalculated.filter((task) => task.group === name);
+        const estimate =
+          internal.reduce((sum, task) => sum + (task.countedEstimatedMinutes ?? 0), 0) +
+          stageNew.reduce((sum, task) => sum + (task.ownEstimatedMinutes ?? 0), 0);
+        const remaining =
+          internal.reduce((sum, task) => sum + taskRemaining(task), 0) +
+          stageNew.reduce((sum, task) => sum + taskRemaining(task), 0);
         const logged = stageTasks.reduce((sum, task) => sum + task.ownLoggedMinutes, 0);
+        const stageMissing = missingEstimateTasks.some((task) => task.group === name);
         return {
           name,
           tasks: stageTasks,
           completed: stageTasks.filter(meetingTaskComplete).length,
           estimatedMinutes: estimate,
           loggedMinutes: logged,
-          remainingMinutes: remaining,
-          forecastMinutes:
-            completeMetrics &&
-            remaining !== null &&
-            ((estimate !== null && estimate > 0) || stageTasks.every(meetingTaskComplete))
-              ? logged + remaining
-              : null,
+          remainingMinutes: stageMissing ? null : remaining,
+          forecastMinutes: stageMissing ? null : logged + remaining,
         };
       });
     return {
@@ -264,6 +337,8 @@ export function buildMeetingProjects(
       undatedTasks,
       unestimatedTasks,
       exhaustedEstimates,
+      missingEstimateTasks,
+      uncalculatedTasks: uncalculated.length,
       progressPercent: tasks.length ? (completedTasks / tasks.length) * 100 : null,
       completedLastWeek: tasks.filter(
         (task) =>
@@ -273,8 +348,9 @@ export function buildMeetingProjects(
       ).length,
       remainingMinutes,
       forecastMinutes,
+      // With no estimate at all there is nothing to be over or under.
       varianceMinutes:
-        forecastMinutes !== null && projectMetrics
+        forecastMinutes !== null && projectMetrics && projectMetrics.canonicalEstimatedMinutes > 0
           ? forecastMinutes - projectMetrics.canonicalEstimatedMinutes
           : null,
       lastWeekMinutes: activityById.get(source.id)?.lastWeekMinutes ?? 0,

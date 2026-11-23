@@ -198,19 +198,30 @@ describe("Monday meeting report", () => {
     expect(project.metrics?.forecastCost).toBe("800");
   });
 
-  it("shows uncalculated active projects and leaves missing forecasts unknown", () => {
-    const [uncalculated] = build([task({ metricsAvailable: false })], []);
-    expect(uncalculated.metrics).toBeNull();
-    expect(uncalculated.forecastMinutes).toBeNull();
-    expect(uncalculated.signals.some((s) => s.label.includes("Calculations are missing"))).toBe(
-      true,
+  it("uses Teamwork task estimates for projects and tasks not yet calculated", () => {
+    const [uncalculated] = build(
+      [task({ metricsAvailable: false, ownEstimatedMinutes: 600, isCanonicalHolder: null })],
+      [],
     );
-    const [partial] = build([task(), task({ id: "new-task", metricsAvailable: false })]);
-    expect(partial.remainingMinutes).toBeNull();
-    expect(partial.forecastMinutes).toBeNull();
+    expect(uncalculated.metrics).toBeNull();
+    // 240 logged on the task + 30 unallocated, plus 600 − 240 remaining on the task.
+    expect(uncalculated.forecastMinutes).toBe(630);
+    expect(uncalculated.signals.some((s) => s.label.includes("Not calculated yet"))).toBe(true);
+    const [partial] = build([
+      task(),
+      task({
+        id: "new-task",
+        metricsAvailable: false,
+        isCanonicalHolder: null,
+        ownEstimatedMinutes: 120,
+        ownLoggedMinutes: 0,
+      }),
+    ]);
+    expect(partial.remainingMinutes).toBe(480);
+    expect(partial.uncalculatedTasks).toBe(1);
   });
 
-  it("does not trust remaining hours when the task count differs from the calculation", () => {
+  it("keeps hours when the task count changed, but says so", () => {
     const [project] = buildMeetingProjects(
       [source],
       [{ ...metric, totalTaskCount: 2 }],
@@ -218,9 +229,42 @@ describe("Monday meeting report", () => {
       [],
       now,
     );
-    expect(project.remainingMinutes).toBeNull();
-    expect(project.forecastMinutes).toBeNull();
+    expect(project.remainingMinutes).toBe(360);
+    expect(project.forecastMinutes).toBe(600);
     expect(project.signals.some((signal) => signal.label.includes("Task list changed"))).toBe(true);
+  });
+
+  it("leaves projected hours missing only for Estimate Hours tasks without an estimate, and names them", () => {
+    const [project] = build([
+      task(),
+      task({
+        id: "needs-estimate",
+        name: "Static Scanning (log time)",
+        tags: ["Estimate Hours", "Log Time to Task"],
+        countedEstimatedMinutes: 0,
+        ownEstimatedMinutes: 0,
+        isCanonicalHolder: false,
+        coveredByTaskId: null,
+        remainingMinutes: 0,
+      }),
+    ]);
+    expect(project.forecastMinutes).toBeNull();
+    expect(project.missingEstimateTasks.map((row) => row.name)).toEqual([
+      "Static Scanning (log time)",
+    ]);
+    expect(project.signals.some((s) => s.label.includes("tagged Estimate Hours"))).toBe(true);
+    // An untagged task without an estimate does not blank the projection.
+    const [untagged] = build([
+      task(),
+      task({
+        id: "x",
+        tags: [],
+        countedEstimatedMinutes: 0,
+        isCanonicalHolder: false,
+        coveredByTaskId: null,
+      }),
+    ]);
+    expect(untagged.forecastMinutes).not.toBeNull();
   });
 
   it("puts projects with delivery risk before projects without flags", () => {
