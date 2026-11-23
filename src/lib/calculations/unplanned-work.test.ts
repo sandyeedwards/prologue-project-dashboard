@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { identifyUnplannedTopLevelTasks } from "./unplanned-work";
+import { identifyUnplannedTopLevelTasks, unbudgetedAdminTaskIds } from "./unplanned-work";
 
 const tasks = [
   { id: "top-unplanned", parentTaskId: null, estimatedMinutes: 0 },
@@ -42,5 +42,47 @@ describe("unplanned-work classification", () => {
     );
 
     expect(result).toEqual([]);
+  });
+});
+
+describe("unbudgetedAdminTaskIds", () => {
+  const lists = [
+    { id: "admin", operationalGroup: "Admin" },
+    { id: "field", operationalGroup: "Fieldwork" },
+  ];
+
+  it("treats Admin with no estimates as expected time, not unplanned", () => {
+    const ids = unbudgetedAdminTaskIds(
+      [
+        { id: "pm", taskListId: "admin", estimatedMinutes: null },
+        { id: "setup", taskListId: "admin", estimatedMinutes: 0 },
+        { id: "scan", taskListId: "field", estimatedMinutes: 0 },
+      ],
+      lists,
+    );
+    expect([...ids].sort()).toEqual(["pm", "setup"]);
+  });
+
+  it("judges each Admin list on its own: budgeted Project Management, $0 Admin", () => {
+    const ids = unbudgetedAdminTaskIds(
+      [
+        { id: "pm", taskListId: "pm-list", estimatedMinutes: 600 },
+        { id: "pm-other", taskListId: "pm-list", estimatedMinutes: 0 },
+        { id: "admin-time", taskListId: "admin", estimatedMinutes: null },
+      ],
+      [...lists, { id: "pm-list", operationalGroup: "Admin" }],
+    );
+    expect([...ids]).toEqual(["admin-time"]);
+  });
+
+  it("reviews an Admin list like other work once one of its tasks has an estimate", () => {
+    const ids = unbudgetedAdminTaskIds(
+      [
+        { id: "pm", taskListId: "admin", estimatedMinutes: 600 },
+        { id: "setup", taskListId: "admin", estimatedMinutes: 0 },
+      ],
+      lists,
+    );
+    expect(ids.size).toBe(0);
   });
 });
