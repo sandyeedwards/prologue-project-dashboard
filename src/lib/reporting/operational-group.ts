@@ -36,6 +36,24 @@ export function isNamedModelingTaskList(taskListName: string): boolean {
   return /^model(l)?ing(?![a-z0-9])/.test(normalizedWords(taskListName));
 }
 
+/**
+ * Ready Set and Data Hall projects have no Admin: their Admin, Project Setup and "Project
+ * Management" lists are project management, counted as Fieldwork (never a mobilization or an
+ * area), so they carry no Admin cost or budget. ("Model Setup" stays Modeling.)
+ */
+export function isSpecialProjectManagementTaskList(
+  taskListName: string,
+  context: { isDataHall?: boolean; isReadySet?: boolean } = {},
+): boolean {
+  if (!context.isReadySet && !context.isDataHall) return false;
+  if (isReadySetModelSetupTaskList(taskListName) || isNamedModelingTaskList(taskListName))
+    return false;
+  return (
+    normalizedWords(taskListName) === "project management" ||
+    isClearlyAdministrativeTaskList(taskListName)
+  );
+}
+
 function isReadySetModelSetupTaskList(taskListName: string): boolean {
   return normalizedWords(taskListName) === "model setup";
 }
@@ -73,12 +91,16 @@ export function classifyTaskList(
 ): OperationalGroup {
   const cleanName = taskListName.replace(/\s+/g, " ").trim() || "Unnamed task list";
 
-  if (context.isReadySet && isReadySetModelSetupTaskList(cleanName)) {
+  if ((context.isReadySet || context.isDataHall) && isReadySetModelSetupTaskList(cleanName)) {
     return "Modeling";
   }
 
   if (isNamedModelingTaskList(cleanName)) {
     return "Modeling";
+  }
+
+  if (isSpecialProjectManagementTaskList(cleanName, context)) {
+    return "Fieldwork";
   }
 
   if (isClearlyAdministrativeTaskList(cleanName)) {
@@ -120,6 +142,7 @@ export function classifyTaskListFromTasks(
   if (
     baseGroup === "Admin" ||
     (baseGroup === "Modeling" && isNamedModelingTaskList(taskListName)) ||
+    isSpecialProjectManagementTaskList(taskListName, context) ||
     context.isDataHall ||
     (context.isReadySet &&
       (isReadySetMobilizationTaskList(taskListName) || isReadySetModelSetupTaskList(taskListName)))

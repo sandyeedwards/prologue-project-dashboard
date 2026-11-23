@@ -41,6 +41,8 @@ describe("Mob / Area breakdown", () => {
           operationalGroup: "Admin",
         }),
         task({ taskListName: "Fieldwork" }),
+        task({ taskListName: "Project Management", operationalGroup: "Fieldwork" }),
+        task({ taskListName: "Admin", operationalGroup: "Fieldwork" }),
       ],
       expenses: [],
     });
@@ -58,6 +60,8 @@ describe("Mob / Area breakdown", () => {
           taskListName: "Admin",
           operationalGroup: "Admin",
         }),
+        // Project management now counts as Fieldwork but is never an area or a mobilization.
+        task({ taskListName: "Admin", operationalGroup: "Fieldwork" }),
       ],
       expenses: [],
     });

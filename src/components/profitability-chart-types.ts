@@ -7,6 +7,8 @@ export type ProfitabilityRow = {
   remainingCost?: number | null;
   /** Outsourced modeling vendor bills inside the cost (actual cost, never estimated). */
   outsourcedCost?: number | null;
+  /** Admin: cost with no share of the fee. Shown as cost only, never as a loss. */
+  costOnly?: boolean;
   profit: number | null;
   margin?: number | null;
   projectCount?: number;

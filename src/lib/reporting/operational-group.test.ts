@@ -38,12 +38,14 @@ describe("classifyTaskList", () => {
     ).toBe("Fieldwork");
   });
 
-  it("keeps Data Hall Admin outside the area rollup", () => {
+  it("counts Data Hall Admin as project management in Fieldwork, not Admin", () => {
     expect(
       classifyTaskList("Admin", {
         isDataHall: true,
       }),
-    ).toBe("Admin");
+    ).toBe("Fieldwork");
+    expect(classifyTaskList("Model Setup", { isDataHall: true })).toBe("Modeling");
+    expect(classifyTaskList("Modeling - Level 1", { isDataHall: true })).toBe("Modeling");
   });
 
   it("treats Ready Set Mob lists as Fieldwork containers", () => {
@@ -60,12 +62,12 @@ describe("classifyTaskList", () => {
     ).toBe("Fieldwork");
   });
 
-  it("keeps Ready Set Project Setup as Admin", () => {
+  it("counts Ready Set Admin and Project Setup as project management in Fieldwork", () => {
+    expect(classifyTaskList("Project Setup", { isReadySet: true })).toBe("Fieldwork");
+    expect(classifyTaskList("Admin", { isReadySet: true })).toBe("Fieldwork");
     expect(
-      classifyTaskList("Project Setup", {
-        isReadySet: true,
-      }),
-    ).toBe("Admin");
+      classifyTaskListFromTasks("Admin", ["Project Management (log time)"], { isReadySet: true }),
+    ).toBe("Fieldwork");
   });
 
   it("treats Ready Set Model Setup as Modeling", () => {
@@ -159,7 +161,7 @@ describe("estimating app task-list names", () => {
 
   it("keeps Admin, Project Management and template Model Setup where they were", () => {
     expect(classifyTaskList("Admin")).toBe("Admin");
-    expect(classifyTaskList("Project Management", { isReadySet: true })).toBe("Admin");
+    expect(classifyTaskList("Project Management")).toBe("Admin");
     expect(classifyTaskList("Model Setup")).toBe("Admin");
     expect(classifyTaskList("Model Setup", { isReadySet: true })).toBe("Modeling");
   });
@@ -178,4 +180,18 @@ describe("estimating app task-list names", () => {
       expect(isReadySetMobilizationTaskList(name)).toBe(false);
     },
   );
+});
+
+describe("Ready Set Project Management", () => {
+  it("is budgeted delivery work: Fieldwork, not Admin and not a mobilization", () => {
+    expect(classifyTaskList("Project Management", { isReadySet: true })).toBe("Fieldwork");
+    expect(
+      classifyTaskListFromTasks(
+        "Project Management",
+        ["Revit Project Setup (log time to task)", "Project Management (log time)"],
+        { isReadySet: true },
+      ),
+    ).toBe("Fieldwork");
+    expect(isReadySetMobilizationTaskList("Project Management")).toBe(false);
+  });
 });

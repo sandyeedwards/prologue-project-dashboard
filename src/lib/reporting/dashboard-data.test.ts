@@ -548,6 +548,68 @@ describe("outsourced modeling vendor cost by work group", () => {
   });
 });
 
+describe("Admin carries cost but no share of the fee", () => {
+  const project: ProjectReportRow = {
+    ...base,
+    id: "old-admin-budget",
+    teamworkId: 11,
+    clientFee: "10000.00",
+    targetCost: "4000.00",
+    canonicalEstimatedMinutes: 600,
+    loggedMinutes: 600,
+    actualLaborCost: "3000.00",
+    actualNonLaborCost: "0.00",
+    actualTotalCost: "3000.00",
+    forecastCost: "3000.00",
+  };
+  const row = (groupName: string, targetCost: string, forecastCost: string) => ({
+    projectId: project.id,
+    groupName,
+    targetCost,
+    estimatedMinutes: 200,
+    loggedMinutes: 200,
+    actualLaborCost: forecastCost,
+    actualNonLaborCost: "0.00",
+    forecastCost,
+    outsourcedExpenseCost: "0",
+  });
+
+  it("splits the fee across delivery groups even when an older project budgeted Admin", async () => {
+    const groups = await getPortfolioOperationalGroups(
+      [project],
+      [
+        row("Admin", "1000", "500"),
+        row("Fieldwork", "2000", "1500"),
+        row("Modeling", "1000", "1000"),
+      ],
+    );
+    const byName = new Map(groups.map((group) => [group.groupName, group]));
+    expect(byName.get("Admin")).toMatchObject({
+      costOnly: true,
+      allocatedRevenue: 0,
+      forecastCost: 500,
+      forecastProfit: -500,
+      marginPercent: null,
+    });
+    // $10,000 split 2:1 by the delivery budgets; Admin's old $1,000 budget is ignored.
+    expect(byName.get("Fieldwork")?.allocatedRevenue).toBeCloseTo(6666.67, 2);
+    expect(byName.get("Modeling")?.allocatedRevenue).toBeCloseTo(3333.33, 2);
+    expect(byName.get("Fieldwork")?.costOnly).toBe(false);
+    const totalProfit = groups.reduce((sum, group) => sum + (group.forecastProfit ?? 0), 0);
+    expect(totalProfit).toBeCloseTo(10000 - 3000, 2);
+  });
+
+  it("keeps the fee on Admin when a project has nothing else", async () => {
+    const adminOnly = { ...project, canonicalEstimatedMinutes: 200, loggedMinutes: 200 };
+    const groups = await getPortfolioOperationalGroups([adminOnly], [row("Admin", "1000", "3000")]);
+    expect(groups[0]).toMatchObject({
+      groupName: "Admin",
+      costOnly: false,
+      allocatedRevenue: 10000,
+    });
+  });
+});
+
 describe("portfolio operational groups with missing financial inputs", () => {
   const groupRow = (projectId: string, groupName: string, forecastCost: string | null) => ({
     projectId,

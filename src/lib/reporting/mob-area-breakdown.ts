@@ -1,4 +1,8 @@
-import { isReadySetMobilizationTaskList, isTravelTask } from "@/lib/reporting/operational-group";
+import {
+  isReadySetMobilizationTaskList,
+  isSpecialProjectManagementTaskList,
+  isTravelTask,
+} from "@/lib/reporting/operational-group";
 
 export type MobAreaKind = "READY_SET" | "DATA_HALL";
 
@@ -80,7 +84,9 @@ function isBreakdownList(
 ): boolean {
   if (operationalGroup !== "Fieldwork") return false;
 
-  if (kind === "DATA_HALL") return true;
+  // Project management (Admin / Project Setup lists) counts as Fieldwork but is not an area.
+  if (kind === "DATA_HALL")
+    return !isSpecialProjectManagementTaskList(taskListName, { isDataHall: true });
 
   return isReadySetMobilizationTaskList(taskListName);
 }

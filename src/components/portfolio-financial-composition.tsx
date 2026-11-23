@@ -272,6 +272,54 @@ function CompositionRow({
   );
 }
 
+/**
+ * Admin: cost with no share of the fee. Drawn on the same scale as the largest group fee so its
+ * size reads against delivery work, and never coloured as a loss.
+ */
+function CostOnlyRow({ row, scale }: { row: ProfitabilityRow; scale: number }) {
+  const values = resolveRow(row);
+  const width = (value: number) => `${Math.min(Math.max(value / Math.max(scale, 1), 0), 1) * 100}%`;
+  const style = {
+    "--portfolio-actual-width": width(values.actual),
+    "--portfolio-remaining-left": width(values.actual),
+    "--portfolio-remaining-width": width(values.remaining),
+    "--portfolio-revenue-boundary": "100%",
+  } as CSSProperties;
+  return (
+    <div className="portfolio-composition__row portfolio-composition__row--cost-only">
+      <div className="portfolio-composition__identity">
+        <strong>{row.label}</strong>
+        {row.detail ? <small>{row.detail}</small> : null}
+      </div>
+      <div className="portfolio-composition__plot">
+        <div
+          className="portfolio-composition__track portfolio-composition__track--cost-only"
+          style={style}
+          role="img"
+          aria-label={`${row.label}. Cost only, no share of the fee. ${L.currentCosts} ${shown(values.actual, values.known.actual)}. ${L.estimatedRemainingCosts} ${shown(values.remaining, values.known.remaining)}.`}
+        >
+          <span className="portfolio-composition__actual" />
+          {values.remaining > 0 ? <span className="portfolio-composition__remaining" /> : null}
+        </div>
+        <div className="portfolio-composition__meta">
+          <span>No share of the fee: the admin fee is profit</span>
+          <span>
+            {L.forecastCost}{" "}
+            <strong>{shown(values.forecastCost, values.known.forecastCost)}</strong>
+          </span>
+        </div>
+      </div>
+      <div className="portfolio-composition__outcome is-cost">
+        <strong>
+          {values.known.forecastCost ? compactCurrency(values.forecastCost) : MISSING}
+        </strong>
+        <small>Admin cost</small>
+        <span>Cost only</span>
+      </div>
+    </div>
+  );
+}
+
 export function PortfolioFinancialComposition({
   rows,
   variant = "groups",
@@ -288,14 +336,20 @@ export function PortfolioFinancialComposition({
   );
   if (!available.length) return <div className="chart-empty">{emptyMessage}</div>;
 
+  const scale = Math.max(
+    1,
+    ...available.filter((row) => !row.costOnly).map((row) => resolveRow(row).revenue),
+  );
   const maximumOverrunRatio = Math.max(
     0,
-    ...available.map((row) => {
-      const values = resolveRow(row);
-      if (!profitabilityPlotComplete(values)) return 0;
-      if (values.revenue <= 0) return values.forecastCost > 0 ? 1 : 0;
-      return Math.max(values.forecastCost / values.revenue - 1, 0);
-    }),
+    ...available
+      .filter((row) => !row.costOnly)
+      .map((row) => {
+        const values = resolveRow(row);
+        if (!profitabilityPlotComplete(values)) return 0;
+        if (values.revenue <= 0) return values.forecastCost > 0 ? 1 : 0;
+        return Math.max(values.forecastCost / values.revenue - 1, 0);
+      }),
   );
 
   return (
@@ -319,15 +373,19 @@ export function PortfolioFinancialComposition({
         </span>
       </div>
       <div className="portfolio-composition__rows">
-        {available.map((row) => (
-          <CompositionRow
-            key={row.label}
-            row={row}
-            maximumOverrunRatio={maximumOverrunRatio}
-            hero={variant === "total"}
-            showHeroMetrics={showHeroMetrics}
-          />
-        ))}
+        {available.map((row) =>
+          row.costOnly ? (
+            <CostOnlyRow key={row.label} row={row} scale={scale} />
+          ) : (
+            <CompositionRow
+              key={row.label}
+              row={row}
+              maximumOverrunRatio={maximumOverrunRatio}
+              hero={variant === "total"}
+              showHeroMetrics={showHeroMetrics}
+            />
+          ),
+        )}
       </div>
       <p className="portfolio-composition__note">
         Estimated remaining costs include internal labor only. Recorded vendor expenses are included

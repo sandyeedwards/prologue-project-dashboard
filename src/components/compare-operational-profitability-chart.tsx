@@ -63,11 +63,12 @@ type ResolvedPosition = {
   known: ResolvedProfitabilityRow["known"];
 };
 
+// Admin carries cost but no share of the fee, so it has no profit to compare; its cost stays in
+// each project's totals.
 const groupOrder: PortfolioOperationalGroupRow["groupName"][] = [
   "Fieldwork",
   "Mobilization",
   "Modeling",
-  "Admin",
 ];
 function finite(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value);

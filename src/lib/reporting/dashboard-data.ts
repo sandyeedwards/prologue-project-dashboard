@@ -328,6 +328,11 @@ export type PortfolioOperationalGroupRow = {
   actualCostToDate: number | null;
   /** Outsourced modeling vendor bills within the actual cost (Modeling); null when unknown. */
   outsourcedCost: number | null;
+  /**
+   * Admin: cost with no share of the fee (fee $0 by design, profit = −cost so totals still
+   * reconcile). Shown as cost only, never as a loss.
+   */
+  costOnly: boolean;
   remainingCost: number | null;
   forecastCost: number | null;
   forecastProfit: number | null;
@@ -1115,6 +1120,8 @@ type GroupAccumulator = {
   actualCostMissing: boolean;
   outsourcedCost: number;
   outsourcedCostMissing: boolean;
+  /** True once any project assigns part of its fee to this group (never for Admin). */
+  feeAssigned: boolean;
   forecastCost: number;
   forecastProfit: number;
   estimatedMinutes: number;
@@ -1204,6 +1211,7 @@ export async function getPortfolioOperationalGroups(
       actualCostMissing: false,
       outsourcedCost: 0,
       outsourcedCostMissing: false,
+      feeAssigned: false,
       forecastCost: 0,
       forecastProfit: 0,
       estimatedMinutes: 0,
@@ -1324,19 +1332,27 @@ export async function getPortfolioOperationalGroups(
     }
 
     const groups = [...grouped.values()];
-    const targets = groups.map((group) => numberOrNull(group.targetCost));
+    // The client fee is split across delivery work only. Admin carries cost but no fee (the
+    // admin fee is profit), including on older projects that still have an Admin budget or
+    // estimate; a project with nothing but Admin keeps its fee on Admin.
+    const deliveryGroups = groups.filter((group) => group.groupName !== "Admin");
+    const feeGroups = deliveryGroups.length ? deliveryGroups : groups;
+    const feeRows = deliveryGroups.length
+      ? projectRows.filter((row) => portfolioGroupName(project, row.groupName) !== "Admin")
+      : projectRows;
+    const targets = feeGroups.map((group) => numberOrNull(group.targetCost));
     const sourceTargetsComplete =
-      projectRows.length > 0 && projectRows.every((row) => numberOrNull(row.targetCost) !== null);
+      feeRows.length > 0 && feeRows.every((row) => numberOrNull(row.targetCost) !== null);
     const completeTargets =
       sourceTargetsComplete &&
       targets.every((value) => value !== null) &&
       targets.some((value) => (value ?? 0) > 0);
     const targetTotal = targets.reduce<number>((sum, value) => sum + (value ?? 0), 0);
-    const estimateTotal = groups.reduce(
+    const estimateTotal = feeGroups.reduce(
       (sum, group) => sum + Math.max(group.estimatedMinutes, 0),
       0,
     );
-    const costTotal = groups.reduce(
+    const costTotal = feeGroups.reduce(
       (sum, group) => sum + Math.max(numberOrNull(group.forecastCost) ?? 0, 0),
       0,
     );
@@ -1355,7 +1371,7 @@ export async function getPortfolioOperationalGroups(
           ? estimateTotal
           : allocationMethod === "Forecast cost"
             ? costTotal
-            : groups.length;
+            : feeGroups.length;
     const clientFee = numberOrNull(project.clientFee);
     // Missing is never zero: a project without a client fee or forecast cost is counted as
     // incomplete and left out of the money totals instead of adding $0 revenue or $0 cost.
@@ -1374,14 +1390,17 @@ export async function getPortfolioOperationalGroups(
       const actual = Math.max((groupActualLabor ?? 0) + (groupActualNonLabor ?? 0), 0);
       const groupForecast = numberOrNull(group.forecastCost);
       const forecast = Math.max(groupForecast ?? 0, 0);
-      const basis =
-        allocationMethod === "Task-list target cost"
+      const getsFee = feeGroups.includes(group);
+      const basis = !getsFee
+        ? 0
+        : allocationMethod === "Task-list target cost"
           ? target
           : allocationMethod === "Estimated hours"
             ? Math.max(group.estimatedMinutes, 0)
             : allocationMethod === "Forecast cost"
               ? forecast
               : 1;
+      if (getsFee) accumulator.feeAssigned = true;
       accumulator.projectIds.add(project.id);
       if (projectFinancialsKnown && clientFee !== null && groupForecast !== null) {
         const allocatedRevenue = clientFee * (basis / allocationTotal);
@@ -1436,6 +1455,7 @@ export async function getPortfolioOperationalGroups(
           !hasFinancials || value.allocatedRevenue === 0
             ? null
             : (value.forecastProfit / value.allocatedRevenue) * 100,
+        costOnly: !value.feeAssigned,
         estimatedMinutes: value.estimatedMinutes,
         loggedMinutes: value.loggedMinutes,
         provisionalProjectCount: value.provisionalProjectIds.size,
