@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminBenchmark,
   buildMeetingProjects,
   filterMeetingProjects,
   forecastConfidence,
@@ -375,5 +376,110 @@ describe("MMM forecast confidence", () => {
       provisional: 1,
       withoutForecast: 3,
     });
+  });
+});
+
+describe("unbudgeted Admin", () => {
+  const admin = (fields: Partial<MeetingTask> = {}) =>
+    task({
+      id: "pm",
+      teamworkId: 2001,
+      name: "Project management",
+      taskListName: "Admin",
+      group: "Admin",
+      ownLoggedMinutes: 600,
+      countedEstimatedMinutes: 0,
+      ownEstimatedMinutes: 0,
+      remainingMinutes: 0,
+      isCanonicalHolder: false,
+      coveredByTaskId: null,
+      ...fields,
+    });
+  const benchmark = { typicalPercent: 8, highPercent: 12, projectCount: 10 };
+
+  it("tracks Admin with no estimates as a share of hours, not as missing estimates", () => {
+    const [project] = buildMeetingProjects(
+      [source],
+      [{ ...metric, totalTaskCount: 2 }],
+      [task(), admin()],
+      [],
+      now,
+      benchmark,
+    );
+    const stage = project.stages.find((s) => s.name === "Admin");
+    expect(stage?.unbudgeted).toBe(true);
+    expect(stage?.label).toBe("Admin");
+    expect(stage?.sharePercent).toBeCloseTo((600 / 840) * 100);
+    expect(project.unestimatedTasks).toBe(0);
+    expect(project.signals.map((s) => s.label)).toContain(
+      "Admin is 71% of hours logged (typical 8%)",
+    );
+  });
+
+  it("stays quiet below the typical range or with little Admin time", () => {
+    const [project] = buildMeetingProjects(
+      [source],
+      [{ ...metric, totalTaskCount: 2 }],
+      [task(), admin({ ownLoggedMinutes: 120 })],
+      [],
+      now,
+      benchmark,
+    );
+    expect(project.signals.some((s) => s.label.startsWith("Admin is"))).toBe(false);
+  });
+
+  it("reviews estimated Ready Set Project Management like other work", () => {
+    const [project] = buildMeetingProjects(
+      [{ ...source, jobType: "Ready Set" }],
+      [{ ...metric, totalTaskCount: 2 }],
+      [
+        task(),
+        admin({ countedEstimatedMinutes: 900, isCanonicalHolder: true, remainingMinutes: 300 }),
+      ],
+      [],
+      now,
+      benchmark,
+    );
+    const stage = project.stages.find((s) => s.name === "Admin");
+    expect(stage?.unbudgeted).toBe(false);
+    expect(stage?.label).toBe("Project Management");
+    expect(stage?.estimatedMinutes).toBe(900);
+  });
+
+  it("does not count the $0 Admin list as missing estimates beside budgeted Project Management", () => {
+    const pm = admin({
+      id: "pm-budgeted",
+      taskListName: "Project Management",
+      countedEstimatedMinutes: 600,
+      ownEstimatedMinutes: 600,
+      isCanonicalHolder: true,
+      remainingMinutes: 300,
+    });
+    const adminTime = admin({
+      id: "admin-time",
+      taskListName: "Admin",
+      metricsAvailable: true,
+      coveredByTaskId: null,
+    });
+    const [project] = buildMeetingProjects(
+      [{ ...source, jobType: "Ready Set" }],
+      [{ ...metric, totalTaskCount: 3 }],
+      [task(), pm, adminTime],
+      [],
+      now,
+      benchmark,
+    );
+    expect(project.unestimatedTasks).toBe(0);
+    expect(project.stages.find((s) => s.name === "Admin")?.unbudgeted).toBe(false);
+  });
+
+  it("builds the benchmark from finished projects with logged time only", () => {
+    const rows = [5, 6, 8, 10, 20].map((share) => ({ adminMinutes: share, loggedMinutes: 100 }));
+    expect(adminBenchmark([...rows, { adminMinutes: 0, loggedMinutes: 0 }])).toEqual({
+      typicalPercent: 8,
+      highPercent: 10,
+      projectCount: 5,
+    });
+    expect(adminBenchmark(rows.slice(0, 4))).toBeNull();
   });
 });

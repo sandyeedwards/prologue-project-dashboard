@@ -3,6 +3,7 @@ import type { CanonicalTaskMetric } from "./types";
 import {
   createOutsourcedBranchResolver,
   sumInternalCanonicalEstimatedMinutes,
+  outsourcedExpenseCost,
   deliveryCostForecast,
 } from "./outsourced";
 
@@ -89,5 +90,22 @@ describe("outsourced modeling hierarchy", () => {
     // vendor estimate adds nothing to the 10 hours of remaining internal work.
     expect(deliveryCostForecast(250, (remainingInternalMinutes / 60) * 50, false)).toBe(750);
     expect(deliveryCostForecast(250, (remainingInternalMinutes / 60) * 50, true)).toBe(250);
+  });
+});
+
+describe("outsourcedExpenseCost", () => {
+  it("adds recorded vendor bills only, never other expenses", () => {
+    expect(
+      outsourcedExpenseCost([
+        { isOutsourcedModeling: true, totalCost: "1200.50" },
+        { isOutsourcedModeling: true, totalCost: 300 },
+        { isOutsourcedModeling: false, totalCost: "999" },
+      ]),
+    ).toBe(1500.5);
+    expect(outsourcedExpenseCost([])).toBe(0);
+  });
+
+  it("is missing, not $0, when a vendor bill has no amount", () => {
+    expect(outsourcedExpenseCost([{ isOutsourcedModeling: true, totalCost: null }])).toBeNull();
   });
 });

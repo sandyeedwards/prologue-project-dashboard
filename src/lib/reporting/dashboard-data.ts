@@ -90,6 +90,8 @@ export type ProjectGroupRow = {
   forecastCost: string | null;
   varianceToTarget: string | null;
   progressPercent: string | null;
+  /** Recorded outsourced-modeling vendor bills in this group; null when unknown. */
+  outsourcedExpenseCost: string | null;
 };
 
 export type ProjectExpenseRow = {
@@ -324,6 +326,8 @@ export type PortfolioOperationalGroupRow = {
   incompleteProjectCount: number;
   allocatedRevenue: number | null;
   actualCostToDate: number | null;
+  /** Outsourced modeling vendor bills within the actual cost (Modeling); null when unknown. */
+  outsourcedCost: number | null;
   remainingCost: number | null;
   forecastCost: number | null;
   forecastProfit: number | null;
@@ -1098,6 +1102,8 @@ type RawPortfolioGroupMetric = {
   actualLaborCost: string | null;
   actualNonLaborCost: string | null;
   forecastCost: string | null;
+  /** Outsourced vendor bills (actual cost). Missing on rows calculated before Nov 2026. */
+  outsourcedExpenseCost?: string | null;
 };
 
 type GroupAccumulator = {
@@ -1107,6 +1113,8 @@ type GroupAccumulator = {
   actualCostToDate: number;
   /** True once any project with known financials lacks a current-cost figure for this group. */
   actualCostMissing: boolean;
+  outsourcedCost: number;
+  outsourcedCostMissing: boolean;
   forecastCost: number;
   forecastProfit: number;
   estimatedMinutes: number;
@@ -1161,7 +1169,8 @@ async function getOperationalGroupMetricRows(
       logged_minutes as "loggedMinutes",
       actual_labor_cost as "actualLaborCost",
       actual_non_labor_cost as "actualNonLaborCost",
-      forecast_cost as "forecastCost"
+      forecast_cost as "forecastCost",
+      details->>'outsourcedExpenseCost' as "outsourcedExpenseCost"
     from operational_group_metrics
     where project_id = any(${projectIds}::uuid[])
   `;
@@ -1193,6 +1202,8 @@ export async function getPortfolioOperationalGroups(
       allocatedRevenue: 0,
       actualCostToDate: 0,
       actualCostMissing: false,
+      outsourcedCost: 0,
+      outsourcedCostMissing: false,
       forecastCost: 0,
       forecastProfit: 0,
       estimatedMinutes: 0,
@@ -1224,6 +1235,10 @@ export async function getPortfolioOperationalGroups(
           : null;
         current.estimatedMinutes += row.estimatedMinutes;
         current.loggedMinutes += row.loggedMinutes;
+        const currentVendor = numberOrNull(current.outsourcedExpenseCost ?? null);
+        const rowVendor = numberOrNull(row.outsourcedExpenseCost ?? null);
+        current.outsourcedExpenseCost =
+          currentVendor === null || rowVendor === null ? null : String(currentVendor + rowVendor);
         const actualLaborValues = [
           numberOrNull(current.actualLaborCost),
           numberOrNull(row.actualLaborCost),
@@ -1296,6 +1311,7 @@ export async function getPortfolioOperationalGroups(
           actualLaborCost: "0",
           actualNonLaborCost: "0",
           forecastCost: "0",
+          outsourcedExpenseCost: "0",
         };
         current.estimatedMinutes += estimateGap;
         current.loggedMinutes += loggedGap;
@@ -1375,6 +1391,9 @@ export async function getPortfolioOperationalGroups(
         accumulator.forecastProfit += allocatedRevenue - forecast;
         if (actualKnown) accumulator.actualCostToDate += actual;
         else accumulator.actualCostMissing = true;
+        const vendor = numberOrNull(group.outsourcedExpenseCost ?? null);
+        if (vendor === null) accumulator.outsourcedCostMissing = true;
+        else accumulator.outsourcedCost += vendor;
       } else {
         accumulator.incompleteProjectIds.add(project.id);
       }
@@ -1407,6 +1426,7 @@ export async function getPortfolioOperationalGroups(
         incompleteProjectCount: value.incompleteProjectIds.size,
         allocatedRevenue: hasFinancials ? value.allocatedRevenue : null,
         actualCostToDate: actualKnown ? value.actualCostToDate : null,
+        outsourcedCost: hasFinancials && !value.outsourcedCostMissing ? value.outsourcedCost : null,
         remainingCost: actualKnown
           ? Math.max(value.forecastCost - value.actualCostToDate, 0)
           : null,
@@ -1475,7 +1495,8 @@ export async function getProjectGroups(projectId: string): Promise<ProjectGroupR
       actual_non_labor_cost as "actualNonLaborCost",
       forecast_cost as "forecastCost",
       variance_to_target as "varianceToTarget",
-      progress_percent as "progressPercent"
+      progress_percent as "progressPercent",
+      details->>'outsourcedExpenseCost' as "outsourcedExpenseCost"
     from operational_group_metrics
     where project_id = ${projectId}
     order by group_name

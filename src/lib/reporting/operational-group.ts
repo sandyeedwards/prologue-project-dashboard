@@ -19,8 +19,21 @@ export function isClearlyAdministrativeTaskList(taskListName: string): boolean {
   return containsAny(taskListName, REPORTING_RULES.administrativeTaskListPatterns);
 }
 
+/**
+ * Ready Set mobilization lists: "Mob 3", and the names used since Nov 2026 such as
+ * "Mob 1 – Level 1 SOG" or "Mob 10 SOG Pour 6 (11-19-26)".
+ */
 export function isReadySetMobilizationTaskList(taskListName: string): boolean {
-  return /^mob\s+\d+$/i.test(taskListName.replace(/\s+/g, " ").trim());
+  return /^mob\s*\d+(?!\d)(?![a-z])/i.test(taskListName.replace(/\s+/g, " ").trim());
+}
+
+/**
+ * Lists the estimating app names "Modeling", "Modeling - <group>" (including
+ * "Modeling - Project Setup & Sheeting") are modeling work, even when the group name contains
+ * an admin phrase such as "project setup".
+ */
+export function isNamedModelingTaskList(taskListName: string): boolean {
+  return /^model(l)?ing(?![a-z0-9])/.test(normalizedWords(taskListName));
 }
 
 function isReadySetModelSetupTaskList(taskListName: string): boolean {
@@ -64,6 +77,10 @@ export function classifyTaskList(
     return "Modeling";
   }
 
+  if (isNamedModelingTaskList(cleanName)) {
+    return "Modeling";
+  }
+
   if (isClearlyAdministrativeTaskList(cleanName)) {
     return "Admin";
   }
@@ -102,6 +119,7 @@ export function classifyTaskListFromTasks(
 
   if (
     baseGroup === "Admin" ||
+    (baseGroup === "Modeling" && isNamedModelingTaskList(taskListName)) ||
     context.isDataHall ||
     (context.isReadySet &&
       (isReadySetMobilizationTaskList(taskListName) || isReadySetModelSetupTaskList(taskListName)))

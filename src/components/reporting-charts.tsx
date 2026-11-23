@@ -469,7 +469,14 @@ export function OperationalBreakdown({ rows }: { rows: ProfitabilityRow[] }) {
                   </td>
                   <td>{row.projectCount ?? "\u2014"}</td>
                   <td>{finite(row.revenue) ? compactCurrency(row.revenue) : MISSING}</td>
-                  <td>{finite(row.cost) ? compactCurrency(row.cost) : MISSING}</td>
+                  <td>
+                    {finite(row.cost) ? compactCurrency(row.cost) : MISSING}
+                    {finite(row.outsourcedCost) && (row.outsourcedCost ?? 0) > 0 ? (
+                      <small className="table-subvalue">
+                        incl. {compactCurrency(row.outsourcedCost ?? 0)} outsourced vendor
+                      </small>
+                    ) : null}
+                  </td>
                   <td className={`operational-breakdown__${tone.slice(3)}`}>
                     {values.known.profit ? compactCurrency(values.profit) : MISSING}
                   </td>

@@ -1,6 +1,7 @@
 import { getSqlClient } from "@/db/client";
 import { getProjectRows, normalizeDatabaseDate, projectJobType } from "./dashboard-data";
 import {
+  adminBenchmark,
   buildMeetingProjects,
   isActiveMeetingProject,
   meetingWindow,
@@ -12,7 +13,7 @@ export async function getMeetingReport(now = new Date()) {
   const sql = getSqlClient();
   const window = meetingWindow(now);
   // Include active source projects even when they have no calculation yet.
-  const [sources, metrics] = await Promise.all([
+  const [sources, metrics, adminShares] = await Promise.all([
     sql<MeetingProjectSource[]>`
       select p.id, p.teamwork_id as "teamworkId", p.name, p.project_number as "projectNumber",
         c.name as "companyName", nullif(trim(concat_ws(' ', owner.first_name, owner.last_name)), '') as owner,
@@ -31,9 +32,29 @@ export async function getMeetingReport(now = new Date()) {
       order by p.name
     `,
     getProjectRows(),
+    // Admin share on finished projects whose Admin had no estimates: the MMM benchmark.
+    sql<Array<{ adminMinutes: number; loggedMinutes: number }>>`
+      select
+        coalesce(sum(te.minutes) filter (where tl.operational_group = 'Admin'), 0)::int as "adminMinutes",
+        coalesce(sum(te.minutes), 0)::int as "loggedMinutes"
+      from projects p
+      join time_entries te on te.project_id = p.id and te.is_deleted = false
+      join tasks t on t.id = te.task_id and t.is_deleted = false
+      join task_lists tl on tl.id = t.task_list_id and tl.is_deleted = false
+      where p.excluded_from_reporting = false
+        and (p.archived_at is not null or p.completed_at is not null
+          or lower(trim(p.status)) in ('closed', 'complete', 'completed', 'archived'))
+        and not exists (
+          select 1 from tasks at join task_lists atl on atl.id = at.task_list_id
+          where at.project_id = p.id and at.is_deleted = false and atl.is_deleted = false
+            and atl.operational_group = 'Admin' and coalesce(at.estimated_minutes, 0) > 0
+        )
+      group by p.id
+    `,
   ]);
+  const benchmark = adminBenchmark(adminShares);
   const active = sources.filter(isActiveMeetingProject);
-  if (!active.length) return { projects: [], window };
+  if (!active.length) return { projects: [], window, benchmark };
   const ids = active.map((row) => row.id);
   const [taskRows, activity] = await Promise.all([
     sql<MeetingTask[]>`
@@ -86,7 +107,8 @@ export async function getMeetingReport(now = new Date()) {
     jobType: projectJobType(source),
   }));
   return {
-    projects: buildMeetingProjects(normalizedSources, metrics, tasks, activity, now),
+    projects: buildMeetingProjects(normalizedSources, metrics, tasks, activity, now, benchmark),
     window,
+    benchmark,
   };
 }

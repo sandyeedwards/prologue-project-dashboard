@@ -90,6 +90,15 @@ export function meetingTaskComplete(task: Pick<MeetingTask, "status" | "complete
 export type MeetingSignal = { tone: "red" | "amber"; label: string };
 export type MeetingStage = {
   name: string;
+  /** Name shown on MMM: Ready Set Admin is called "Project Management". */
+  label: string;
+  /**
+   * Unbudgeted Admin: no task in the group has an estimate, so its hours are tracked as a share
+   * of the project instead of against an estimate.
+   */
+  unbudgeted: boolean;
+  /** Group logged hours as a percent of all task-linked logged hours on the project. */
+  sharePercent: number | null;
   tasks: MeetingTask[];
   completed: number;
   estimatedMinutes: number | null;
@@ -121,6 +130,50 @@ export type MeetingProject = MeetingProjectSource & {
   signals: MeetingSignal[];
 };
 
+/** Typical Admin share of logged hours on finished projects, for the soft warning on MMM. */
+export type AdminBenchmark = {
+  /** Median Admin share, percent. */
+  typicalPercent: number;
+  /** Upper quartile: above this, Admin is flagged for a look. */
+  highPercent: number;
+  projectCount: number;
+};
+
+/** Admin is only flagged once it is a meaningful amount of time, so small projects stay quiet. */
+export const ADMIN_SHARE_MIN_MINUTES = 8 * 60;
+/** Need enough finished projects before a "typical" share means anything. */
+export const ADMIN_BENCHMARK_MIN_PROJECTS = 5;
+
+function percentile(sorted: readonly number[], fraction: number): number {
+  const position = (sorted.length - 1) * fraction;
+  const low = Math.floor(position);
+  const high = Math.ceil(position);
+  return sorted[low] + (sorted[high] - sorted[low]) * (position - low);
+}
+
+/**
+ * Builds the benchmark from finished projects' Admin share. Projects with no logged time are
+ * skipped (their share is unknown, not 0). Returns null without enough projects.
+ */
+export function adminBenchmark(
+  rows: readonly { adminMinutes: number; loggedMinutes: number }[],
+): AdminBenchmark | null {
+  const shares = rows
+    .filter((row) => row.loggedMinutes > 0)
+    .map((row) => (row.adminMinutes / row.loggedMinutes) * 100)
+    .sort((a, b) => a - b);
+  if (shares.length < ADMIN_BENCHMARK_MIN_PROJECTS) return null;
+  return {
+    typicalPercent: percentile(shares, 0.5),
+    highPercent: percentile(shares, 0.75),
+    projectCount: shares.length,
+  };
+}
+
+export function stageLabel(group: string, jobType: string | undefined): string {
+  return group === "Admin" && jobType === "Ready Set" ? "Project Management" : group;
+}
+
 const groupOrder = ["Admin", "Mobilization", "Fieldwork", "Modeling"];
 export function compareMeetingGroups(a: string, b: string): number {
   const rank = (name: string) =>
@@ -134,6 +187,7 @@ export function buildMeetingProjects(
   taskRows: readonly MeetingTask[],
   activity: readonly { projectId: string; lastWeekMinutes: number; unallocatedMinutes: number }[],
   now = new Date(),
+  benchmark: AdminBenchmark | null = null,
 ): MeetingProject[] {
   const window = meetingWindow(now);
   const metricsById = new Map(metrics.map((row) => [row.id, row]));
@@ -196,6 +250,17 @@ export function buildMeetingProjects(
     );
     const hasEstimate = (task: MeetingTask) =>
       (task.ownEstimatedMinutes ?? 0) > 0 || (task.countedEstimatedMinutes ?? 0) > 0;
+    // Admin with no estimates anywhere is expected, unbudgeted time (Ready Set Project Management
+    // is estimated, so it is reviewed like other work).
+    const adminTasks = tasks.filter((task) => task.group === "Admin");
+    const adminUnbudgeted = adminTasks.length > 0 && !adminTasks.some(hasEstimate);
+    // Judged per list, so a budgeted "Project Management" list does not pull the $0 "Admin" list
+    // beside it into the missing-estimate count.
+    const budgetedAdminLists = new Set(
+      adminTasks.filter(hasEstimate).map((task) => task.taskListName),
+    );
+    const expectedAdminTime = (task: MeetingTask) =>
+      task.group === "Admin" && !budgetedAdminLists.has(task.taskListName);
     // Projected hours are only "missing" when a task that must be estimated ("Estimate Hours"
     // tag) has no estimate. Those tasks are named so they can be fixed in Teamwork.
     const missingEstimateTasks: MeetingTaskRef[] = open
@@ -235,6 +300,7 @@ export function buildMeetingProjects(
     const unestimatedTasks = open.filter(
       (task) =>
         !task.isOutsourced &&
+        !expectedAdminTime(task) &&
         task.metricsAvailable &&
         !task.coveredByTaskId &&
         !task.isCanonicalHolder &&
@@ -278,6 +344,21 @@ export function buildMeetingProjects(
         `${undatedTasks} open task${undatedTasks === 1 ? " has" : "s have"} no due date`,
       );
     if (!source.endDate) signal("amber", "Project end date is missing");
+    const taskLoggedMinutes = tasks.reduce((sum, task) => sum + task.ownLoggedMinutes, 0);
+    const adminLoggedMinutes = adminTasks.reduce((sum, task) => sum + task.ownLoggedMinutes, 0);
+    const adminShare =
+      taskLoggedMinutes > 0 ? (adminLoggedMinutes / taskLoggedMinutes) * 100 : null;
+    if (
+      adminUnbudgeted &&
+      benchmark &&
+      adminShare !== null &&
+      adminLoggedMinutes >= ADMIN_SHARE_MIN_MINUTES &&
+      adminShare > benchmark.highPercent
+    )
+      signal(
+        "amber",
+        `Admin is ${Math.round(adminShare)}% of hours logged (typical ${Math.round(benchmark.typicalPercent)}%)`,
+      );
     if (!tasks.length) signal("amber", "No imported tasks; confirm the project setup");
     else if (!open.length) signal("amber", "All tasks are complete; confirm project closeout");
     if (taskCountChanged)
@@ -316,8 +397,12 @@ export function buildMeetingProjects(
           stageNew.reduce((sum, task) => sum + taskRemaining(task), 0);
         const logged = stageTasks.reduce((sum, task) => sum + task.ownLoggedMinutes, 0);
         const stageMissing = missingEstimateTasks.some((task) => task.group === name);
+        const unbudgeted = name === "Admin" && adminUnbudgeted;
         return {
           name,
+          label: stageLabel(name, source.jobType),
+          unbudgeted,
+          sharePercent: taskLoggedMinutes > 0 ? (logged / taskLoggedMinutes) * 100 : null,
           tasks: stageTasks,
           completed: stageTasks.filter(meetingTaskComplete).length,
           estimatedMinutes: estimate,

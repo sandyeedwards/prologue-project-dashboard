@@ -148,6 +148,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             >
               MMM
             </Link>
+            <Link
+              className="button button--secondary"
+              href="/all-hands"
+              title="Monday all-hands agenda"
+            >
+              All-Hands
+            </Link>
             <span className="report-date-chip">
               Data as of {displayDate(summary.latestCalculatedAt)}
             </span>

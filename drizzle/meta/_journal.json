@@ -99,6 +99,13 @@
       "when": 1793073600000,
       "tag": "0013_benaco_counted_grid_panos",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795392000000,
+      "tag": "0014_all_hands_notes",
+      "breakpoints": true
     }
   ]
 }

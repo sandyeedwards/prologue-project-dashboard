@@ -1,0 +1,349 @@
+.page {
+  display: grid;
+  gap: 1.1rem;
+}
+.workspace {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.muted {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.unavailable {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #e7c98a;
+  border-radius: 0.6rem;
+  color: #8a5a00;
+  background: #fff8e8;
+  font-size: 0.85rem;
+}
+.weekNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.saveBar {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 0.85rem;
+}
+.saveBar [data-state="dirty"] {
+  color: #8a5a00;
+  font-weight: 700;
+}
+.saveBar [data-state="error"] {
+  color: #b42318;
+  font-weight: 700;
+}
+.saveBar [data-state="clean"],
+.saveBar [data-state="saving"] {
+  color: var(--muted);
+}
+.saveActions {
+  display: flex;
+  gap: 0.5rem;
+}
+.hostCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface);
+}
+.hostCard > div {
+  display: grid;
+  gap: 0.15rem;
+}
+.hostCard small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.hostCard strong {
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+}
+.hostOverride {
+  display: grid;
+  gap: 0.3rem;
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.hostOverride input {
+  width: 8rem;
+  min-height: 2.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+}
+.agenda {
+  display: grid;
+  gap: 1rem;
+}
+.block {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+  padding: 1rem 1.1rem 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface);
+}
+.block h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.block h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+}
+.note {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.note small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.note textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.65rem 0.75rem;
+  overflow: hidden;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 400;
+  line-height: 1.45;
+}
+.note textarea:focus,
+.hostOverride input:focus,
+.actionItems input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring, 0 0 0 3px rgb(49 88 200 / 16%));
+}
+.printText {
+  display: none;
+}
+.actionItems ul {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+.actionItems li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+.actionItems li[data-done="true"] input[type="text"] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.actionItems input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+.actionItems input[type="text"] {
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+}
+.remove {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: var(--muted);
+  background: transparent;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+.remove:hover {
+  color: #b42318;
+  background: #fff4f4;
+}
+.pipelines {
+  display: grid;
+  gap: 0.75rem;
+}
+.pipeline {
+  padding: 0.6rem 0.8rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+}
+.pipeline summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  cursor: pointer;
+}
+.pipeline summary span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.stageTable {
+  width: 100%;
+  margin: 0.6rem 0;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.stageTable th,
+.stageTable td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.stageTable th:not(:first-child),
+.stageTable td:not(:first-child) {
+  text-align: right;
+}
+.stageTable th {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.stageTable small {
+  color: #5b6b80;
+}
+.dealLists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.dealLists ul,
+.watchList {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+.dealLists li,
+.watchList li {
+  display: grid;
+}
+.dealLists small,
+.watchList small {
+  color: var(--muted);
+}
+.insights,
+.utilization {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+.insights p,
+.utilization p {
+  margin: 0;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.stats > div {
+  display: grid;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--accent-soft);
+}
+.stats strong {
+  font-size: 1.3rem;
+}
+.stats small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .dealLists,
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dealLists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hostOverride {
+    margin-left: 0;
+  }
+  .saveBar {
+    position: static;
+  }
+}
+
+@media print {
+  :global(.app-header),
+  :global(.app-nav),
+  .saveBar,
+  .weekNav,
+  .hostOverride,
+  .remove,
+  .actionItems > button,
+  .note small {
+    display: none !important;
+  }
+  .note textarea,
+  .actionItems input[type="text"] {
+    display: none;
+  }
+  .printText {
+    display: block;
+    font-weight: 400;
+    white-space: pre-wrap;
+  }
+  .block {
+    break-inside: avoid;
+    border: 0;
+    padding: 0.4rem 0;
+  }
+  .pipeline[open],
+  .pipeline {
+    border: 0;
+    padding: 0;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -32,6 +32,7 @@ import {
   createOutsourcedBranchResolver,
   sumInternalCanonicalEstimatedMinutes,
   deliveryCostForecast,
+  outsourcedExpenseCost,
 } from "./outsourced";
 import {
   calculatePlannedFinancials,
@@ -39,7 +40,7 @@ import {
   taskListRequiresBudget,
 } from "./planned-financials";
 import type { CalculationTaskInput, Coverage } from "./types";
-import { identifyUnplannedTopLevelTasks } from "./unplanned-work";
+import { identifyUnplannedTopLevelTasks, unbudgetedAdminTaskIds } from "./unplanned-work";
 import { isProjectFinished } from "./project-completion";
 
 export const CALCULATION_VERSION = "step7-v1.0.8";
@@ -309,11 +310,13 @@ export async function calculateAllProjects(asOfDate = new Date()) {
         (sum, minutes) => sum + minutes,
         0,
       );
+      // Unbudgeted Admin time is expected, so it is not flagged as unplanned (still costed).
+      const expectedAdminTaskIds = unbudgetedAdminTaskIds(projectTasks, projectTaskLists);
       const unplannedTasks = identifyUnplannedTopLevelTasks(
         projectTasks,
         ownLoggedByTask,
         new Set(holderByCoveredTaskId.keys()),
-      );
+      ).filter((task) => !expectedAdminTaskIds.has(task.id));
       const unplannedLoggedMinutes = unplannedTasks.reduce(
         (sum, task) => sum + (uncoveredLoggedByTask.get(task.id) ?? 0),
         0,
@@ -805,6 +808,9 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           groupRemainingLaborKnown,
           projectFinished,
         );
+        // Outsourced modeling vendor bills are actual cost (in the forecast and profit), but
+        // task-list budgets are Prologue cost only, so the budget comparison leaves them out.
+        const groupVendorCost = outsourcedExpenseCost(groupExpenseRows);
         const groupBudgets = projectTaskListBudgets.filter((budget) =>
           groupTaskListIds.has(budget.taskListId),
         );
@@ -838,7 +844,9 @@ export async function calculateAllProjects(asOfDate = new Date()) {
           projectedNonLaborCost: money(groupProjectedNonLabor),
           actualNonLaborCost: money(groupActualNonLabor),
           forecastCost: money(groupForecast),
-          varianceToTarget: money(groupTarget === null ? null : groupTarget - groupForecast),
+          varianceToTarget: money(
+            groupTarget === null ? null : groupTarget - (groupForecast - (groupVendorCost ?? 0)),
+          ),
           progressPercent: decimal(groupProgress),
           details: {
             taskListCount: groupTaskListIds.size,
@@ -850,6 +858,7 @@ export async function calculateAllProjects(asOfDate = new Date()) {
             timeEntriesWithHistoricalCost: groupKnownCostEntries,
             expenseCount: groupExpenseRows.length,
             expensesWithCost: groupKnownExpenseRows.length,
+            outsourcedExpenseCost: groupVendorCost,
             taskListsWithTargetBudget: new Set(
               groupBudgets
                 .filter((budget) => numeric(budget.targetCost) !== null)
