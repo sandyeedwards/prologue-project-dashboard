@@ -4,12 +4,13 @@ import {
   benacoTourId,
   BENACO_VERIFIED_ANNUAL_GRID_RATE,
 } from "./benaco-billing-history";
-import { buildBenacoCostCommitments } from "./benaco-profitability";
+import { buildBenacoCostCommitments, isConfirmedBenacoLossOnly } from "./benaco-profitability";
 import {
-  ivionInvoiceCostBetween,
+  ivionInvoiceEntriesBetween,
   IVION_INVOICE_COVERAGE_START,
   IVION_INVOICE_COVERAGE_END,
 } from "./ivion-invoice-history";
+import { easternIsoDate } from "@/lib/reporting/format";
 
 export type HostingGrouping = "month" | "quarter" | "half" | "year";
 export type HostingView = "combined" | "ivion" | "benaco";
@@ -84,6 +85,10 @@ export type HostingReportRow = {
   ivionRevenue: number;
   ivionCost: number;
   ivionEstimatedCost?: number;
+  /** Included IVION cost from NavVis bills not yet verified as instance-only (provisional). */
+  ivionUnverifiedCost?: number;
+  /** Past months in this period after the loaded NavVis invoices end: IVION cost is unknown. */
+  ivionMissingInvoiceMonths?: number;
   ivionNet: number;
   benacoRevenue: number;
   benacoOverhead: number;
@@ -155,8 +160,41 @@ function numeric(value: unknown): number {
 
 function dateValue(value: string | Date | null | undefined): Date | null {
   if (!value) return null;
-  const parsed = value instanceof Date ? new Date(value) : new Date(`${value}T00:00:00.000Z`);
+  const parsed =
+    value instanceof Date
+      ? new Date(value)
+      : new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+const HOSTING_DATE_FIELDS = [
+  "ivion_hosting_start",
+  "ivion_hosting_end",
+  "ivion_comp_start",
+  "ivion_comp_end",
+  "ivion_date_added",
+  "ivion_date_sent_to_client",
+  "ivion_bundle_archive_date",
+  "benaco_hosting_start",
+  "benaco_hosting_end",
+  "benaco_comp_start",
+  "benaco_comp_end",
+] as const satisfies ReadonlyArray<keyof HostingDealRow>;
+
+/**
+ * Returns the deal with every date field as "YYYY-MM-DD" text. The database client can hand
+ * back date columns as JS Dates or as strings depending on initialisation order; every hosting
+ * calculation and page filter expects text, so normalise once where the rows are loaded.
+ */
+export function normalizeHostingDealDates(deal: HostingDealRow): HostingDealRow {
+  const normalized = { ...deal };
+  for (const field of HOSTING_DATE_FIELDS) {
+    const value = deal[field] as unknown;
+    if (value instanceof Date)
+      normalized[field] = Number.isNaN(value.getTime()) ? null : isoDate(value);
+    else if (typeof value === "string" && value.length > 10) normalized[field] = value.slice(0, 10);
+  }
+  return normalized;
 }
 
 function utcDate(year: number, month: number, day = 1): Date {
@@ -165,6 +203,11 @@ function utcDate(year: number, month: number, day = 1): Date {
 
 function isoDate(value: Date): string {
   return value.toISOString().slice(0, 10);
+}
+
+/** Midnight UTC of the Eastern calendar day: hosting terms change on the business day. */
+function businessDay(value: Date): Date {
+  return new Date(`${easternIsoDate(value)}T00:00:00.000Z`);
 }
 
 function addDays(value: Date, days: number): Date {
@@ -224,12 +267,9 @@ function defaultReportBounds(grouping: HostingGrouping, referenceDate: Date): Re
   return { start, endExclusive };
 }
 
-function futureReportEnd(grouping: HostingGrouping, referenceDate: Date): Date {
-  const current = startOfPeriod(referenceDate, grouping);
-  if (grouping === "month") return addMonths(current, 7);
-  if (grouping === "quarter") return addMonths(current, 9);
-  if (grouping === "half") return addMonths(current, 18);
-  return utcDate(current.getUTCFullYear() + 2, 0);
+/** End of the forecast horizon: the current month plus six more (same as the rolling view). */
+function forecastHorizonEnd(referenceDate: Date): Date {
+  return addMonths(startOfPeriod(referenceDate, "month"), 7);
 }
 
 function parsedCustomBounds(
@@ -263,16 +303,19 @@ function reportBounds(
       parsedCustomBounds(custom.from, custom.to) ?? defaultReportBounds(grouping, referenceDate),
     );
   }
+  // One forecast horizon for every grouping, so switching month/quarter/half/year never changes
+  // the total for the same dates. A yearly or quarterly bucket past it is shown partially.
+  const forecastEnd = forecastHorizonEnd(referenceDate);
   if (range === "all") {
     return fromHistoryStart({
       start: startOfPeriod(earliestDate, grouping),
-      endExclusive: futureReportEnd(grouping, referenceDate),
+      endExclusive: forecastEnd,
     });
   }
   if (range === "ytd") {
     return fromHistoryStart({
       start: startOfPeriod(utcDate(referenceDate.getUTCFullYear(), 0), grouping),
-      endExclusive: futureReportEnd(grouping, referenceDate),
+      endExclusive: forecastEnd,
     });
   }
   if (range === "prior-year") {
@@ -443,7 +486,7 @@ export function isHostingTermExpired(end: string | null, target = new Date()): b
   if (!end) return false;
   const parsedEnd = dateValue(end);
   if (!parsedEnd) return false;
-  const targetDay = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  const targetDay = businessDay(target).getTime();
   return parsedEnd.getTime() <= targetDay;
 }
 
@@ -470,7 +513,7 @@ export function hostingDealTermSummary(
   const available = candidates.filter((candidate) => candidate.start || candidate.end);
   if (!available.length) return null;
 
-  const targetDay = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  const targetDay = businessDay(target).getTime();
   const timestamp = (value: string | null, fallback: number) =>
     value ? (dateValue(value)?.getTime() ?? fallback) : fallback;
   const isActive = (candidate: (typeof available)[number]) =>
@@ -586,14 +629,7 @@ export function buildHostingReport(
     ]),
   );
 
-  const cutoff = addDays(
-    utcDate(
-      referenceDate.getUTCFullYear(),
-      referenceDate.getUTCMonth(),
-      referenceDate.getUTCDate(),
-    ),
-    1,
-  );
+  const cutoff = addDays(businessDay(referenceDate), 1);
   const periods = makeHostingPeriods(grouping, referenceDate, bounds)
     .filter((period) => includeForecast || period.start < cutoff)
     .map((period) => ({
@@ -608,6 +644,8 @@ export function buildHostingReport(
     let ivionRevenue = 0;
     let ivionCost = 0;
     let ivionEstimatedCost = 0;
+    let ivionUnverifiedCost = 0;
+    let ivionMissingInvoiceMonths = 0;
     let benacoRevenue = 0;
     let benacoPanoCosts = 0;
     let benacoEstimatedPanoCosts = 0;
@@ -646,8 +684,29 @@ export function buildHostingReport(
         monthPeriod.key >= IVION_INVOICE_COVERAGE_START &&
         monthPeriod.key <= IVION_INVOICE_COVERAGE_END
       ) {
-        ivionCost += ivionInvoiceCostBetween(monthPeriod.start, monthPeriod.endExclusive);
-      } else if (includeForecast && monthPeriod.forecast) {
+        for (const entry of ivionInvoiceEntriesBetween(
+          monthPeriod.start,
+          monthPeriod.endExclusive,
+        )) {
+          ivionCost += entry.hostingAmount;
+          if (entry.classification === "unverified") ivionUnverifiedCost += entry.hostingAmount;
+        }
+      } else if (
+        monthPeriod.key > IVION_INVOICE_COVERAGE_END &&
+        monthPeriod.start.getTime() <= referenceDate.getTime() &&
+        dateInPeriod(monthStart, period)
+      ) {
+        // A month that has started but has no loaded invoices: unknown cost, not a recorded $0.
+        ivionMissingInvoiceMonths += 1;
+      }
+      if (
+        !(
+          monthPeriod.key >= IVION_INVOICE_COVERAGE_START &&
+          monthPeriod.key <= IVION_INVOICE_COVERAGE_END
+        ) &&
+        includeForecast &&
+        monthPeriod.forecast
+      ) {
         const estimatedCost = ivionSites.reduce((sum, site) => {
           if (!site.is_active && !site.ended_on) return sum;
           if (!siteOverlapsPeriod(site, monthPeriod)) return sum;
@@ -685,6 +744,8 @@ export function buildHostingReport(
       ivionRevenue,
       ivionCost,
       ivionEstimatedCost,
+      ivionUnverifiedCost,
+      ivionMissingInvoiceMonths,
       ivionNet: ivionRevenue - ivionCost,
       benacoRevenue,
       benacoOverhead,
@@ -705,7 +766,7 @@ function includesDate(start: string | null, end: string | null, target: Date): b
   const parsedStart = dateValue(start);
   const parsedEnd = dateValue(end);
   if (!parsedStart) return false;
-  const targetDay = utcDate(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  const targetDay = businessDay(target);
   return (
     targetDay.getTime() >= parsedStart.getTime() &&
     (!parsedEnd || targetDay.getTime() < parsedEnd.getTime())
@@ -857,7 +918,7 @@ export async function getHostingDashboardData({
   ]);
 
   const referenceDate = new Date();
-  const dealRows = [...deals];
+  const dealRows = deals.map(normalizeHostingDealDates);
   const siteRows = [...sites];
   const bounds = reportBounds(
     grouping,
@@ -892,4 +953,64 @@ export async function getHostingDashboardData({
       to: isoDate(addDays(bounds.endExclusive, -1)),
     },
   };
+}
+
+export type HostingRevenueGap = {
+  dealId: string;
+  name: string;
+  platform: "IVION" | "Benaco";
+  kind: "start-without-fee" | "fee-without-start";
+  fee: number | null;
+};
+
+/**
+ * Deals whose revenue cannot be placed in the report: a paid start with a blank fee (revenue
+ * unknown, so it is not $0) or a positive fee with no paid start (never booked). A fee entered
+ * as 0 is a genuine zero; confirmed loss-only tours and complimentary-only terms are not gaps.
+ */
+export function hostingRevenueGaps(
+  deals: readonly HostingDealRow[],
+  view: HostingView = "combined",
+): HostingRevenueGap[] {
+  const blank = (value: unknown) =>
+    value === null || value === undefined || String(value).trim() === "";
+  const gaps: HostingRevenueGap[] = [];
+  for (const deal of deals) {
+    const name = deal.site_name ?? deal.deal_name ?? deal.hubspot_deal_id;
+    const platforms = [
+      view !== "benaco" && {
+        platform: "IVION" as const,
+        start: deal.ivion_hosting_start,
+        compStart: deal.ivion_comp_start,
+        fee: deal.ivion_contracted_fee,
+        lossOnly: false,
+      },
+      view !== "ivion" && {
+        platform: "Benaco" as const,
+        start: deal.benaco_hosting_start,
+        compStart: deal.benaco_comp_start,
+        fee: deal.benaco_contracted_fee,
+        lossOnly: isConfirmedBenacoLossOnly(deal),
+      },
+    ].filter((entry) => entry !== false);
+    for (const entry of platforms) {
+      if (entry.start && blank(entry.fee))
+        gaps.push({
+          dealId: deal.id,
+          name,
+          platform: entry.platform,
+          kind: "start-without-fee",
+          fee: null,
+        });
+      else if (!entry.start && !entry.compStart && !entry.lossOnly && numeric(entry.fee) > 0)
+        gaps.push({
+          dealId: deal.id,
+          name,
+          platform: entry.platform,
+          kind: "fee-without-start",
+          fee: numeric(entry.fee),
+        });
+    }
+  }
+  return gaps;
 }

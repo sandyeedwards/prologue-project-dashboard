@@ -3,31 +3,11 @@ import type { ReactNode } from "react";
 import {
   getProjectTypeFacets,
   type Coverage,
-  type HealthBand,
   type ProjectReportRow,
 } from "@/lib/reporting/dashboard-data";
 import { hours, money } from "@/lib/reporting/format";
+import { MISSING, projectedProfitLabel, REPORT_LABELS } from "@/lib/reporting/labels";
 import { marginTone } from "@/lib/reporting/margin-status";
-
-export function HealthBadge({ band, score }: { band: HealthBand; score: string | number | null }) {
-  const parsed = score === null || score === "" ? null : Number(score);
-  const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(2)}%` : "N/A";
-  const healthName: Record<HealthBand, string> = {
-    GREEN: "Healthy",
-    AMBER: "At risk",
-    RED: "Unhealthy",
-    GRAY: "N/A",
-  };
-  return (
-    <span
-      className={`health-badge health-badge--${band.toLowerCase()}`}
-      aria-label={`${healthName[band]} project health, ${label}`}
-      title={`${healthName[band]} project health`}
-    >
-      {label}
-    </span>
-  );
-}
 
 export function MarginBadge({
   value,
@@ -41,12 +21,13 @@ export function MarginBadge({
 }) {
   const tone = marginTone(value, { provisional });
   const parsed = value === null || value === undefined || value === "" ? null : Number(value);
-  const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : "N/A";
+  const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : MISSING;
+  const known = label !== MISSING;
 
   return (
     <span
       className={`margin-badge margin-badge--${tone}`}
-      aria-label={`Margin ${label}${provisional && label !== "N/A" ? ", provisional" : ""}`}
+      aria-label={`Margin ${label}${provisional && known ? ", provisional" : ""}`}
     >
       {label}
     </span>
@@ -57,14 +38,20 @@ export function MarginText({
   value,
   digits = 1,
   provisional = false,
+  neutral = false,
 }: {
   value: string | number | null | undefined;
   digits?: number;
   provisional?: boolean;
+  /**
+   * Render without the forecast-margin colour thresholds. Use for figures that are not a
+   * forecast margin (e.g. margin to date, which is naturally high early in a project).
+   */
+  neutral?: boolean;
 }) {
-  const tone = marginTone(value, { provisional });
+  const tone = neutral ? "neutral" : marginTone(value, { provisional });
   const parsed = value === null || value === undefined || value === "" ? null : Number(value);
-  const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : "N/A";
+  const label = parsed !== null && Number.isFinite(parsed) ? `${parsed.toFixed(digits)}%` : MISSING;
 
   return <span className={`margin-text margin-text--${tone}`}>{label}</span>;
 }
@@ -182,10 +169,10 @@ export function ProjectTable({
           <tr>
             {selectable ? <th aria-label="Select project">Select</th> : null}
             <th>Project</th>
-            <th>Forecasted Profit</th>
-            <th>Current Margin</th>
-            <th>Remaining Work</th>
-            <th>Actual Costs</th>
+            <th>{REPORT_LABELS.projectedProfit}</th>
+            <th>{REPORT_LABELS.forecastMargin}</th>
+            <th>{REPORT_LABELS.estimatedRemainingCosts}</th>
+            <th>{REPORT_LABELS.currentCosts}</th>
             <th>Hours</th>
             <th>Data Issues</th>
           </tr>
@@ -247,7 +234,9 @@ export function ProjectTable({
                 <td className={`project-table__money project-table__money--${profitTone}`}>
                   <strong>{money(row.forecastProfit)}</strong>
                   <small className="table-subvalue">
-                    {profitTone === "loss" ? "Forecast loss" : "Unspent revenue"}
+                    {profitTone === "provisional"
+                      ? REPORT_LABELS.knownProjectedProfit
+                      : projectedProfitLabel(profitValue)}
                   </small>
                 </td>
                 <td>
@@ -255,16 +244,16 @@ export function ProjectTable({
                   {row.isProvisional ? (
                     <small className="table-subvalue table-subvalue--warning">Ceiling</small>
                   ) : (
-                    <small className="table-subvalue">Current forecast</small>
+                    <small className="table-subvalue">Forecast</small>
                   )}
                 </td>
                 <td className="project-table__money">
                   <strong>{money(remaining)}</strong>
-                  <small className="table-subvalue">Costed work</small>
+                  <small className="table-subvalue">To complete</small>
                 </td>
                 <td className="project-table__money">
                   <strong>{money(row.actualTotalCost)}</strong>
-                  <small className="table-subvalue">Cost to date</small>
+                  <small className="table-subvalue">To date</small>
                 </td>
                 <td>
                   {hours(row.loggedMinutes)}

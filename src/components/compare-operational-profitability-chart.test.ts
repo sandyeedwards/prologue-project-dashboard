@@ -76,4 +76,26 @@ describe("compare profitability positions", () => {
     expect(order("profit")).toEqual(["Healthy", "Loss", "Missing"]);
     expect(order("attention")).toEqual(["Loss", "Missing", "Healthy"]);
   });
+
+  it("breaks margin ties by project number, keeping missing margins last", () => {
+    const withNumber = (name: string, projectNumber: string | null, margin: number | null) => ({
+      ...project(
+        name,
+        position({
+          marginPercent: margin,
+          forecastProfit: margin === null ? null : margin * 10,
+          allocatedRevenue: margin === null ? null : 1000,
+        }),
+      ),
+      projectNumber,
+    });
+    const rows = [
+      withNumber("Zed", "P-10", 50),
+      withNumber("Alpha", "P-2", 50),
+      withNumber("Gap", "P-1", null),
+    ];
+    expect(
+      [...rows].sort((a, b) => compareProjects(a, b, "margin")).map((row) => row.projectName),
+    ).toEqual(["Alpha", "Zed", "Gap"]);
+  });
 });

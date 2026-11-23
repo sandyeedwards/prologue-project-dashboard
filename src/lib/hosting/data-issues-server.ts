@@ -1,6 +1,10 @@
 import { cache } from "react";
 import { getSqlClient } from "@/db/client";
-import { buildHostingDataIssues, type HostingIssueDeal } from "./data-issues";
+import {
+  buildHostingCostSourceIssues,
+  buildHostingDataIssues,
+  type HostingIssueDeal,
+} from "./data-issues";
 
 // Request-local caching shares the same source checks between the admin badge
 // and issue center. No vendor requests, writes, or report recalculation required.
@@ -18,5 +22,5 @@ export const getHostingDataIssues = cache(async () => {
     `,
     sql<Array<{ url: string }>>`select url from hosting_ivion_sites`,
   ]);
-  return buildHostingDataIssues(deals, sites);
+  return [...buildHostingCostSourceIssues(), ...buildHostingDataIssues(deals, sites)];
 });

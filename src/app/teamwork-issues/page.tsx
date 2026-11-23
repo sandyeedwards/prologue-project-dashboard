@@ -8,11 +8,12 @@ import {
   getTeamworkIssueCenterRows,
   getTeamworkUnplannedIssueCenterRows,
 } from "@/lib/reporting/dashboard-data";
-import { dateLabel, hours, money } from "@/lib/reporting/format";
+import { dateLabel, hours, money, reportingTimestamp } from "@/lib/reporting/format";
 import { dismissUnplannedWork, reopenUnplannedWork } from "@/app/projects/[projectId]/actions";
 import { getHostingDataIssues } from "@/lib/hosting/data-issues-server";
 import { filterHostingDataIssues } from "@/lib/hosting/data-issues";
 import { HostingDataIssues } from "@/components/hosting-data-issues";
+import { issueGroupLimit, issueViewHref, showMoreIssuesHref } from "./issue-links";
 
 export const dynamic = "force-dynamic";
 
@@ -246,19 +247,62 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
       )
       .values(),
   ];
+  const groupLimit = issueGroupLimit(params.limit);
+  const visibleIssueGroups = issueGroups.slice(0, groupLimit);
+  const hiddenIssueGroupCount = issueGroups.length - visibleIssueGroups.length;
+  const dataAsOf = syncDiagnostics?.lastSuccessfulCompletedAt ?? null;
+  const tabs = [
+    {
+      view: "ATTENTION",
+      active: view === "ATTENTION",
+      label: "Needs Attention",
+      count: (fastCounts?.attention ?? attentionIssues.length) + hostingAttentionCount,
+    },
+    {
+      view: "REVIEW_UNPLANNED",
+      active: view === "REVIEW_UNPLANNED",
+      label: "Review Unplanned Time",
+      count: fastCounts?.unplannedOpen ?? unplannedReviewIssues.length,
+    },
+    {
+      view: "REVIEWED",
+      active: view === "REVIEWED",
+      label: "Reviewed",
+      count: fastCounts?.reviewed ?? reviewedIssues.length,
+    },
+    {
+      view: "ALL",
+      active: view === "ALL",
+      label: "All Issues",
+      count: (fastCounts?.total ?? statusScopedIssues.length) + scopedHostingIssues.length,
+    },
+    {
+      view: "HOSTING",
+      active: hostingView,
+      label: "Hosting Data",
+      count: hostingDataIssues.length,
+    },
+  ];
 
   return (
     <AppShell user={session.user}>
       <main className="shell shell--wide">
-        <section className="page-heading page-heading--split">
-          <div>
+        <section className="report-titlebar report-titlebar--executive">
+          <div className="report-titlebar__copy">
             <p className="eyebrow">Administration {"\u00b7"} Reporting data</p>
             <h1>Reporting Issues</h1>
-            <p className="lede">
+            <p>
               Review Teamwork project issues and hosting-data checks. Correct project records in
               Teamwork and hosting properties in HubSpot. Reviewed unplanned-work items remain
               available separately.
             </p>
+          </div>
+          <div className="report-titlebar__actions">
+            <span className="report-date-chip">
+              {dataAsOf
+                ? `Data as of ${reportingTimestamp(dataAsOf)}`
+                : "No successful Teamwork sync yet"}
+            </span>
           </div>
         </section>
 
@@ -297,33 +341,16 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
           </div>
 
           <nav className="issue-view-tabs" aria-label="Issue work queues">
-            <Link
-              className={view === "ATTENTION" ? "is-active" : ""}
-              href="/teamwork-issues?view=ATTENTION"
-            >
-              Needs Attention{" "}
-              <b>{(fastCounts?.attention ?? attentionIssues.length) + hostingAttentionCount}</b>
-            </Link>
-            <Link
-              className={view === "REVIEW_UNPLANNED" ? "is-active" : ""}
-              href="/teamwork-issues?view=REVIEW_UNPLANNED"
-            >
-              Review Unplanned Time{" "}
-              <b>{fastCounts?.unplannedOpen ?? unplannedReviewIssues.length}</b>
-            </Link>
-            <Link
-              className={view === "REVIEWED" ? "is-active" : ""}
-              href="/teamwork-issues?view=REVIEWED"
-            >
-              Reviewed <b>{fastCounts?.reviewed ?? reviewedIssues.length}</b>
-            </Link>
-            <Link className={view === "ALL" ? "is-active" : ""} href="/teamwork-issues?view=ALL">
-              All Issues{" "}
-              <b>{(fastCounts?.total ?? statusScopedIssues.length) + scopedHostingIssues.length}</b>
-            </Link>
-            <Link className={hostingView ? "is-active" : ""} href="/teamwork-issues?view=HOSTING">
-              Hosting Data <b>{hostingDataIssues.length}</b>
-            </Link>
+            {tabs.map((tab) => (
+              <Link
+                key={tab.view}
+                className={tab.active ? "is-active" : ""}
+                href={issueViewHref(params, tab.view)}
+                aria-current={tab.active ? "page" : undefined}
+              >
+                {tab.label} <b>{tab.count}</b>
+              </Link>
+            ))}
           </nav>
 
           {!hostingView ? (
@@ -427,7 +454,7 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                 platform={hostingPlatform}
               />
             ) : null}
-            {issueGroups.map((group) => (
+            {visibleIssueGroups.map((group) => (
               <section className="issue-project-group" key={group.projectId}>
                 <header className="issue-project-group__header">
                   <div>
@@ -592,6 +619,13 @@ export default async function TeamworkIssuesPage({ searchParams }: { searchParam
                 </div>
               </section>
             ))}
+
+            {hiddenIssueGroupCount > 0 ? (
+              <div className="empty-panel">
+                Showing {visibleIssueGroups.length} of {issueGroups.length} projects.{" "}
+                <Link href={showMoreIssuesHref(params, groupLimit)}>Show more</Link>
+              </div>
+            ) : null}
 
             {!issues.length && !visibleHostingIssues.length && !hostingView ? (
               <div className="empty-panel">

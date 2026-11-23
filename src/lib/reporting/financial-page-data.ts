@@ -95,27 +95,6 @@ export async function getFinancialPageData(
       },
       breakdown: effortBreakdownByGroup.get(group.groupName) ?? [],
     }));
-  const totalRevenue = reconciliationRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
-  const totalForecastCost = reconciliationRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
-  const actualComplete = reconciliationRows.every((row) => row.actualCost != null);
-  const remainingComplete = reconciliationRows.every((row) => row.remainingCost != null);
-  const totalProfitabilityRow = reconciliationRows.length
-    ? {
-        label: "Company total",
-        detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"}`,
-        revenue: totalRevenue,
-        cost: totalForecastCost,
-        actualCost: actualComplete
-          ? reconciliationRows.reduce((sum, row) => sum + (row.actualCost ?? 0), 0)
-          : null,
-        remainingCost: remainingComplete
-          ? reconciliationRows.reduce((sum, row) => sum + (row.remainingCost ?? 0), 0)
-          : null,
-        profit: totalRevenue - totalForecastCost,
-        margin: totalRevenue > 0 ? ((totalRevenue - totalForecastCost) / totalRevenue) * 100 : null,
-        projectCount: summary.projectCount,
-      }
-    : null;
 
   return {
     filter,
@@ -123,7 +102,6 @@ export async function getFinancialPageData(
     summary,
     profitabilityRows,
     effortRows,
-    totalProfitabilityRow,
     historicalProfitSeries,
     clients: [
       ...new Set(

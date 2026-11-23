@@ -19,7 +19,12 @@ import {
   type PortfolioOperationalGroupRow,
   type ProjectReportRow,
 } from "@/lib/reporting/dashboard-data";
-import { hours, money } from "@/lib/reporting/format";
+import {
+  profitabilityPlotComplete,
+  resolveProfitabilityRow,
+} from "@/lib/reporting/forecast-position";
+import { dateLabel, hours, money } from "@/lib/reporting/format";
+import { MISSING, projectedProfitLabel, REPORT_LABELS } from "@/lib/reporting/labels";
 
 function numeric(value: string | null): number | null {
   if (value === null || value.trim() === "") return null;
@@ -47,13 +52,9 @@ function actualCostCoverageDetail(
   return `Cost coverage: ${completeCount} complete · ${partialCount} partial/missing`;
 }
 
+// Shown on the Eastern business day, whatever the server's time zone.
 function displayDate(value: Date | null): string {
-  if (!value) return "Not calculated";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(value);
+  return value ? dateLabel(value) : "Not calculated";
 }
 
 export function ProjectComparisonReport({
@@ -161,10 +162,10 @@ export function ProjectComparisonReport({
         <div className="compare-register__scroll">
           <div className="compare-register__head" aria-hidden="true">
             <span>Project</span>
-            <span>Margin</span>
-            <span>Actual Cost</span>
-            <span>Remaining Work</span>
-            <span>Projected Profit</span>
+            <span>{REPORT_LABELS.forecastMargin}</span>
+            <span>{REPORT_LABELS.currentCosts}</span>
+            <span>{REPORT_LABELS.estimatedRemainingCosts}</span>
+            <span>{REPORT_LABELS.projectedProfit}</span>
             <span>Coverage</span>
           </div>
           <div className="compare-register__rows">
@@ -195,11 +196,11 @@ export function ProjectComparisonReport({
                   </div>
                   <div className="compare-register__money">
                     <strong>{money(project.actualTotalCost)}</strong>
-                    <small>Cost to date</small>
+                    <small>To date</small>
                   </div>
                   <div className="compare-register__money">
                     <strong>{money(remaining)}</strong>
-                    <small>Costed work</small>
+                    <small>To complete</small>
                   </div>
                   <div
                     className={`compare-register__money ${
@@ -214,7 +215,9 @@ export function ProjectComparisonReport({
                   >
                     <strong>{money(project.forecastProfit)}</strong>
                     <small>
-                      {profit !== null && profit < 0 ? "Projected Loss" : "Projected profit"}
+                      {project.isProvisional && profit !== null && profit >= 0
+                        ? REPORT_LABELS.knownProjectedProfit
+                        : projectedProfitLabel(profit)}
                     </small>
                   </div>
 
@@ -264,38 +267,49 @@ export function CombinedPortfolioReport({
     provisional: group.provisionalProjectCount > 0,
   }));
   const anyGroupFinancials = groups.some((group) => group.financialProjectCount > 0);
-  const totalRevenue = profitabilityRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
-  const totalForecastCost = profitabilityRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
+  // The all-groups row totals only groups whose fee, forecast cost and profit are all known, so
+  // revenue, costs, profit and margin describe the same groups; missing groups are not $0.
+  const completeRows = profitabilityRows.filter((row) =>
+    profitabilityPlotComplete(resolveProfitabilityRow(row)),
+  );
+  const excludedGroupCount = profitabilityRows.length - completeRows.length;
+  const totalRevenue = completeRows.reduce((sum, row) => sum + (row.revenue ?? 0), 0);
+  const totalForecastCost = completeRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
   const totalRemainingCost = profitabilityRows.reduce((sum, row) => {
     if (row.remainingCost !== null && row.remainingCost !== undefined)
       return sum + row.remainingCost;
     return sum + (remainingCost(row.actualCost ?? null, row.cost ?? null) ?? 0);
   }, 0);
   const totalForecastProfit = totalRevenue - totalForecastCost;
-  const actualCostCompositionComplete = profitabilityRows.every(
+  const actualCostCompositionComplete = completeRows.every(
     (row) => row.actualCost !== null && row.actualCost !== undefined,
   );
-  const remainingCostCompositionComplete = profitabilityRows.every(
+  const remainingCostCompositionComplete = completeRows.every(
     (row) => row.remainingCost !== null && row.remainingCost !== undefined,
   );
-  const totalProfitabilityRow = anyGroupFinancials
-    ? {
-        label: "All selected groups",
-        detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"} · ${profitabilityRows.length} operational group${profitabilityRows.length === 1 ? "" : "s"}`,
-        revenue: totalRevenue,
-        cost: totalForecastCost,
-        actualCost: actualCostCompositionComplete
-          ? profitabilityRows.reduce((sum, row) => sum + (row.actualCost ?? 0), 0)
-          : null,
-        remainingCost: remainingCostCompositionComplete
-          ? profitabilityRows.reduce((sum, row) => sum + (row.remainingCost ?? 0), 0)
-          : null,
-        profit: totalForecastProfit,
-        margin: totalRevenue > 0 ? (totalForecastProfit / totalRevenue) * 100 : null,
-        projectCount: summary.projectCount,
-        provisional: summary.provisionalCount > 0,
-      }
-    : null;
+  const totalProfitabilityRow =
+    anyGroupFinancials && completeRows.length
+      ? {
+          label: "All selected groups",
+          detail: `${summary.projectCount} project${summary.projectCount === 1 ? "" : "s"} · ${
+            excludedGroupCount
+              ? `${completeRows.length} of ${profitabilityRows.length} operational groups · ${excludedGroupCount} excluded: fee or costs missing`
+              : `${profitabilityRows.length} operational group${profitabilityRows.length === 1 ? "" : "s"}`
+          }`,
+          revenue: totalRevenue,
+          cost: totalForecastCost,
+          actualCost: actualCostCompositionComplete
+            ? completeRows.reduce((sum, row) => sum + (row.actualCost ?? 0), 0)
+            : null,
+          remainingCost: remainingCostCompositionComplete
+            ? completeRows.reduce((sum, row) => sum + (row.remainingCost ?? 0), 0)
+            : null,
+          profit: totalForecastProfit,
+          margin: totalRevenue > 0 ? (totalForecastProfit / totalRevenue) * 100 : null,
+          projectCount: summary.projectCount,
+          provisional: completeRows.some((row) => row.provisional),
+        }
+      : null;
   const effortRows = groups.map((group) => ({
     label: group.groupName,
     detail: `${group.projectCount} project${group.projectCount === 1 ? "" : "s"}`,
@@ -314,7 +328,7 @@ export function CombinedPortfolioReport({
         <div className="executive-kpis__primary">
           <MetricCard
             priority="primary"
-            label="Current Costs"
+            label={REPORT_LABELS.currentCosts}
             value={money(summary.totalActualCost)}
             detail={actualCostCoverageDetail(
               summary.actualCostKnownCount,
@@ -325,14 +339,14 @@ export function CombinedPortfolioReport({
           />
           <MetricCard
             priority="primary"
-            label="Estimated Remaining Costs"
+            label={REPORT_LABELS.estimatedRemainingCosts}
             value={money(totalRemainingCost)}
             detail={knownFor(summary.forecastCostKnownCount, summary.projectCount)}
             help={`Estimated remaining internal labor cost from today to completion. Outsourced modeling task estimates are excluded; recorded vendor expenses remain in current costs. ${summary.provisionalCount} selected project${summary.provisionalCount === 1 ? " is" : "s are"} provisional, so missing inputs can make this a known minimum.`}
           />
           <MetricCard
             priority="primary"
-            label="Projected Profit"
+            label={projectedProfitLabel(summary.totalForecastProfit)}
             value={money(summary.totalForecastProfit)}
             detail={knownFor(summary.forecastProfitKnownCount, summary.projectCount)}
             help="Combined client fees less current costs and remaining cost to complete. It is recalculated from the totals rather than averaging project profit values."
@@ -340,13 +354,15 @@ export function CombinedPortfolioReport({
         </div>
         <div className="executive-kpis__secondary">
           <MetricCard
-            label="Allocated Revenue"
+            label={REPORT_LABELS.fee}
             value={money(summary.totalClientFee)}
             detail={knownFor(summary.clientFeeKnownCount, summary.projectCount)}
             help="Sum of known fixed-fee budgets for all selected projects. Missing fees are not treated as $0."
           />
           <MetricCard
-            label={summary.provisionalCount ? "Margin Ceiling" : "Forecast Margin"}
+            label={
+              summary.provisionalCount ? REPORT_LABELS.marginCeiling : REPORT_LABELS.forecastMargin
+            }
             value={
               <MarginBadge value={combinedMargin} provisional={summary.provisionalCount > 0} />
             }
@@ -380,7 +396,7 @@ export function CombinedPortfolioReport({
             eyebrow="Combined margin"
             title="Margin Summary"
             description="Project counts use the same forecast-margin thresholds applied throughout reporting."
-            help="Forecast margin is calculated from project revenue and forecast cost. Strong margin is 50% or higher, Watch margin is above 35% and below 50%, Low margin is 35% or lower, and N/A means no usable forecast margin is available."
+            help={`Forecast margin is calculated from project revenue and forecast cost. Strong margin is a confirmed 50% or higher, Provisional is a 50% or higher ceiling that is not yet confirmed, Watch margin is above 35% and below 50%, Low margin is 35% or lower, and ${MISSING} means no usable forecast margin is available.`}
           >
             <MarginSummaryDonut projects={projects} />
           </ChartPanel>

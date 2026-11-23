@@ -24,6 +24,7 @@ import {
   hasBenacoHosting,
   hasIvionHosting,
   hostingDealTermSummary,
+  hostingRevenueGaps,
   hostingRowForView,
   isHostingDealActiveOn,
   isHostingTermExpired,
@@ -38,7 +39,7 @@ import {
 } from "@/lib/hosting/reporting";
 import { saveBenacoMonthlyBill } from "./actions";
 import { reportingTimestamp } from "@/lib/reporting/format";
-import { hostingPeriodStatus } from "@/lib/hosting/period-status";
+import { hostingPeriodIsConfirmed, hostingPeriodStatus } from "@/lib/hosting/period-status";
 import {
   BENACO_PREVIOUSLY_PAID,
   BENACO_CATCH_UP_PAYMENT,
@@ -299,6 +300,9 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
     : null;
   const hostingStale =
     !lastSuccessfulDate || new Date().getTime() - lastSuccessfulDate.getTime() > 8 * 60 * 60 * 1000;
+  // The header dot reflects the actual data state, not a fixed "all good" green.
+  const dataStatusTone: "green" | "amber" | "red" =
+    latestSync?.status === "FAILED" ? "red" : hostingStale ? "amber" : "green";
   const hasSourceData = Boolean(
     latestSync || data.deals.length || data.ivionSites.length || data.benacoBills.length,
   );
@@ -392,6 +396,13 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
     )
     .sort((a, b) => (a.start ?? "9999").localeCompare(b.start ?? "9999"));
   const incompleteBenacoCosts = selectedBenacoTourCosts.filter((cost) => cost.missingInputs).length;
+  // Deals and tours the totals cannot fully include; named so they are fixed in HubSpot rather
+  // than read as $0.
+  const revenueGaps = hostingRevenueGaps(data.deals, view);
+  const incompleteTourNames =
+    view === "ivion"
+      ? []
+      : data.benacoTourCosts.filter((cost) => cost.missingInputs).map((cost) => cost.name);
   const earlierBenacoPanoCharges = data.benacoTourCosts
     .filter((cost) => cost.start && cost.start < HOSTING_REPORT_START)
     .reduce((sum, cost) => sum + cost.recordedPanoCost, 0);
@@ -427,7 +438,12 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               footprint.
             </p>
             <div className="report-titlebar__status" aria-label="Hosting data status">
-              <span className="portfolio-status-dot portfolio-status-dot--green" />
+              <span className={`portfolio-status-dot portfolio-status-dot--${dataStatusTone}`} />
+              {dataStatusTone === "red"
+                ? "Latest refresh failed · "
+                : dataStatusTone === "amber"
+                  ? "Refresh overdue · "
+                  : null}
               HubSpot source{" "}
               <span className="hosting-flow-arrow" aria-hidden="true">
                 →
@@ -631,6 +647,35 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
             <span>
               These charges are assigned to tour starts. Prior and catch-up payments settle those
               same charges and are not added again.
+            </span>
+          </section>
+        ) : null}
+
+        {revenueGaps.length || incompleteTourNames.length ? (
+          <section className="notice hosting-status-banner" role="status">
+            <strong>Totals are incomplete: some deals cannot be fully counted.</strong>
+            <span>
+              {[
+                revenueGaps.some((gap) => gap.kind === "start-without-fee")
+                  ? `Paid start but no fee (revenue unknown, not $0): ${revenueGaps
+                      .filter((gap) => gap.kind === "start-without-fee")
+                      .map((gap) => `${gap.name} (${gap.platform})`)
+                      .join(", ")}.`
+                  : null,
+                revenueGaps.some((gap) => gap.kind === "fee-without-start")
+                  ? `Fee but no paid start, so not booked: ${revenueGaps
+                      .filter((gap) => gap.kind === "fee-without-start")
+                      .map((gap) => `${gap.name} (${gap.platform}, ${currency(gap.fee ?? 0)})`)
+                      .join(", ")}.`
+                  : null,
+                incompleteTourNames.length
+                  ? `Benaco tours missing a grid count or complete dates, so their cost is incomplete: ${incompleteTourNames.join(", ")}.`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" ")}{" "}
+              Correct these in HubSpot; they clear after the next hosting refresh.{" "}
+              <Link href="/teamwork-issues?view=HOSTING">Open the hosting data checklist</Link>
             </span>
           </section>
         ) : null}
@@ -857,17 +902,24 @@ export default async function HostingPage({ searchParams }: { searchParams: Sear
               <tbody>
                 {displayedRows.map((row) => {
                   const values = hostingRowForView(row, view);
+                  const status = hostingPeriodStatus(row, view);
                   return (
                     <tr key={row.period}>
                       <td>
                         <strong>{row.period}</strong>
                       </td>
-                      <td>{hostingPeriodStatus(row, view)}</td>
+                      <td>{status}</td>
                       <td>{currency(values.revenue)}</td>
                       <td>{currency(values.costs)}</td>
                       <td
                         className={
-                          values.netProfit < 0 ? "hosting-value--loss" : "hosting-value--profit"
+                          // Green only for a fully recorded period; estimated, provisional or
+                          // incomplete periods stay neutral even when positive.
+                          values.netProfit < 0
+                            ? "hosting-value--loss"
+                            : hostingPeriodIsConfirmed(status)
+                              ? "hosting-value--profit"
+                              : "hosting-value--provisional"
                         }
                       >
                         <strong>{currency(values.netProfit)}</strong>

@@ -3,6 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import { getDb } from "@/db/client";
 import { appUsers } from "@/db/schema";
 import { requireRole } from "@/lib/auth/session";
+import { reportingTimestamp } from "@/lib/reporting/format";
 import { updateUserAccess } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +54,7 @@ export default async function UsersAdminPage({
                       ) : null}
                     </td>
                     <td>{user.email}</td>
-                    <td>{user.lastLoginAt?.toLocaleString() ?? "Never"}</td>
+                    <td>{user.lastLoginAt ? reportingTimestamp(user.lastLoginAt) : "Never"}</td>
                     <td>
                       <form className="inline-form" action={updateUserAccess}>
                         <input name="userId" type="hidden" value={user.id} />

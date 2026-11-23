@@ -4,12 +4,14 @@ import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { PortfolioFinancialComposition } from "@/components/portfolio-financial-composition";
 import { combineProjectForecasts } from "@/lib/reporting/forecast-position";
+import { formatHoursUsed, hoursUsedPercent } from "@/lib/reporting/labels";
 import { dateLabel, hours, money, percent, reportingTimestamp } from "@/lib/reporting/format";
 import {
   filterMeetingProjects,
   forecastConfidence,
   meetingTaskComplete,
   type MeetingProject,
+  type MeetingStage,
   type MeetingTask,
   type meetingWindow,
 } from "@/lib/reporting/mmm-report";
@@ -48,9 +50,109 @@ function forecastRow(project: MeetingProject) {
   };
 }
 
+/** One-line, plain-language status for a work group. Missing values are said, never shown as 0. */
+function workGroupStatus(stage: MeetingStage): {
+  text: string;
+  tone: "red" | "amber" | "blue" | "green";
+} {
+  const allDone = stage.tasks.length > 0 && stage.completed === stage.tasks.length;
+  if (stage.estimatedMinutes === null || stage.estimatedMinutes === 0)
+    return { text: `No estimate · ${hours(stage.loggedMinutes)} logged`, tone: "amber" };
+  const over = stage.loggedMinutes - stage.estimatedMinutes;
+  if (over > 0) return { text: `${hours(over)} over estimate`, tone: "red" };
+  if (allDone) return { text: `Done · ${hours(-over)} under estimate`, tone: "green" };
+  if (stage.remainingMinutes === null) return { text: "Remaining hours unknown", tone: "amber" };
+  const openTasks = stage.tasks.length - stage.completed;
+  if (stage.remainingMinutes === 0 && openTasks > 0)
+    return {
+      text: `Estimate used up · ${openTasks} task${openTasks === 1 ? "" : "s"} open`,
+      tone: "amber",
+    };
+  return { text: `${hours(stage.remainingMinutes)} remaining`, tone: "blue" };
+}
+
+// Hours for each work group on one shared scale: logged time (blue, red past the estimate),
+// remaining estimate (hatched) and a marker at the estimate. Task progress sits beside it.
+function WorkGroupChart({ stages }: { stages: MeetingStage[] }) {
+  if (!stages.length) return <p className={styles.muted}>No work groups for this project.</p>;
+  const scale = Math.max(
+    1,
+    ...stages.map((stage) =>
+      Math.max(
+        stage.estimatedMinutes ?? 0,
+        stage.loggedMinutes + (stage.remainingMinutes ?? 0),
+        stage.forecastMinutes ?? 0,
+      ),
+    ),
+  );
+  const pct = (minutes: number) => `${Math.max(0, Math.min(minutes / scale, 1)) * 100}%`;
+  return (
+    <div className={styles.groupChart}>
+      <div className={styles.groupLegend} aria-hidden="true">
+        <span data-key="logged">Logged</span>
+        <span data-key="over">Over estimate</span>
+        <span data-key="remaining">Remaining estimate</span>
+        <span data-key="marker">Estimate</span>
+      </div>
+      {stages.map((stage) => {
+        const estimate = stage.estimatedMinutes;
+        const withinEstimate =
+          estimate === null ? stage.loggedMinutes : Math.min(stage.loggedMinutes, estimate);
+        const over = estimate === null ? 0 : Math.max(stage.loggedMinutes - estimate, 0);
+        const remaining = stage.remainingMinutes ?? 0;
+        const status = workGroupStatus(stage);
+        const taskShare = stage.tasks.length ? stage.completed / stage.tasks.length : 0;
+        return (
+          <div className={styles.groupRow} key={stage.name}>
+            <div className={styles.groupName}>
+              <strong>{stage.name}</strong>
+              <small>
+                {stage.tasks.length
+                  ? `${stage.completed} of ${stage.tasks.length} task${stage.tasks.length === 1 ? "" : "s"} done`
+                  : "No tasks"}
+              </small>
+              <span className={styles.groupTasks} aria-hidden="true">
+                <span style={{ width: `${taskShare * 100}%` }} />
+              </span>
+            </div>
+            <div
+              className={styles.groupTrack}
+              role="img"
+              aria-label={`${stage.name}: ${hours(stage.loggedMinutes)} logged of ${hours(estimate)} estimated, ${hours(stage.remainingMinutes)} remaining. ${status.text}.`}
+            >
+              <span className={styles.groupLogged} style={{ width: pct(withinEstimate) }} />
+              {over > 0 ? (
+                <span
+                  className={styles.groupOver}
+                  style={{ left: pct(withinEstimate), width: pct(over) }}
+                />
+              ) : null}
+              {remaining > 0 ? (
+                <span
+                  className={styles.groupRemaining}
+                  style={{ left: pct(stage.loggedMinutes), width: pct(remaining) }}
+                />
+              ) : null}
+              {estimate ? (
+                <span className={styles.groupMarker} style={{ left: pct(estimate) }} />
+              ) : null}
+            </div>
+            <div className={styles.groupStatus} data-status={status.tone}>
+              <strong>
+                {hours(stage.loggedMinutes)} <small>of {hours(estimate)}</small>
+              </strong>
+              <span>{status.text}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function variance(minutes: number | null) {
   return minutes === null
-    ? "Not available"
+    ? "No estimate to compare"
     : minutes > 0
       ? `${hours(minutes)} over estimate`
       : minutes < 0
@@ -58,21 +160,69 @@ function variance(minutes: number | null) {
         : "At estimate";
 }
 
+export type TaskFilter = "open" | "overdue" | "week" | "estimate" | "used" | "all";
+
+type MeetingPeriod = { today: string; weekStart: string; weekEnd: string };
+
+function estimateUsedUp(task: MeetingTask) {
+  return (
+    !!task.isCanonicalHolder &&
+    !task.isOutsourced &&
+    !task.isBranchComplete &&
+    !meetingTaskComplete(task) &&
+    (task.countedEstimatedMinutes ?? 0) > 0 &&
+    (task.branchLoggedMinutes ?? 0) >= (task.countedEstimatedMinutes ?? 0)
+  );
+}
+
+function taskMatchesFilter(
+  task: MeetingTask,
+  filter: TaskFilter,
+  needsEstimate: Set<string>,
+  period: MeetingPeriod,
+) {
+  const open = !meetingTaskComplete(task);
+  if (filter === "all") return true;
+  if (filter === "open") return open;
+  if (filter === "overdue") return open && !!task.dueDate && task.dueDate < period.today;
+  if (filter === "week")
+    return (
+      open && !!task.dueDate && task.dueDate >= period.weekStart && task.dueDate <= period.weekEnd
+    );
+  if (filter === "estimate") return needsEstimate.has(task.id);
+  return estimateUsedUp(task);
+}
+
 function TaskDetail({
   project,
   teamworkBase,
-  today,
+  period,
+  filter,
+  onFilter,
 }: {
   project: MeetingProject;
   teamworkBase: string | null;
-  today: string;
+  period: MeetingPeriod;
+  filter: TaskFilter;
+  onFilter: (filter: TaskFilter) => void;
 }) {
-  const [showCompleted, setShowCompleted] = useState(false);
+  const today = period.today;
   const [taskQuery, setTaskQuery] = useState("");
   const query = taskQuery.trim().toLowerCase();
+  const needsEstimate = new Set(project.missingEstimateTasks.map((task) => task.id));
+  const chips: Array<{ key: TaskFilter; label: string }> = [
+    { key: "open", label: "Open" },
+    { key: "overdue", label: "Overdue" },
+    { key: "week", label: "Due this week" },
+    { key: "estimate", label: "Needs estimate" },
+    { key: "used", label: "Estimate used up" },
+    { key: "all", label: "All tasks" },
+  ];
+  const countFor = (key: TaskFilter) =>
+    project.tasks.filter((task) => taskMatchesFilter(task, key, needsEstimate, period)).length;
   const visible = project.tasks.filter(
     (task) =>
-      (showCompleted || !meetingTaskComplete(task)) &&
+      taskMatchesFilter(task, filter, needsEstimate, period) &&
       (!query ||
         [task.name, task.taskListName, task.group, ...task.assignees]
           .join(" ")
@@ -106,6 +256,30 @@ function TaskDetail({
   visible.forEach(visit);
   return (
     <>
+      <div className={styles.taskChips} role="group" aria-label="Show tasks">
+        {chips.map((chip) => {
+          const count = countFor(chip.key);
+          return (
+            <button
+              key={chip.key}
+              type="button"
+              className={styles.taskChip}
+              aria-pressed={filter === chip.key}
+              data-tone={
+                count &&
+                (chip.key === "overdue"
+                  ? "red"
+                  : chip.key === "estimate" || chip.key === "used"
+                    ? "amber"
+                    : undefined)
+              }
+              onClick={() => onFilter(chip.key)}
+            >
+              {chip.label} <span>{count}</span>
+            </button>
+          );
+        })}
+      </div>
       <div className={styles.taskControls}>
         <label>
           Find a task or assignee
@@ -115,16 +289,8 @@ function TaskDetail({
             placeholder="Task, work group, list, or person"
           />
         </label>
-        <label className={styles.checkbox}>
-          <input
-            type="checkbox"
-            checked={showCompleted}
-            onChange={(event) => setShowCompleted(event.target.checked)}
-          />{" "}
-          Include completed tasks
-        </label>
         <span>
-          {visible.length} of {project.tasks.length} tasks
+          Showing {visible.length} of {project.tasks.length} tasks
         </span>
       </div>
       <div className="table-wrap">
@@ -188,17 +354,24 @@ function TaskDetail({
                     <small>{dateLabel(task.dueDate)}</small>
                   </td>
                   <td>
-                    {!task.metricsAvailable
-                      ? "Not calculated"
-                      : task.isOutsourced
-                        ? "Vendor work"
-                        : holder
-                          ? hours(task.countedEstimatedMinutes)
-                          : task.coveredByTaskId
-                            ? "Included in parent estimate"
-                            : project.tasks.some((child) => child.parentTaskId === task.id)
-                              ? "See subtasks"
-                              : "No estimate"}
+                    {needsEstimate.has(task.id) ? (
+                      <strong className={styles.warning}>Needs estimate</strong>
+                    ) : !task.metricsAvailable ? (
+                      <>
+                        {hours(task.ownEstimatedMinutes ?? 0)}
+                        <small>From Teamwork · not yet calculated</small>
+                      </>
+                    ) : task.isOutsourced ? (
+                      "Vendor work"
+                    ) : holder ? (
+                      hours(task.countedEstimatedMinutes)
+                    ) : task.coveredByTaskId ? (
+                      "Included in parent estimate"
+                    ) : project.tasks.some((child) => child.parentTaskId === task.id) ? (
+                      "See subtasks"
+                    ) : (
+                      "No estimate"
+                    )}
                   </td>
                   <td>
                     {hours(task.ownLoggedMinutes)}
@@ -206,7 +379,7 @@ function TaskDetail({
                   </td>
                   <td>
                     {!task.metricsAvailable
-                      ? "Not calculated"
+                      ? hours(Math.max((task.ownEstimatedMinutes ?? 0) - task.ownLoggedMinutes, 0))
                       : holder
                         ? hours(task.isBranchComplete ? 0 : task.remainingMinutes)
                         : "—"}
@@ -230,12 +403,20 @@ function TaskDetail({
 function ProjectBreakdown({
   project,
   teamworkBase,
-  today,
+  period,
+  onClose,
 }: {
   project: MeetingProject;
   teamworkBase: string | null;
-  today: string;
+  period: MeetingPeriod;
+  onClose: () => void;
 }) {
+  const [review, setReview] = useState<{ open: boolean; filter: TaskFilter }>({
+    open: false,
+    filter: "open",
+  });
+  // Open the task review at a given filter, e.g. from "Needs estimate" or "Overdue".
+  const showTasks = (filter: TaskFilter) => setReview({ open: true, filter });
   const tone = projectTone(project);
   const outlook = forecastRow(project);
   const openTasks = project.tasks.length - project.completedTasks;
@@ -246,22 +427,9 @@ function ProjectBreakdown({
           <p className="eyebrow">Project breakdown</p>
           <h3>{project.name}</h3>
           <p>
-            {project.companyName ?? "No client"} · {project.owner ?? "No owner"} ·{" "}
-            {dateLabel(project.startDate)} – {dateLabel(project.endDate)}
-          </p>
-          <p>
-            <span className={styles.dealLabel}>HubSpot deal</span>{" "}
-            {project.hubspotDeal ? (
-              project.hubspotDeal.url ? (
-                <a href={project.hubspotDeal.url} target="_blank" rel="noreferrer">
-                  {project.hubspotDeal.name ?? "Linked deal (name unavailable)"}
-                </a>
-              ) : (
-                (project.hubspotDeal.name ?? "Linked deal (name unavailable)")
-              )
-            ) : (
-              <span className={styles.muted}>No linked deal found</span>
-            )}
+            {project.jobType ?? "Other"} · {project.companyName ?? "No client"} ·{" "}
+            {project.owner ?? "No owner"} · {dateLabel(project.startDate)} –{" "}
+            {dateLabel(project.endDate)}
           </p>
         </div>
         <div className={styles.links}>
@@ -301,6 +469,38 @@ function ProjectBreakdown({
           ) : (
             <p>No current delivery or reporting flags.</p>
           )}
+          {project.missingEstimateTasks.length ? (
+            <div className={styles.needsEstimate}>
+              <strong>Tagged &ldquo;Estimate Hours&rdquo; but no estimate entered:</strong>
+              <ul>
+                {project.missingEstimateTasks.slice(0, 6).map((task) => (
+                  <li key={task.id}>
+                    {teamworkBase ? (
+                      <a
+                        href={`${teamworkBase}/app/tasks/${task.teamworkId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {task.name}
+                      </a>
+                    ) : (
+                      task.name
+                    )}{" "}
+                    <small>{task.taskListName}</small>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className={styles.inlineAction}
+                onClick={() => showTasks("estimate")}
+              >
+                {project.missingEstimateTasks.length > 6
+                  ? `Show all ${project.missingEstimateTasks.length} in task review`
+                  : "Show in task review"}
+              </button>
+            </div>
+          ) : null}
           <p className={styles.activity}>
             <strong>Last week:</strong> {hours(project.lastWeekMinutes)} logged ·{" "}
             {project.completedLastWeek} tasks completed
@@ -347,7 +547,9 @@ function ProjectBreakdown({
         </div>
         <div data-tone="blue">
           <span>Estimated remaining</span>
-          <strong>{hours(project.remainingMinutes)}</strong>
+          <strong>
+            {project.remainingMinutes === null ? "No tasks yet" : hours(project.remainingMinutes)}
+          </strong>
           <small>Unused estimates on open internal work</small>
         </div>
         <div
@@ -360,8 +562,26 @@ function ProjectBreakdown({
           }
         >
           <span>Projected final hours</span>
-          <strong>{hours(project.forecastMinutes)}</strong>
-          <small>{variance(project.varianceMinutes)}</small>
+          {project.forecastMinutes === null && project.missingEstimateTasks.length ? (
+            <>
+              <strong>Needs estimates</strong>
+              <small>
+                <button
+                  type="button"
+                  className={styles.inlineAction}
+                  onClick={() => showTasks("estimate")}
+                >
+                  {project.missingEstimateTasks.length} Estimate Hours task
+                  {project.missingEstimateTasks.length === 1 ? "" : "s"} without hours
+                </button>
+              </small>
+            </>
+          ) : (
+            <>
+              <strong>{hours(project.forecastMinutes)}</strong>
+              <small>{variance(project.varianceMinutes)}</small>
+            </>
+          )}
         </div>
       </div>
       {project.unallocatedMinutes > 0 ? (
@@ -372,69 +592,80 @@ function ProjectBreakdown({
       ) : null}
 
       <h4>Work-group progress</h4>
-      <div className="table-wrap">
-        <table className={`data-table ${styles.stageTable}`}>
-          <thead>
-            <tr>
-              <th>Work group</th>
-              <th>Tasks complete</th>
-              <th>Internal estimate</th>
-              <th>Logged</th>
-              <th>Estimated remaining</th>
-              <th>Projected final hours</th>
-            </tr>
-          </thead>
-          <tbody>
-            {project.stages.map((stage) => (
-              <tr key={stage.name}>
-                <td>
-                  <strong>{stage.name}</strong>
-                </td>
-                <td data-label="Tasks complete">
-                  {stage.completed}/{stage.tasks.length}
-                  {stage.tasks.length ? (
-                    <progress
-                      max={stage.tasks.length}
-                      value={stage.completed}
-                      aria-label={`${stage.name}: ${stage.completed} of ${stage.tasks.length} tasks complete`}
-                    />
-                  ) : null}
-                </td>
-                <td data-label="Internal estimate">{hours(stage.estimatedMinutes)}</td>
-                <td data-label="Logged">{hours(stage.loggedMinutes)}</td>
-                <td data-label="Estimated remaining">{hours(stage.remainingMinutes)}</td>
-                <td
-                  data-label="Projected final hours"
-                  data-tone={
-                    stage.forecastMinutes === null
-                      ? "amber"
-                      : stage.forecastMinutes > (stage.estimatedMinutes ?? 0)
-                        ? "red"
-                        : "blue"
-                  }
-                >
-                  <strong>{hours(stage.forecastMinutes)}</strong>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <WorkGroupChart stages={project.stages} />
 
-      <details className={styles.taskReview} data-print-open>
-        <summary>
-          <span>Task review</span>
-          <small>
-            {openTasks} open · {project.overdueTasks} overdue · {project.exhaustedEstimates}{" "}
-            estimate{project.exhaustedEstimates === 1 ? "" : "s"} used up
-          </small>
-        </summary>
-        <TaskDetail project={project} teamworkBase={teamworkBase} today={today} />
-      </details>
-      <p className={styles.freshness}>
-        Last source sync: {reportingTimestamp(project.lastSyncedAt)} · Forecast calculated:{" "}
-        {reportingTimestamp(project.metrics?.calculatedAt)}
-      </p>
+      <section className={styles.taskReview} data-open={review.open} aria-label="Task review">
+        <div className={styles.taskReviewHeader}>
+          <button
+            type="button"
+            className={styles.taskReviewToggle}
+            aria-expanded={review.open}
+            aria-controls={`task-review-${project.id}`}
+            onClick={() => setReview((current) => ({ ...current, open: !current.open }))}
+          >
+            <span aria-hidden="true">{review.open ? "▾" : "▸"}</span>
+            {review.open ? "Hide task review" : "Show task review"}
+          </button>
+          <div className={styles.reviewShortcuts}>
+            {[
+              { key: "open" as const, label: `${openTasks} open`, show: true },
+              {
+                key: "overdue" as const,
+                label: `${project.overdueTasks} overdue`,
+                show: project.overdueTasks > 0,
+                tone: "red",
+              },
+              {
+                key: "week" as const,
+                label: `${project.dueThisWeek} due this week`,
+                show: project.dueThisWeek > 0,
+              },
+              {
+                key: "estimate" as const,
+                label: `${project.missingEstimateTasks.length} need an estimate`,
+                show: project.missingEstimateTasks.length > 0,
+                tone: "amber",
+              },
+              {
+                key: "used" as const,
+                label: `${project.exhaustedEstimates} estimate${project.exhaustedEstimates === 1 ? "" : "s"} used up`,
+                show: project.exhaustedEstimates > 0,
+                tone: "amber",
+              },
+            ]
+              .filter((item) => item.show)
+              .map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={styles.taskChip}
+                  data-tone={item.tone}
+                  onClick={() => showTasks(item.key)}
+                >
+                  {item.label}
+                </button>
+              ))}
+          </div>
+        </div>
+        <div id={`task-review-${project.id}`} className={styles.taskReviewBody}>
+          <TaskDetail
+            project={project}
+            teamworkBase={teamworkBase}
+            period={period}
+            filter={review.filter}
+            onFilter={(filter) => setReview({ open: true, filter })}
+          />
+        </div>
+      </section>
+      <div className={styles.breakdownFooter}>
+        <p className={styles.freshness}>
+          Last source sync: {reportingTimestamp(project.lastSyncedAt)} · Forecast calculated:{" "}
+          {reportingTimestamp(project.metrics?.calculatedAt)}
+        </p>
+        <button type="button" className="button button--secondary button--small" onClick={onClose}>
+          Close {project.projectNumber ?? "project"} ▴
+        </button>
+      </div>
     </div>
   );
 }
@@ -534,6 +765,21 @@ export function MeetingWorkspace({
     });
     if (opening) setFocusId(id);
   };
+  // Closing from the bottom of a long breakdown returns you to that project's row.
+  const closeProject = (id: string) => {
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      next.delete(id);
+      return next;
+    });
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`meeting-row-${id}`);
+      if (!row) return;
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      row.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+      row.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+    });
+  };
   const reset = () => {
     setQuery("");
     setOwner("ALL");
@@ -567,14 +813,7 @@ export function MeetingWorkspace({
             className="button button--secondary"
             onClick={() => {
               setExpanded(new Set(visible.map((project) => project.id)));
-              requestAnimationFrame(() =>
-                requestAnimationFrame(() => {
-                  document
-                    .querySelectorAll<HTMLDetailsElement>("details[data-print-open]")
-                    .forEach((details) => (details.open = true));
-                  window.print();
-                }),
-              );
+              requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
             }}
           >
             Print meeting report
@@ -619,9 +858,7 @@ export function MeetingWorkspace({
         </div>
         <div className="company-pulse__stat">
           <span>Hours used</span>
-          <strong>
-            {estimatedMinutes ? percent((loggedMinutes / estimatedMinutes) * 100, 0) : "N/A"}
-          </strong>
+          <strong>{formatHoursUsed(hoursUsedPercent(loggedMinutes, estimatedMinutes))}</strong>
           <small>
             {hours(loggedMinutes)} of {hours(estimatedMinutes)} internal estimate ·{" "}
             {knownHours.length
@@ -773,30 +1010,33 @@ export function MeetingWorkspace({
                           : "green"
                     }
                     data-expanded={expanded.has(project.id)}
+                    // The whole row opens or closes the project; links and buttons inside keep
+                    // their own action. The name button remains the keyboard control.
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest("a, button, input, select")) return;
+                      review(project.id);
+                    }}
                   >
                     <td>
                       <button
+                        type="button"
                         className={styles.projectButton}
                         onClick={() => review(project.id)}
                         aria-expanded={expanded.has(project.id)}
                         aria-controls={`meeting-${project.id}`}
                       >
                         <span className={styles.expandIcon} aria-hidden="true">
-                          {expanded.has(project.id) ? "−" : "+"}
+                          {expanded.has(project.id) ? "▾" : "▸"}
                         </span>
                         {project.projectNumber && !project.name.includes(project.projectNumber)
                           ? `${project.projectNumber} · `
                           : ""}
                         {project.name}
                       </button>
+                      <span className={styles.jobType}>{project.jobType ?? "Other"}</span>
                       <small>
                         {project.companyName ?? "No client"} · {project.owner ?? "No owner"}
                       </small>
-                      {project.hubspotDeal ? (
-                        <small className={styles.dealName}>
-                          HubSpot: {project.hubspotDeal.name ?? "linked deal (name unavailable)"}
-                        </small>
-                      ) : null}
                     </td>
                     <td data-label="Task completion">
                       <strong>
@@ -839,14 +1079,40 @@ export function MeetingWorkspace({
                             : "blue"
                       }
                     >
-                      <strong>{hours(project.forecastMinutes)}</strong>
-                      <small
-                        className={
-                          (project.varianceMinutes ?? 0) > 0 ? styles.warning : styles.muted
-                        }
-                      >
-                        {variance(project.varianceMinutes)}
-                      </small>
+                      {project.forecastMinutes === null && project.missingEstimateTasks.length ? (
+                        <>
+                          <strong className={styles.warning}>Needs estimates</strong>
+                          <small>
+                            {project.missingEstimateTasks
+                              .slice(0, 2)
+                              .map((task) => task.name)
+                              .join(", ")}
+                            {project.missingEstimateTasks.length > 2
+                              ? ` +${project.missingEstimateTasks.length - 2} more`
+                              : ""}{" "}
+                            tagged Estimate Hours without hours
+                          </small>
+                        </>
+                      ) : project.forecastMinutes === null ? (
+                        <>
+                          <strong>No tasks yet</strong>
+                          <small className={styles.muted}>Add tasks in Teamwork</small>
+                        </>
+                      ) : (
+                        <>
+                          <strong>{hours(project.forecastMinutes)}</strong>
+                          <small
+                            className={
+                              (project.varianceMinutes ?? 0) > 0 ? styles.warning : styles.muted
+                            }
+                          >
+                            {variance(project.varianceMinutes)}
+                            {project.uncalculatedTasks
+                              ? ` · includes ${project.uncalculatedTasks} new task${project.uncalculatedTasks === 1 ? "" : "s"}`
+                              : ""}
+                          </small>
+                        </>
+                      )}
                     </td>
                     <td data-label="Projected profit">
                       <strong
@@ -912,7 +1178,8 @@ export function MeetingWorkspace({
                           <ProjectBreakdown
                             project={project}
                             teamworkBase={teamworkBase}
-                            today={period.today}
+                            period={period}
+                            onClose={() => closeProject(project.id)}
                           />
                         </section>
                       </td>

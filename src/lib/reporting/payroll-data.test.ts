@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { payrollCsv, payrollStatus, type PayrollRow } from "./payroll-data";
+import { isBillableTime, payrollCsv, payrollStatus, type PayrollRow } from "./payroll-data";
 
 const row: PayrollRow = {
   teamwork_id: "42",
@@ -40,5 +40,29 @@ describe("payroll exports", () => {
     expect(csv).toContain('"42"');
     expect(csv).toContain('"PTO"');
     expect(csv).not.toContain('"Payroll status"');
+  });
+});
+
+describe("payroll billable rule", () => {
+  it("treats any project other than Internal Operations as billable, ignoring Teamwork's flag", () => {
+    expect(isBillableTime({ is_pto: false, project_name: "Client Scan 26-101" })).toBe(true);
+    expect(isBillableTime({ is_pto: false, project_name: " internal operations " })).toBe(false);
+    expect(isBillableTime({ is_pto: false, project_name: "Internal Operations" })).toBe(false);
+    expect(isBillableTime({ is_pto: true, project_name: "Internal Operations" })).toBe(false);
+  });
+
+  it("labels earnings codes from the derived billable rule", () => {
+    const work = { ...row, is_pto: false, lock_on: null, task_name: "Scanning" };
+    const csv = payrollCsv(
+      [
+        { ...work, teamwork_id: "1", project_name: "Client A", is_billable: true },
+        { ...work, teamwork_id: "2", project_name: "Internal Operations", is_billable: false },
+      ],
+      "2026-09-18",
+      { startDate: "2026-07-01", endDate: "2026-07-15" },
+    );
+    expect(csv).toContain('"REGULAR"');
+    expect(csv).toContain('"NON-BILLABLE"');
+    expect(csv).toContain('"2026-07-01"');
   });
 });

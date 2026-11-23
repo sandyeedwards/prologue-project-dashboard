@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { MISSING, REPORT_LABELS } from "@/lib/reporting/labels";
 
 type OutcomeRow = {
   label: string;
@@ -13,7 +14,7 @@ function finite(value: number | null | undefined): value is number {
 }
 
 function formatPercent(value: number | null | undefined): string {
-  if (!finite(value)) return "Missing";
+  if (!finite(value)) return MISSING;
   return `${new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 1,
@@ -39,7 +40,7 @@ export function ProjectOutcomeSummary({
     >
       <div className="project-outcome-summary__header" aria-hidden="true">
         <span>Project</span>
-        <span>Forecast margin</span>
+        <span>{REPORT_LABELS.forecastMargin}</span>
         <span>Task completion</span>
       </div>
       <div className="project-outcome-summary__rows">
@@ -69,10 +70,10 @@ export function ProjectOutcomeSummary({
                 <strong>{formatPercent(margin)}</strong>
                 <small>
                   {margin !== null && margin < 0
-                    ? "Forecast loss"
+                    ? REPORT_LABELS.projectedLoss
                     : row.provisional
-                      ? "Margin ceiling"
-                      : "Forecast margin"}
+                      ? REPORT_LABELS.marginCeiling
+                      : REPORT_LABELS.forecastMargin}
                 </small>
               </div>
               <div className="project-outcome-summary__completion">

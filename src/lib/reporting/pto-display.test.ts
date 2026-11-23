@@ -18,4 +18,10 @@ describe("PTO display", () => {
     expect(ptoDaysLabel(0)).toBe("0d");
     expect(ptoDaysLongLabel(480)).toBe("1 day");
   });
+
+  it("shows PTO overage as a negative remaining balance", () => {
+    expect(ptoDaysLabel(-12 * 60)).toBe("-1.5d");
+    expect(ptoDaysLongLabel(-480)).toBe("-1 day");
+    expect(ptoHoursLabel(-12 * 60)).toBe("-12h");
+  });
 });
