@@ -48,6 +48,7 @@ export default async function AllPtoPage() {
           <Link
             href="/time-reporting/pto/all"
             className="time-reporting-subnav__item time-reporting-subnav__item--active"
+            aria-current="page"
           >
             <strong>All PTO</strong>
             <span>Balances &amp; allowances</span>
@@ -99,9 +100,7 @@ export default async function AllPtoPage() {
                         : "pto-admin-card__balance"
                     }
                   >
-                    {overAllowance
-                      ? `${ptoDaysLabel(Math.abs(employee.ptoRemainingMinutes))} over allowance`
-                      : `${ptoDaysLabel(employee.ptoRemainingMinutes)} remaining`}
+                    {`${ptoDaysLabel(employee.ptoRemainingMinutes)} remaining`}
                   </div>
                 </header>
 
@@ -134,11 +133,11 @@ export default async function AllPtoPage() {
                   </div>
 
                   <div>
-                    <span>{overAllowance ? "Over allowance" : "Remaining"}</span>
+                    <span>Remaining</span>
                     <strong className={overAllowance ? "pto-value--warning" : undefined}>
-                      {ptoDaysLabel(Math.abs(employee.ptoRemainingMinutes))}
+                      {ptoDaysLabel(employee.ptoRemainingMinutes)}
                     </strong>
-                    <small>{ptoHoursLabel(Math.abs(employee.ptoRemainingMinutes))}</small>
+                    <small>{ptoHoursLabel(employee.ptoRemainingMinutes)}</small>
                   </div>
                 </div>
 

@@ -24,7 +24,7 @@ describe("payroll dates and CSV", () => {
       endDate: "2028-02-29",
     });
   });
-  it("locks after thirty calendar days across month and year boundaries", () => {
+  it("locks after fifteen calendar days across month and year boundaries", () => {
     expect(ptoLockDate("2026-12-15")).toBe("2026-12-30");
     expect(ptoLockDate("2028-02-01")).toBe("2028-02-16");
   });

@@ -90,6 +90,11 @@ function stat(page: PDFPage, fonts: FontSet, x: number, label: string, value: st
   drawText(page, fonts.bold, value, x + 12, 446, 17, NAVY, width - 24);
 }
 
+/** Lowest baseline a table row may use before continuing on a new page (footer sits below). */
+const MIN_ROW_Y = 48;
+/** First baseline below the header band on a continuation page. */
+const CONTINUED_TOP_Y = 478;
+
 function employeeTotals(rows: PayrollRow[]) {
   const result = new Map<
     string,
@@ -127,10 +132,20 @@ function drawPtoReport(
   stat(page, fonts, 222, "Employees", String(people.length));
   stat(page, fonts, 410, "Entries", String(rows.length));
   stat(page, fonts, 598, "Pay period", period.startDate, 210);
+  const continuePage = () => {
+    page = doc.addPage(PAGE);
+    header(page, fonts, logo, "PTO payroll summary", `Exported ${today} | continued`);
+    return CONTINUED_TOP_Y;
+  };
   let y = 405;
   drawText(page, fonts.bold, "EMPLOYEE TOTALS", 34, y, 8, BLUE);
   y -= 18;
-  for (const person of people.slice(0, 4)) {
+  for (const person of people) {
+    if (y < MIN_ROW_Y) {
+      y = continuePage();
+      drawText(page, fonts.bold, "EMPLOYEE TOTALS (CONTINUED)", 34, y, 8, BLUE);
+      y -= 18;
+    }
     drawText(page, fonts.bold, person.name, 42, y, 9, NAVY, 250);
     drawText(page, fonts.bold, hours(person.pto), 300, y, 9);
     y -= 16;
@@ -138,6 +153,8 @@ function drawPtoReport(
   y -= 2;
   page.drawLine({ start: { x: 34, y }, end: { x: 808, y }, thickness: 0.7, color: LINE });
   y -= 24;
+  // Keep the detail headings with at least one row.
+  if (y - 14 < MIN_ROW_Y) y = continuePage();
   const headings = ["Employee", "PTO date", "Hours"];
   const xs = [34, 430, 690];
   const drawHeadings = () =>
@@ -147,10 +164,8 @@ function drawPtoReport(
   drawHeadings();
   y -= 14;
   for (const row of rows) {
-    if (y < 48) {
-      page = doc.addPage(PAGE);
-      header(page, fonts, logo, "PTO payroll summary", `Exported ${today} | continued`);
-      y = 478;
+    if (y < MIN_ROW_Y) {
+      y = continuePage();
       drawHeadings();
       y -= 15;
     }
@@ -184,7 +199,7 @@ function drawTimeInsights(
   for (const row of rows.filter((entry) => !entry.is_pto))
     projects.set(row.project_name, (projects.get(row.project_name) ?? 0) + row.minutes);
   const topProjects = [...projects.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const page = doc.addPage(PAGE);
+  let page = doc.addPage(PAGE);
   header(
     page,
     fonts,
@@ -220,12 +235,20 @@ function drawTimeInsights(
   });
   drawText(page, fonts.bold, "EMPLOYEE SUMMARY", 34, y, 8, BLUE);
   y -= 23;
-  ["Employee", "Total", "Billable", "Utilization", "PTO"].forEach((label, index) =>
-    drawText(page, fonts.bold, label.toUpperCase(), [34, 330, 430, 540, 665][index], y, 7, MUTED),
-  );
+  const drawHeadings = () =>
+    ["Employee", "Total", "Billable", "Utilization", "PTO"].forEach((label, index) =>
+      drawText(page, fonts.bold, label.toUpperCase(), [34, 330, 430, 540, 665][index], y, 7, MUTED),
+    );
+  drawHeadings();
   y -= 15;
   for (const person of people) {
-    if (y < 48) break;
+    if (y < MIN_ROW_Y) {
+      page = doc.addPage(PAGE);
+      header(page, fonts, logo, "Time & Utilization Insights", `Exported ${today} | continued`);
+      y = CONTINUED_TOP_Y;
+      drawHeadings();
+      y -= 15;
+    }
     const utilization = person.minutes ? (person.billable / person.minutes) * 100 : 0;
     drawText(page, fonts.regular, person.name, 34, y, 8, NAVY, 280);
     drawText(page, fonts.bold, hours(person.minutes), 330, y, 8);
