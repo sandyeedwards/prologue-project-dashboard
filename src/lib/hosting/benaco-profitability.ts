@@ -43,14 +43,19 @@ function number(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function time(value: string | null | undefined): number | null {
+// Date columns can arrive as "YYYY-MM-DD" strings or as JS Dates, depending on how the shared
+// database client was initialised. Both must give the same day, or terms silently drop out.
+function time(value: string | Date | null | undefined): number | null {
   if (!value) return null;
-  const parsed = Date.parse(`${value}T00:00:00Z`);
+  const parsed =
+    value instanceof Date ? value.getTime() : Date.parse(`${String(value).slice(0, 10)}T00:00:00Z`);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function incompleteInterval(start: string | null, end: string | null): boolean {
-  if (!start) return false;
+function incompleteInterval(start: string | Date | null, end: string | Date | null): boolean {
+  // An end date with no start (for example a sold term missing its paid start) cannot be placed
+  // in history: its revenue and remaining cost would otherwise drop out without any warning.
+  if (!start) return Boolean(end);
   const from = time(start),
     to = time(end);
   // A same-day complimentary placeholder contributes zero days, not an error.
@@ -128,7 +133,12 @@ export function buildBenacoCostCommitments(
     const incompleteTerm = related.some(
       (deal) =>
         incompleteInterval(deal.benaco_hosting_start, deal.benaco_hosting_end) ||
-        incompleteInterval(deal.benaco_comp_start, deal.benaco_comp_end),
+        incompleteInterval(deal.benaco_comp_start, deal.benaco_comp_end) ||
+        // A contracted fee with no paid start cannot be booked as revenue. (A fee with only
+        // complimentary dates is treated as complimentary hosting, matching the source checks.)
+        ((number(deal.benaco_contracted_fee) ?? 0) > 0 &&
+          !deal.benaco_hosting_start &&
+          !deal.benaco_comp_start),
     );
     return {
       tourId: id,

@@ -261,7 +261,8 @@ describe("buildHostingReport", () => {
     for (const rows of reports) {
       expect(rows.at(-1)?.periodEnd).toBe("2026-11-02");
       expect(rows.every((row) => !row.forecast)).toBe(true);
-      expect(hostingPeriodStatus(rows.at(-1)!, "ivion")).toBe("Recorded");
+      // November 2026 is after the loaded NavVis invoices: unknown cost, not a recorded $0.
+      expect(hostingPeriodStatus(rows.at(-1)!, "ivion")).toBe("IVION invoices not loaded");
     }
     const forecast = buildHostingReport(
       deals,

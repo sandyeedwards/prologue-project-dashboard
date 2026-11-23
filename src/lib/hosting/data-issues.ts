@@ -2,6 +2,12 @@ import type { HostingDealRow, HostingIvionSite } from "./reporting";
 import { benacoBillingRecord, benacoTourId } from "./benaco-billing-history";
 import { isConfirmedBenacoLossOnly } from "./benaco-profitability";
 import { currentTimeReportingDate } from "@/lib/reporting/time-reporting-rules";
+import {
+  IVION_INVOICE_COVERAGE_END,
+  IVION_INVOICE_COVERAGE_START,
+  ivionInvoiceEntriesBetween,
+  type IvionInvoiceEntry,
+} from "./ivion-invoice-history";
 
 export type HostingIssueDeal = Pick<
   HostingDealRow,
@@ -490,6 +496,87 @@ export function buildHostingDataIssues(
       a.dealName.localeCompare(b.dealName) ||
       a.id.localeCompare(b.id),
   );
+}
+
+function monthName(key: string): string {
+  const [year, month] = key.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+/**
+ * Checks that are about the cost sources rather than one deal: NavVis (IVION)
+ * bills come from a supplied export, so months after it show no IVION cost
+ * until the next export is loaded, and bills without line detail are not yet
+ * confirmed as hosting.
+ */
+export function buildHostingCostSourceIssues(
+  reportingDate = currentTimeReportingDate(),
+  invoices: readonly IvionInvoiceEntry[] = ivionInvoiceEntriesBetween(
+    new Date(`${IVION_INVOICE_COVERAGE_START}-01T00:00:00Z`),
+    new Date(`${reportingDate}T00:00:00Z`),
+  ),
+  coverageEnd = IVION_INVOICE_COVERAGE_END,
+): HostingDataIssue[] {
+  const issues: HostingDataIssue[] = [];
+  const base = {
+    dealId: null,
+    hubspotDealId: null,
+    dealName: "NavVis (IVION) bills",
+    platform: "IVION" as const,
+    location: "NavVis bills export (accounting)",
+    source: "HOSTING_SETTINGS" as const,
+  };
+  const currentMonth = reportingDate.slice(0, 7);
+  if (currentMonth > coverageEnd) {
+    issues.push({
+      ...base,
+      id: "hosting:navvis:INVOICES_NOT_LOADED",
+      severity: "WARNING",
+      code: "IVION_INVOICES_NOT_LOADED",
+      title: "Recent NavVis bills are not loaded",
+      message: `NavVis bills are loaded through ${monthName(coverageEnd)}. Later months show no IVION cost yet.`,
+      impact:
+        "IVION costs after that month are incomplete, so hosting profit for those months is provisional.",
+      action: "Export the NavVis bills since then from accounting and send them to be loaded.",
+      evidence: [
+        { field: "Loaded through", value: monthName(coverageEnd) },
+        { field: "Current month", value: monthName(currentMonth) },
+      ],
+    });
+  }
+  const unverified = invoices.filter((entry) => entry.classification === "unverified");
+  if (unverified.length) {
+    const total = unverified.reduce((sum, entry) => sum + entry.amount, 0);
+    issues.push({
+      ...base,
+      id: "hosting:navvis:UNCLASSIFIED_BILLS",
+      severity: "INFO",
+      code: "UNCLASSIFIED_NAVVIS_BILLS",
+      title: "NavVis bills are not confirmed as hosting",
+      message: `${unverified.length} NavVis bill${unverified.length === 1 ? " has" : "s have"} no line detail, so they are counted as hosting cost without confirmation.`,
+      impact:
+        "If any of these were processing or other purchases, IVION hosting cost is overstated.",
+      action:
+        "Check each bill number in accounting and confirm whether it is hosting or processing.",
+      evidence: [
+        {
+          field: "Total",
+          value: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
+            total,
+          ),
+        },
+        {
+          field: "Bills",
+          value: unverified.map((entry) => `${entry.invoiceNumber} (${entry.date})`).join(", "),
+        },
+      ],
+    });
+  }
+  return issues;
 }
 
 export function filterHostingDataIssues(
