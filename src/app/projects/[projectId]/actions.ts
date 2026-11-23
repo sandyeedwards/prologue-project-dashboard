@@ -1,11 +1,12 @@
 "use server";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { auditLog, dataQualityIssues, unplannedWorkReviews } from "@/db/schema";
 import { requireRole } from "@/lib/auth/session";
+import { latestIssuePerTask } from "./unplanned-dismissal";
 
 const issueSchema = z.object({
   projectId: z.string().uuid(),
@@ -26,9 +27,13 @@ function finiteNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+type Db = ReturnType<typeof getDb>;
+type DbExecutor = Db | Parameters<Parameters<Db["transaction"]>[0]>[0];
+
 async function dismissIssue(
   issue: typeof dataQualityIssues.$inferSelect,
   adminUserId: string,
+  db: DbExecutor = getDb(),
 ): Promise<void> {
   if (issue.code !== "UNPLANNED_ACTUAL_WORK" || !issue.taskId) {
     throw new Error("Only current unplanned-work issues can be dismissed.");
@@ -37,7 +42,7 @@ async function dismissIssue(
   const minutes = Math.max(0, Math.round(finiteNumber(details.minutes)));
   const laborCost = finiteNumber(details.laborCost);
   const now = new Date();
-  await getDb()
+  await db
     .insert(unplannedWorkReviews)
     .values({
       projectId: issue.projectId,
@@ -103,22 +108,30 @@ export async function dismissAllUnplannedWork(formData: FormData): Promise<void>
   const input = projectSchema.parse({ projectId: formData.get("projectId") });
   const session = await requireRole("ADMIN", `/projects/${input.projectId}`);
   const db = getDb();
-  const issues = await db
-    .select()
-    .from(dataQualityIssues)
-    .where(
-      and(
-        eq(dataQualityIssues.projectId, input.projectId),
-        eq(dataQualityIssues.code, "UNPLANNED_ACTUAL_WORK"),
-      ),
-    );
-  for (const issue of issues) await dismissIssue(issue, session.user.id);
-  await db.insert(auditLog).values({
-    actorUserId: session.user.id,
-    action: "UNPLANNED_WORK_PROJECT_DISMISSED",
-    entityType: "project",
-    entityId: input.projectId,
-    after: { dismissedIssueCount: issues.length },
+  await db.transaction(async (transaction) => {
+    // Only open issues count, and only the latest detection per task: dismissing a
+    // resolved or older detection would record stale minutes and let the item reappear.
+    const openIssues = await transaction
+      .select()
+      .from(dataQualityIssues)
+      .where(
+        and(
+          eq(dataQualityIssues.projectId, input.projectId),
+          eq(dataQualityIssues.code, "UNPLANNED_ACTUAL_WORK"),
+          isNull(dataQualityIssues.resolvedAt),
+          isNotNull(dataQualityIssues.taskId),
+        ),
+      )
+      .orderBy(desc(dataQualityIssues.lastDetectedAt));
+    const issues = latestIssuePerTask(openIssues);
+    for (const issue of issues) await dismissIssue(issue, session.user.id, transaction);
+    await transaction.insert(auditLog).values({
+      actorUserId: session.user.id,
+      action: "UNPLANNED_WORK_PROJECT_DISMISSED",
+      entityType: "project",
+      entityId: input.projectId,
+      after: { dismissedIssueCount: issues.length },
+    });
   });
   refreshProject(input.projectId);
 }

@@ -4,6 +4,7 @@ import { MarginText } from "@/components/reporting-ui";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/db/client";
 import { REPORTING_RULES } from "@/config/reporting-rules";
+import { reportingTimestamp } from "@/lib/reporting/format";
 import {
   calculationRuns,
   dataQualityIssues,
@@ -64,7 +65,9 @@ export default async function CalculationsAdminPage() {
             <p className="status-card__label">Latest run</p>
             <p className="status-card__value">{latestRun?.status ?? "Not run"}</p>
             <p className="status-card__detail">
-              {latestRun?.completedAt?.toLocaleString() ?? "Run npm run step7:run"}
+              {latestRun?.completedAt
+                ? reportingTimestamp(latestRun.completedAt)
+                : "Run npm run step7:run"}
             </p>
           </div>
           <div className="status-card">

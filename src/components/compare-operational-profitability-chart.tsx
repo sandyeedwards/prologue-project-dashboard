@@ -15,6 +15,13 @@ import {
   resolveProfitabilityRow,
   type ResolvedProfitabilityRow,
 } from "@/lib/reporting/forecast-position";
+import {
+  compareNullableDescending,
+  compareProjectIdentity,
+  MISSING,
+  projectedProfitLabel,
+  REPORT_LABELS as L,
+} from "@/lib/reporting/labels";
 import { marginTone } from "@/lib/reporting/margin-status";
 
 export type ComparedProfitabilityPosition = {
@@ -67,7 +74,7 @@ function finite(value: number | null | undefined): value is number {
 }
 
 function fullCurrency(value: number | null | undefined): string {
-  if (!finite(value)) return "Missing";
+  if (!finite(value)) return MISSING;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -76,7 +83,7 @@ function fullCurrency(value: number | null | undefined): string {
 }
 
 function formatMargin(value: number | null | undefined): string {
-  if (!finite(value)) return "N/A";
+  if (!finite(value)) return MISSING;
   return `${new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 1,
   }).format(value)}%`;
@@ -106,10 +113,7 @@ export function resolvePosition(position: ComparedProfitabilityPosition): Resolv
 }
 
 /** Sorts nulls last, whatever the direction. */
-function byNumberDescending(a: number | null, b: number | null): number {
-  if (a === null || b === null) return a === null ? (b === null ? 0 : 1) : -1;
-  return b - a;
-}
+const byNumberDescending = compareNullableDescending;
 
 export function compareProjects(
   left: ComparedProjectOperationalGroups,
@@ -118,10 +122,14 @@ export function compareProjects(
 ): number {
   const a = resolvePosition(left.total);
   const b = resolvePosition(right.total);
-  const byName = left.projectName.localeCompare(right.projectName);
+  // Stable tiebreak: project number, then name.
+  const byName = compareProjectIdentity(
+    { projectNumber: left.projectNumber, name: left.projectName },
+    { projectNumber: right.projectNumber, name: right.projectName },
+  );
   const aProfit = a.known.profit ? a.forecastProfit : null;
   const bProfit = b.known.profit ? b.forecastProfit : null;
-  if (sort === "name") return byName;
+  if (sort === "name") return left.projectName.localeCompare(right.projectName) || byName;
   if (sort === "profit") return byNumberDescending(aProfit, bProfit) || byName;
   if (sort === "margin") return byNumberDescending(a.marginPercent, b.marginPercent) || byName;
 
@@ -154,7 +162,7 @@ export function performanceStatus(
 }
 
 function shown(value: number, known: boolean): string {
-  return known ? fullCurrency(value) : "Missing";
+  return known ? fullCurrency(value) : MISSING;
 }
 
 function positionForGroup(
@@ -195,11 +203,11 @@ function rowAriaLabel(row: DisplayPosition): string {
   return [
     row.project.projectName,
     row.groupName ? `${row.groupName}.` : "Entire project.",
-    `Allocated revenue ${shown(position.allocatedRevenue, position.known.revenue)}.`,
-    `Current Costs ${shown(position.actualCostToDate, position.known.actual)}.`,
-    `Estimated remaining costs ${shown(position.remainingCost, position.known.remaining)}.`,
-    `${position.known.profit && position.forecastProfit < 0 ? "Projected Loss" : "Projected Profit"} ${shown(position.forecastProfit, position.known.profit)}.`,
-    `Margin ${formatMargin(position.marginPercent)}.`,
+    `${L.fee} ${shown(position.allocatedRevenue, position.known.revenue)}.`,
+    `${L.currentCosts} ${shown(position.actualCostToDate, position.known.actual)}.`,
+    `${L.estimatedRemainingCosts} ${shown(position.remainingCost, position.known.remaining)}.`,
+    `${projectedProfitLabel(position.known.profit ? position.forecastProfit : null)} ${shown(position.forecastProfit, position.known.profit)}.`,
+    `${L.forecastMargin} ${formatMargin(position.marginPercent)}.`,
     row.project.isProvisional ? "Provisional forecast." : "",
   ]
     .filter(Boolean)
@@ -233,11 +241,11 @@ function ComparisonRow({
         </div>
         <div className="compare-profitability-rows__outcome">
           <strong>{"\u2014"}</strong>
-          <small>Projected Profit</small>
+          <small>{L.projectedProfit}</small>
         </div>
         <div className="compare-profitability-rows__margin compare-profitability-rows__margin--neutral">
-          <strong>N/A</strong>
-          <small>Margin</small>
+          <strong>{"\u2014"}</strong>
+          <small>{L.forecastMargin}</small>
         </div>
       </div>
     );
@@ -305,12 +313,14 @@ function ComparisonRow({
   } as CSSProperties;
   const profitKnown = position.known.profit;
   const isLoss = profitKnown && position.forecastProfit < 0;
-  // Green only for a known, non-provisional profit; missing or provisional results are neutral.
+  // Green only for a known, non-provisional profit; provisional is amber, missing is neutral grey.
   const outcomeTone = isLoss
     ? "loss"
-    : profitKnown && !row.project.isProvisional
-      ? "profit"
-      : "neutral";
+    : !profitKnown
+      ? "neutral"
+      : row.project.isProvisional
+        ? "provisional"
+        : "profit";
   const marginStatus = marginTone(position.marginPercent, {
     provisional: row.project.isProvisional,
   });
@@ -359,16 +369,16 @@ function ComparisonRow({
         </div>
         <div className="compare-profitability-rows__bar-meta">
           <span>
-            <small>Actual cost</small>
+            <small>{L.currentCosts}</small>
             <strong>{shown(position.actualCostToDate, position.known.actual)}</strong>
           </span>
           <span>
-            <small>Remaining work</small>
+            <small>{L.estimatedRemainingCosts}</small>
             <strong>{shown(position.remainingCost, position.known.remaining)}</strong>
           </span>
           <span>
-            <small>{loss > 0 ? "Projected Loss" : "Projected profit"}</small>
-            <strong>{plotComplete ? fullCurrency(loss > 0 ? loss : profit) : "Missing"}</strong>
+            <small>{loss > 0 ? L.projectedLoss : L.projectedProfit}</small>
+            <strong>{plotComplete ? fullCurrency(loss > 0 ? loss : profit) : MISSING}</strong>
           </span>
         </div>
         {tooltip ? (
@@ -389,21 +399,21 @@ function ComparisonRow({
               <div>
                 <dt>
                   <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--revenue" />
-                  Allocated revenue
+                  {L.fee}
                 </dt>
                 <dd>{shown(position.allocatedRevenue, position.known.revenue)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--actual" />
-                  Current Costs
+                  {L.currentCosts}
                 </dt>
                 <dd>{shown(position.actualCostToDate, position.known.actual)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="compare-profitability-rows__tooltip-key compare-profitability-rows__tooltip-key--remaining" />
-                  Estimated remaining costs
+                  {L.estimatedRemainingCosts}
                 </dt>
                 <dd>{shown(position.remainingCost, position.known.remaining)}</dd>
               </div>
@@ -412,14 +422,14 @@ function ComparisonRow({
                   <i
                     className={`compare-profitability-rows__tooltip-key ${isLoss ? "compare-profitability-rows__tooltip-key--loss" : "compare-profitability-rows__tooltip-key--profit"}`}
                   />
-                  {isLoss ? "Projected Loss" : "Projected Profit"}
+                  {isLoss ? L.projectedLoss : L.projectedProfit}
                 </dt>
                 <dd>
                   {profitKnown
                     ? fullCurrency(
                         isLoss ? Math.abs(position.forecastProfit) : position.forecastProfit,
                       )
-                    : "Missing"}
+                    : MISSING}
                 </dd>
               </div>
             </dl>
@@ -441,10 +451,10 @@ function ComparisonRow({
         <strong>{shown(position.forecastProfit, profitKnown)}</strong>
         <small>
           {isLoss
-            ? "Projected Loss"
+            ? L.projectedLoss
             : row.project.isProvisional && profitKnown
-              ? "Known Projected Profit"
-              : "Projected Profit"}
+              ? L.knownProjectedProfit
+              : L.projectedProfit}
         </small>
       </div>
 
@@ -452,7 +462,7 @@ function ComparisonRow({
         className={`compare-profitability-rows__margin compare-profitability-rows__margin--${marginStatus}`}
       >
         <strong>{formatMargin(position.marginPercent)}</strong>
-        <small>Margin</small>
+        <small>{L.forecastMargin}</small>
       </div>
     </div>
   );
@@ -578,19 +588,19 @@ export function CompareOperationalProfitabilityChart({
       <div className="chart-legend compare-profitability-rows__legend" aria-hidden="true">
         <span>
           <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--actual" />
-          Current Costs
+          {L.currentCosts}
         </span>
         <span>
           <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--remaining" />
-          Estimated remaining costs
+          {L.estimatedRemainingCosts}
         </span>
         <span>
           <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--profit" />
-          Projected Profit
+          {L.projectedProfit}
         </span>
         <span>
           <i className="compare-profitability-rows__legend-key compare-profitability-rows__legend-key--loss" />
-          Projected Loss
+          {L.projectedLoss}
         </span>
       </div>
 
@@ -606,8 +616,8 @@ export function CompareOperationalProfitabilityChart({
               <div className="compare-profitability-rows__column-headings" aria-hidden="true">
                 <span>Project</span>
                 <span>Cost composition against revenue</span>
-                <span>Projected Profit</span>
-                <span>Margin</span>
+                <span>{L.projectedProfit}</span>
+                <span>{L.forecastMargin}</span>
               </div>
               <div className="compare-profitability-rows__rows">
                 {section.rows.map((row) => (
@@ -653,9 +663,9 @@ export function CompareOperationalProfitabilityChart({
       </div>
 
       <p className="compare-profitability-rows__note">
-        Each row uses allocated revenue as its 100% comparison baseline. Orange is actual cost to
-        date, yellow is estimated remaining costs, light blue is projected profit, and red extends
-        beyond revenue when forecast cost is over budget.
+        Each row uses the fee as its 100% comparison baseline. Orange is current costs, yellow is
+        estimated remaining costs, light blue is projected profit, and red extends beyond the fee
+        when forecast cost is over budget.
       </p>
     </div>
   );

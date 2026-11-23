@@ -94,8 +94,6 @@ async function main() {
   const routesPresent = routePaths.every((path) => existsSync(resolve(process.cwd(), path)));
   const reportingChartsPresent =
     existsSync(resolve(process.cwd(), "src/components/reporting-charts.tsx")) &&
-    existsSync(resolve(process.cwd(), "src/components/profitability-bridge-chart.tsx")) &&
-    existsSync(resolve(process.cwd(), "src/components/profitability-side-by-side-chart.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/dashboard-profitability-tabs.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/portfolio-financial-composition.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/hours-completion-summary.tsx")) &&
@@ -104,7 +102,6 @@ async function main() {
       resolve(process.cwd(), "src/components/compare-operational-profitability-chart.tsx"),
     ) &&
     existsSync(resolve(process.cwd(), "src/components/historical-revenue-profit-chart.tsx")) &&
-    existsSync(resolve(process.cwd(), "src/components/project-financial-position.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/dashboard-portfolio-filters.tsx")) &&
     existsSync(resolve(process.cwd(), "src/components/flexible-date-range-fields.tsx"));
   const appShellSource = readFileSync(
@@ -135,14 +132,6 @@ async function main() {
     resolve(process.cwd(), "src/components/reporting-charts.tsx"),
     "utf8",
   );
-  const profitabilitySource = readFileSync(
-    resolve(process.cwd(), "src/components/profitability-bridge-chart.tsx"),
-    "utf8",
-  );
-  const sideBySideProfitabilitySource = readFileSync(
-    resolve(process.cwd(), "src/components/profitability-side-by-side-chart.tsx"),
-    "utf8",
-  );
   const profitabilityTabsSource = readFileSync(
     resolve(process.cwd(), "src/components/dashboard-profitability-tabs.tsx"),
     "utf8",
@@ -169,10 +158,6 @@ async function main() {
   );
   const historicalProfitSource = readFileSync(
     resolve(process.cwd(), "src/components/historical-revenue-profit-chart.tsx"),
-    "utf8",
-  );
-  const projectFinancialPositionSource = readFileSync(
-    resolve(process.cwd(), "src/components/project-financial-position.tsx"),
     "utf8",
   );
   const dashboardDataSource = readFileSync(
@@ -299,13 +284,7 @@ async function main() {
 
   const checkDetails = {
     financialColorSystemPresent: auditRequirements([
-      sourceContains("src/components/reporting-charts.tsx", chartSource, "chart-swatch--outlined"),
       sourceContains("src/app/globals.css", globalsSource, "background: currentColor;"),
-      sourceContains(
-        "src/app/projects/[projectId]/page.tsx",
-        projectDetailSource,
-        "<ProjectFinancialPosition",
-      ),
       sourceContains("src/app/prologue-refinement.css", refinementSource, "--amber:"),
       sourceContains("src/app/prologue-refinement.css", refinementSource, "--green:"),
       sourceContains("src/app/prologue-refinement.css", refinementSource, "--red:"),
@@ -333,58 +312,6 @@ async function main() {
         "src/app/globals.css",
         globalsSource,
         ".chart-swatch {\n  border: 2px solid currentColor;\n  border-radius: 3px;\n  background: transparent !important;",
-      ),
-    ]),
-    profitabilityHoverTooltipPresent: auditRequirements([
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        '"use client"',
-      ),
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        "onPointerEnter",
-      ),
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        "onPointerMove",
-      ),
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        "onPointerLeave",
-      ),
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        "onFocus",
-      ),
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        "onBlur",
-      ),
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        'role="tooltip"',
-      ),
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        "profitability-bridge__tooltip",
-      ),
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        "tooltipActual",
-      ),
-      sourceContains(
-        "src/components/profitability-bridge-chart.tsx",
-        profitabilitySource,
-        "tooltipRemaining",
       ),
     ]),
     compareAndCombineHoursUsePercentProgress: auditRequirements([
@@ -645,18 +572,7 @@ async function main() {
       projectsSource.includes('value="combine"') &&
       projectsSource.includes("ProjectComparisonReport") &&
       projectsSource.includes("CombinedPortfolioReport"),
-    profitabilityBridgeUsesZeroBaseline:
-      profitabilitySource.includes("ProfitabilityBridgeChart") &&
-      profitabilitySource.includes("profitability-bridge__zero") &&
-      profitabilitySource.includes("Forecast-cost mirror (&lt; $0)") &&
-      profitabilitySource.includes("Forecast cost at completion") &&
-      profitabilitySource.includes("profitability-bridge__revenue") &&
-      profitabilitySource.includes("profitability-bridge__grid") &&
-      profitabilitySource.includes("niceAxisStep"),
-    profitabilityHoverTooltipPresent: checkDetails.profitabilityHoverTooltipPresent.passed,
     profitabilityCostCompositionVisible:
-      profitabilitySource.includes("Actual cost to date") &&
-      profitabilitySource.includes("Costed remaining work") &&
       dashboardDataSource.includes('actual_labor_cost as "actualLaborCost"') &&
       dashboardDataSource.includes('actual_non_labor_cost as "actualNonLaborCost"') &&
       dashboardDataSource.includes("remainingCost: value.actualCostKnown"),
@@ -687,7 +603,7 @@ async function main() {
       !historicalProfitSource.includes("<select") &&
       historicalProfitSource.includes("historical-profit-chart__area--gross") &&
       historicalProfitSource.includes("historical-profit-chart__area--net") &&
-      historicalProfitSource.includes("Unlimited") &&
+      historicalProfitSource.includes("All data") &&
       historicalProfitSource.includes("Custom") &&
       historicalProfitSource.includes("Reset range") &&
       historicalProfitSource.includes("handlePointerDown") &&
@@ -715,27 +631,6 @@ async function main() {
       teamworkDateSource.includes('MIN_TEAMWORK_DATE = "2000-01-01"') &&
       !teamworkSyncSource.includes('"1970-01-01"') &&
       !teamworkDateSource.includes('return "1970-01-01"'),
-    dashboardSideBySideProfitabilityPresent:
-      sideBySideProfitabilitySource.includes("ProfitabilitySideBySideChart") &&
-      sideBySideProfitabilitySource.includes("Actual cost to date") &&
-      sideBySideProfitabilitySource.includes("Costed remaining work") &&
-      sideBySideProfitabilitySource.includes("profitability-side-by-side__revenue") &&
-      sideBySideProfitabilitySource.includes("profitability-side-by-side__marker--profit") &&
-      sideBySideProfitabilitySource.includes("profitability-side-by-side__marker--loss") &&
-      sideBySideProfitabilitySource.includes("onPointerMove") &&
-      sideBySideProfitabilitySource.includes('role="tooltip"'),
-    dashboardTotalProfitabilityUsesFilteredGroups:
-      dashboardSource.includes("const profitabilityRows = reconciliationRows.filter") &&
-      dashboardSource.includes("const totalRevenue = reconciliationRows.reduce") &&
-      dashboardSource.includes("const totalForecastCost = reconciliationRows.reduce") &&
-      dashboardSource.includes("const actualCostCompositionComplete = reconciliationRows.every") &&
-      dashboardSource.includes("const totalProfitabilityRow = reconciliationRows.length") &&
-      dashboardSource.includes('label: "All groups combined"') &&
-      dashboardSource.includes("groupRows={profitabilityRows}") &&
-      dashboardSource.includes("totalRow={totalProfitabilityRow}") &&
-      dashboardSource.includes(
-        "Unclassified reconciliation remains included in combined portfolio totals",
-      ),
     compareAndCombineUseCleanFinancialPresentation:
       projectSelectionReportsSource.includes("CompareOperationalProfitabilityChart") &&
       projectSelectionReportsSource.includes("DashboardProfitabilityTabs") &&
@@ -813,11 +708,7 @@ async function main() {
     step10ProjectWorkspacePresent:
       reportingUiSource.includes("project-table--financial-first") &&
       reportingUiSource.includes("Remaining Work") &&
-      reportingUiSource.includes("Forecasted Profit") &&
-      projectDetailSource.includes("Revenue Consumption & Forecasted Outcome") &&
-      projectFinancialPositionSource.includes("Actual Cost to Date") &&
-      projectFinancialPositionSource.includes("Costed Remaining Work") &&
-      projectFinancialPositionSource.includes("Unspent Revenue / Forecasted Profit"),
+      reportingUiSource.includes("Forecasted Profit"),
     step10StateViewsPresent: checkDetails.step10StateViewsPresent.passed,
     metricHelpUsesHoverAndKeyboardFocus:
       reportingUiSource.includes('className="metric-card__help-trigger"') &&

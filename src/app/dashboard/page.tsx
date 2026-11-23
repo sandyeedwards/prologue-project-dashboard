@@ -11,7 +11,14 @@ import {
   type ProjectFilter,
 } from "@/lib/reporting/dashboard-data";
 import { combineProjectForecasts } from "@/lib/reporting/forecast-position";
-import { hours, money } from "@/lib/reporting/format";
+import { dateLabel, hours, money } from "@/lib/reporting/format";
+import {
+  compareProjectIdentity,
+  formatHoursUsed,
+  hoursUsedPercent,
+  MISSING,
+  REPORT_LABELS,
+} from "@/lib/reporting/labels";
 import { getPortfolioStandouts } from "@/lib/reporting/portfolio-standouts";
 import { projectWatchReasons } from "@/lib/reporting/project-watch-reasons";
 
@@ -28,13 +35,9 @@ function many(value: string | string[] | undefined): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
+// Shown on the Eastern business day, whatever the server's time zone.
 function displayDate(value: Date | null): string {
-  if (!value) return "Not calculated";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(value);
+  return value ? dateLabel(value) : "Not calculated";
 }
 
 function numberValue(value: string | number | null): number | null {
@@ -44,7 +47,7 @@ function numberValue(value: string | number | null): number | null {
 }
 
 function percent(value: number | null): string {
-  return value === null || !Number.isFinite(value) ? "No data" : `${value.toFixed(1)}%`;
+  return value === null || !Number.isFinite(value) ? MISSING : `${value.toFixed(1)}%`;
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
@@ -71,9 +74,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     ),
   ].sort();
   const types = getAvailableProjectTypes(allProjects);
-  const hoursProgress = summary.totalEstimatedMinutes
-    ? (summary.totalLoggedMinutes / summary.totalEstimatedMinutes) * 100
-    : null;
+  // Hours used = all logged hours (planned and unplanned) ÷ estimated hours.
+  const hoursProgress = hoursUsedPercent(summary.totalLoggedMinutes, summary.totalEstimatedMinutes);
   const attentionCount = summary.amberCount + summary.redCount;
   const companyPulse = !summary.projectCount
     ? "No projects match this view. Adjust the filters to restore the company snapshot."
@@ -95,7 +97,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       const healthDifference = healthPriority[left.healthBand] - healthPriority[right.healthBand];
       if (healthDifference) return healthDifference;
       if (left.isProvisional !== right.isProvisional) return left.isProvisional ? -1 : 1;
-      return right.dataQualityIssueCount - left.dataQualityIssueCount;
+      return (
+        right.dataQualityIssueCount - left.dataQualityIssueCount ||
+        compareProjectIdentity(left, right)
+      );
     })
     .slice(0, 5);
   const portfolioStandouts = getPortfolioStandouts(projects);
@@ -176,7 +181,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <strong>
               {summary.projectCount
                 ? `${summary.actualCostKnownCount} of ${summary.projectCount}`
-                : "No data"}
+                : MISSING}
             </strong>
             <small>
               {summary.actualCostPartialCount
@@ -187,17 +192,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <div className="company-pulse__stat">
             <span>Delivery health</span>
             <strong>
-              {summary.projectCount
-                ? `${summary.greenCount} of ${summary.projectCount}`
-                : "No data"}
+              {summary.projectCount ? `${summary.greenCount} of ${summary.projectCount}` : MISSING}
             </strong>
             <small>projects currently healthy</small>
           </div>
           <div className="company-pulse__stat">
-            <span>Hours used</span>
-            <strong>{percent(hoursProgress)}</strong>
+            <span>{REPORT_LABELS.hoursUsed}</span>
+            <strong>{formatHoursUsed(hoursProgress)}</strong>
             <small>
-              {hours(summary.totalLoggedMinutes)} of {hours(summary.totalEstimatedMinutes)}
+              {hours(summary.totalLoggedMinutes)} logged of {hours(summary.totalEstimatedMinutes)}{" "}
+              estimated
             </small>
           </div>
           <div className="company-pulse__stat">
@@ -205,7 +209,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <strong>
               {summary.projectCount
                 ? `${summary.projectCount - summary.provisionalCount} of ${summary.projectCount}`
-                : "No data"}
+                : MISSING}
             </strong>
             <small>
               {summary.provisionalCount
@@ -263,18 +267,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 <thead>
                   <tr>
                     <th>Project</th>
-                    <th>Forecast profit</th>
-                    <th>Forecast margin</th>
-                    <th>Planned hours used</th>
+                    <th>{REPORT_LABELS.projectedProfit}</th>
+                    <th>{REPORT_LABELS.forecastMargin}</th>
+                    <th>{REPORT_LABELS.plannedHoursUsed}</th>
                     <th>Signal / why flagged</th>
                   </tr>
                 </thead>
                 <tbody>
                   {projectsToWatch.map((project) => {
-                    const projectHours =
-                      project.canonicalEstimatedMinutes && project.plannedLoggedMinutes !== null
-                        ? (project.plannedLoggedMinutes / project.canonicalEstimatedMinutes) * 100
-                        : null;
+                    // Planned only, to match the watch reasons and health score beside it.
+                    const projectHours = hoursUsedPercent(
+                      project.plannedLoggedMinutes,
+                      project.canonicalEstimatedMinutes,
+                    );
                     const signal =
                       project.healthBand === "RED"
                         ? "Unhealthy"
@@ -291,7 +296,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                         </td>
                         <td>{money(project.forecastProfit)}</td>
                         <td>{percent(numberValue(project.forecastMarginPercent))}</td>
-                        <td>{percent(projectHours)}</td>
+                        <td>{formatHoursUsed(projectHours)}</td>
                         <td>
                           <span
                             className={`company-watchlist__signal company-watchlist__signal--${project.healthBand.toLowerCase()}`}

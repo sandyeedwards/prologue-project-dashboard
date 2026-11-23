@@ -5,6 +5,7 @@ import { PortfolioFinancialComposition } from "@/components/portfolio-financial-
 import { ChartPanel, PortfolioAnalysisDisclosure } from "@/components/reporting-charts";
 import { requireUser } from "@/lib/auth/session";
 import { getFinancialPageData } from "@/lib/reporting/financial-page-data";
+import { dateLabel } from "@/lib/reporting/format";
 
 export const dynamic = "force-dynamic";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -19,8 +20,8 @@ export default async function OperationalPerformancePage({
   return (
     <AppShell user={session.user} contentTone="portfolio">
       <main className="shell shell--wide focused-report focused-report--compact">
-        <section className="report-titlebar">
-          <div>
+        <section className="report-titlebar report-titlebar--executive">
+          <div className="report-titlebar__copy">
             <p className="eyebrow">Company delivery view</p>
             <h1>Operational Performance</h1>
             <p>
@@ -29,6 +30,9 @@ export default async function OperationalPerformancePage({
             </p>
           </div>
           <div className="report-titlebar__actions">
+            <span className="report-date-chip">
+              Data as of {dateLabel(data.summary.latestCalculatedAt)}
+            </span>
             <FinancialReportFilters action="/operational-performance" {...data} />
           </div>
         </section>

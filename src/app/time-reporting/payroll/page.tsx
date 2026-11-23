@@ -4,6 +4,7 @@ import { PayrollFilters } from "@/components/payroll-filters";
 import { PayrollExportButton } from "@/components/payroll-export-button";
 import { requireRole } from "@/lib/auth/session";
 import { getPayrollReport } from "@/lib/reporting/payroll-data";
+import { dateLabel, reportingTimestamp } from "@/lib/reporting/format";
 import { payPeriod } from "@/lib/reporting/pay-period";
 
 export const dynamic = "force-dynamic";
@@ -39,18 +40,39 @@ export default async function PayrollPage({
   return (
     <AppShell user={user} contentTone="portfolio">
       <main className="shell shell--wide payroll-page">
-        <header className="report-titlebar">
-          <div>
+        <section className="report-titlebar report-titlebar--executive">
+          <div className="report-titlebar__copy">
             <p className="eyebrow">Payroll administration</p>
             <h1>Pay-period time exports</h1>
             <p>
-              {report.period.startDate} through {report.period.endDate} · 1st–15th / 16th–month end
+              {dateLabel(report.period.startDate)} through {dateLabel(report.period.endDate)} ·
+              1st–15th / 16th–month end
             </p>
           </div>
-          <Link href="/time-reporting" className="button button--secondary">
-            Back to Time Reporting
+          <div className="report-titlebar__actions">
+            <span className="report-date-chip">
+              Data refreshed at last sync:{" "}
+              {report.lastSyncAt ? reportingTimestamp(report.lastSyncAt) : "Not synchronized"}
+            </span>
+          </div>
+        </section>
+
+        <nav className="time-reporting-subnav" aria-label="Time Reporting sections">
+          <Link href="/time-reporting" className="time-reporting-subnav__item">
+            <strong>Overview</strong>
+            <span>Utilization &amp; employee time</span>
           </Link>
-        </header>
+
+          <Link href="/time-reporting/pto" className="time-reporting-subnav__item">
+            <strong>My PTO</strong>
+            <span>My annual PTO balance</span>
+          </Link>
+
+          <Link href="/time-reporting/pto/all" className="time-reporting-subnav__item">
+            <strong>All PTO</strong>
+            <span>Balances &amp; allowances</span>
+          </Link>
+        </nav>
         {invalidDate ? <p role="alert">Invalid date; showing the current pay period.</p> : null}
         <PayrollFilters
           date={report.period.startDate}
@@ -68,10 +90,12 @@ export default async function PayrollPage({
             Review the selected pay period, then export an ADP preparation file and a branded
             payroll summary together.
           </p>
-          <p>
-            {changes} locked entries have source changes requiring review. Deletions can only be
-            flagged once received by the sync.
-          </p>
+          {changes > 0 ? (
+            <p>
+              {changes} locked {changes === 1 ? "entry has" : "entries have"} source changes
+              requiring review. Deletions can only be flagged once received by the sync.
+            </p>
+          ) : null}
           <p>
             The CSV includes exact hours, earning type, and source employee IDs. Your ADP
             administrator can finalize its account-specific field mapping from the ADP template.
@@ -101,7 +125,7 @@ export default async function PayrollPage({
               {report.rows.map((row) => (
                 <tr key={row.teamwork_id}>
                   <td>{row.employee_name}</td>
-                  <td>{row.logged_date}</td>
+                  <td>{dateLabel(row.logged_date)}</td>
                   <td>
                     {row.project_name}
                     <br />

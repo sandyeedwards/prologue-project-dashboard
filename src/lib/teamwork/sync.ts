@@ -36,6 +36,7 @@ import {
   isCompleteSinglePageProjectFetch,
   missingTeamworkProjectIds,
 } from "./project-reconciliation";
+import { isTeamworkRecordDeleted } from "./deletion";
 import { buildTaskListProjectEvidence } from "./tasklist-recovery";
 import {
   buildTeamworkProjectTimePath,
@@ -386,13 +387,14 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
       (await db.select({ teamworkId: tags.teamworkId }).from(tags)).map((row) => row.teamworkId),
     );
     const tagNameByTeamworkId = new Map<number, string>();
-    for (const row of tagRows) {
+    const saveTag = async (row: TeamworkRecord) => {
       const teamworkId = idAtPaths(row, ENTITY_ID_PATHS);
       if (teamworkId === null) {
         stats.tags.skipped += 1;
         issues.warn("TAG_ID_MISSING", "Tag has no valid Teamwork ID.", "tag", null);
-        continue;
+        return;
       }
+      if (tagNameByTeamworkId.has(teamworkId)) return;
       const name = textAtPaths(row, ["name", "label", "title"]) ?? "Unnamed tag";
       tagNameByTeamworkId.set(teamworkId, name);
       await db
@@ -414,6 +416,22 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
         });
       markUpsert(stats.tags, existingTags.has(teamworkId));
       existingTags.add(teamworkId);
+    };
+    for (const row of tagRows) await saveTag(row);
+    // Task tags (for example "Estimate Hours") are referenced by ID on each task; save every
+    // workspace tag's name so reports can read them. Read-only toward Teamwork, and a failure
+    // here only skips the names; it never stops the import.
+    try {
+      const workspaceTags = await paged(connection, "/projects/api/v3/tags.json", ["tags"], 500);
+      stats.tags.read += workspaceTags.length;
+      for (const row of workspaceTags) await saveTag(row);
+    } catch (error) {
+      issues.warn(
+        "TAG_LIST_UNAVAILABLE",
+        `Task tag names could not be loaded: ${(error as Error).message}`,
+        "tag",
+        null,
+      );
     }
 
     const companyByTeamworkId = new Map(
@@ -724,9 +742,10 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
           projectId: project.id,
           name,
           status: textAtPaths(row, ["status"]),
-          isDeleted:
-            (textAtPaths(row, ["status"]) ?? "").toLowerCase() === "deleted" ||
-            toDate(firstValue(row, ["deletedAt"])) !== null,
+          isDeleted: isTeamworkRecordDeleted(
+            textAtPaths(row, ["status"]),
+            toDate(firstValue(row, ["deletedAt"])),
+          ),
           isBillable: booleanAtPaths(row, ["isBillable", "billable"]),
           operationalGroup: classifyTaskList(name, {
             isDataHall: dataHallProjectIds.has(project.id),
@@ -741,9 +760,10 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
             projectId: project.id,
             name,
             status: textAtPaths(row, ["status"]),
-            isDeleted:
-              (textAtPaths(row, ["status"]) ?? "").toLowerCase() === "deleted" ||
-              toDate(firstValue(row, ["deletedAt"])) !== null,
+            isDeleted: isTeamworkRecordDeleted(
+              textAtPaths(row, ["status"]),
+              toDate(firstValue(row, ["deletedAt"])),
+            ),
             isBillable: booleanAtPaths(row, ["isBillable", "billable"]),
             operationalGroup: classifyTaskList(name, {
               isDataHall: dataHallProjectIds.has(project.id),
@@ -902,8 +922,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
           startDate: dateText(firstValue(row, ["startDate"])),
           dueDate: dateText(firstValue(row, ["dueDate"])),
           completedAt: toDate(firstValue(row, ["completedAt", "completedOn"])),
-          isDeleted:
-            toDate(firstValue(row, ["deletedAt"])) !== null || status.toLowerCase() === "deleted",
+          isDeleted: isTeamworkRecordDeleted(status, toDate(firstValue(row, ["deletedAt"]))),
           teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt", "dateUpdated"])),
           raw: rawRecord(row),
         })
@@ -921,8 +940,7 @@ export async function runTeamworkSync(kind: SyncKind = "MANUAL") {
             startDate: dateText(firstValue(row, ["startDate"])),
             dueDate: dateText(firstValue(row, ["dueDate"])),
             completedAt: toDate(firstValue(row, ["completedAt", "completedOn"])),
-            isDeleted:
-              toDate(firstValue(row, ["deletedAt"])) !== null || status.toLowerCase() === "deleted",
+            isDeleted: isTeamworkRecordDeleted(status, toDate(firstValue(row, ["deletedAt"]))),
             teamworkUpdatedAt: toDate(firstValue(row, ["updatedAt", "dateUpdated"])),
             raw: rawRecord(row),
             updatedAt: new Date(),

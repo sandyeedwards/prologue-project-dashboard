@@ -16,6 +16,7 @@ import {
 } from "@/lib/reporting/dashboard-data";
 import { dateLabel, hours, money, percent } from "@/lib/reporting/format";
 import { buildMobAreaBreakdown } from "@/lib/reporting/mob-area-breakdown";
+import { formatHoursUsed, hoursUsedPercent, REPORT_LABELS } from "@/lib/reporting/labels";
 import { projectWatchReasons } from "@/lib/reporting/project-watch-reasons";
 import { dismissAllUnplannedWork, dismissUnplannedWork, reopenUnplannedWork } from "./actions";
 
@@ -93,13 +94,12 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
     clientFee === null || clientFee === 0 || actualProfit === null
       ? null
       : (actualProfit / clientFee) * 100;
-  const plannedEstimateConsumptionPercent =
-    project.plannedLoggedMinutes !== null && project.canonicalEstimatedMinutes > 0
-      ? (project.plannedLoggedMinutes / project.canonicalEstimatedMinutes) * 100
-      : null;
-  const plannedOverEstimateMinutes =
-    project.plannedLoggedMinutes !== null && project.canonicalEstimatedMinutes > 0
-      ? Math.max(project.plannedLoggedMinutes - project.canonicalEstimatedMinutes, 0)
+  // Hours used = all logged hours (planned and unplanned) ÷ estimated hours, the same
+  // definition as Company Overview; the subtitle uses the same numerator.
+  const hoursUsed = hoursUsedPercent(project.loggedMinutes, project.canonicalEstimatedMinutes);
+  const overEstimateMinutes =
+    project.canonicalEstimatedMinutes > 0
+      ? Math.max(project.loggedMinutes - project.canonicalEstimatedMinutes, 0)
       : null;
   const watchReasons = projectWatchReasons(project);
   const projectPulse =
@@ -202,7 +202,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
               {dateLabel(project.startDate)} – {dateLabel(project.endDate)}
             </span>
             <span className="report-date-chip">
-              Data as of {dateLabel(project.calculatedAt?.toISOString().slice(0, 10) ?? null)}
+              Data as of {project.calculatedAt ? dateLabel(project.calculatedAt) : "Not calculated"}
             </span>
             {teamworkBase ? (
               <a
@@ -247,22 +247,23 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             </small>
           </div>
           <div className="company-pulse__stat">
-            <span>Hours used</span>
-            <strong>{percent(plannedEstimateConsumptionPercent, 0)}</strong>
+            <span>{REPORT_LABELS.hoursUsed}</span>
+            <strong>{formatHoursUsed(hoursUsed)}</strong>
             <small>
               {hours(project.loggedMinutes)} logged of {hours(project.canonicalEstimatedMinutes)}{" "}
               estimated
-              {plannedOverEstimateMinutes ? ` · ${hours(plannedOverEstimateMinutes)} over` : ""}
+              {overEstimateMinutes ? ` · ${hours(overEstimateMinutes)} over` : ""}
               {project.unplannedLoggedMinutes
-                ? ` · ${hours(project.unplannedLoggedMinutes)} unplanned`
+                ? ` · incl. ${hours(project.unplannedLoggedMinutes)} unplanned`
                 : ""}
             </small>
           </div>
           <div className="company-pulse__stat">
-            <span>Profit to date</span>
+            <span>{REPORT_LABELS.profitToDate}</span>
             <strong>{money(actualProfit)}</strong>
             <small>
-              <MarginText value={actualMargin} /> margin to date
+              {/* Margin to date is not a forecast margin, so no forecast-threshold colours. */}
+              <MarginText value={actualMargin} neutral /> {REPORT_LABELS.marginToDate}
             </small>
           </div>
           <div className="company-pulse__stat">
@@ -338,7 +339,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <ChartPanel
             eyebrow="Cost performance"
             title="Cost against target by group"
-            description="Actual cost and estimated remaining costs build to the forecast. Green shows forecast headroom below a complete planned-cost target; red shows cost above target. Groups without a complete target remain N/A."
+            description="Current costs and estimated remaining costs build to the forecast cost. Green shows forecast headroom below a complete planned-cost target; red shows cost above target. Groups without a complete target show no target comparison."
           >
             <CostPerformanceChart rows={groupCostPerformanceRows} />
           </ChartPanel>
@@ -423,7 +424,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                         <strong>{money(selectedMobArea.actualExpenseCost)}</strong>
                       </span>
                       <span>
-                        <small>Actual cost total</small>
+                        <small>{REPORT_LABELS.currentCosts}</small>
                         <strong>{money(selectedMobArea.actualTotalCost)}</strong>
                       </span>
                     </div>
@@ -492,7 +493,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             <span className="section-meta">{project.calculationVersion}</span>
           </div>
           <p className="section-description">
-            Actual cost uses historical labor and imported expenses. A project is provisional only
+            Current costs use historical labor and imported expenses. A project is provisional only
             when a source needed to price remaining or expected work is incomplete. Task-list
             budgets define planned internal cost and group cost targets; projected profit remains
             the fixed fee less forecast cost.

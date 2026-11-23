@@ -3,6 +3,7 @@ import { FinancialReportFilters } from "@/components/financial-report-filters";
 import { HistoricalRevenueProfitChart } from "@/components/historical-revenue-profit-chart";
 import { requireUser } from "@/lib/auth/session";
 import { getFinancialPageData } from "@/lib/reporting/financial-page-data";
+import { dateLabel } from "@/lib/reporting/format";
 
 export const dynamic = "force-dynamic";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -14,13 +15,19 @@ export default async function RevenueTrendsPage({ searchParams }: { searchParams
   return (
     <AppShell user={session.user} contentTone="portfolio">
       <main className="shell shell--wide focused-report focused-report--revenue-trends">
-        <section className="report-titlebar">
-          <div>
+        <section className="report-titlebar report-titlebar--executive">
+          <div className="report-titlebar__copy">
             <p className="eyebrow">Company history</p>
             <h1>Revenue Trends</h1>
-            <p>Track recognized revenue, actual cost, expected cost, and net profit over time.</p>
+            <p>
+              Track gross revenue, actual cost to date, anticipated cost to date, and net profit
+              over time.
+            </p>
           </div>
           <div className="report-titlebar__actions">
+            <span className="report-date-chip">
+              Data as of {dateLabel(data.summary.latestCalculatedAt)}
+            </span>
             <FinancialReportFilters action="/revenue-trends" {...data} />
           </div>
         </section>

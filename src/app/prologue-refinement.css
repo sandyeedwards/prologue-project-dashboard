@@ -115,7 +115,7 @@ textarea {
 
 .app-header__brand-copy small {
   color: #92bdf3;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -162,7 +162,7 @@ textarea {
 
 .app-nav a.app-nav__link small {
   color: #8193aa;
-  font-size: 0.52rem;
+  font-size: 0.68rem;
   font-weight: 750;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -201,7 +201,7 @@ textarea {
   border-radius: 50%;
   color: #fff;
   background: rgb(255 255 255 / 9%);
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 850;
 }
 
@@ -223,7 +223,7 @@ textarea {
 
 .user-menu__identity small {
   color: #8ea2bb;
-  font-size: 0.52rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -258,7 +258,7 @@ textarea {
 .eyebrow {
   margin: 0 0 5px;
   color: var(--accent-strong);
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -313,7 +313,7 @@ textarea {
   gap: 6px 13px;
   margin-top: 10px;
   color: var(--muted-strong);
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 750;
 }
 
@@ -344,7 +344,7 @@ textarea {
   border: 1px solid var(--border);
   color: var(--muted-strong);
   background: var(--surface-subtle);
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 750;
 }
 
@@ -470,7 +470,7 @@ textarea {
 .metric-card__label {
   margin: 0;
   color: #53657d;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.08em;
   line-height: 1.25;
@@ -495,7 +495,7 @@ textarea {
 .metric-card__detail {
   margin: 7px 0 0;
   color: #718197;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   line-height: 1.35;
 }
 
@@ -554,7 +554,7 @@ textarea {
   color: #6a7b92;
   background: #fff;
   cursor: pointer;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 850;
 }
 
@@ -629,7 +629,7 @@ textarea {
   background: #fff;
   box-shadow: 0 2px 7px rgb(16 33 61 / 8%);
   cursor: help;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 850;
   line-height: 1;
   outline: none;
@@ -752,7 +752,7 @@ textarea {
   margin: 0;
   padding: 12px 18px 9px;
   color: var(--muted);
-  font-size: 0.67rem;
+  font-size: 0.68rem;
   line-height: 1.45;
 }
 
@@ -773,7 +773,7 @@ textarea {
   gap: 8px 18px;
   padding: 5px 0 2px;
   color: #4f6077;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 750;
 }
 
@@ -853,7 +853,7 @@ textarea {
 
 .portfolio-composition__identity small {
   color: #718095;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
 }
 
 .portfolio-composition__plot {
@@ -926,7 +926,7 @@ textarea {
   justify-content: space-between;
   gap: 16px;
   color: #728198;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
 }
 
 .portfolio-composition__meta strong {
@@ -954,7 +954,7 @@ textarea {
 .portfolio-composition__outcome small,
 .portfolio-composition__outcome span {
   color: #738299;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
 }
 
 .portfolio-composition__outcome span {
@@ -994,7 +994,7 @@ textarea {
 
 .portfolio-composition__hero-metrics small {
   color: #68788f;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -1042,7 +1042,7 @@ textarea {
 }
 
 .portfolio-composition__row--hero .portfolio-composition__meta {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
 }
 
 .portfolio-composition__tooltip {
@@ -1071,7 +1071,7 @@ textarea {
 
 .portfolio-composition__tooltip header span {
   color: #aebbd0;
-  font-size: 0.67rem;
+  font-size: 0.68rem;
 }
 
 .portfolio-composition__tooltip dl {
@@ -1108,7 +1108,7 @@ textarea {
   padding-top: 9px;
   border-top: 1px solid rgb(255 255 255 / 13%);
   color: #aebbd0;
-  font-size: 0.67rem;
+  font-size: 0.68rem;
 }
 
 .portfolio-composition__tooltip footer strong {
@@ -1143,7 +1143,7 @@ textarea {
 
 .report-launch-grid span {
   color: var(--blue);
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1332,7 +1332,7 @@ textarea {
 
 .issue-project-group__header span {
   color: #64768d;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 750;
 }
 
@@ -1376,7 +1376,7 @@ textarea {
 
 .issue-card__simple-heading span {
   color: #6b7d93;
-  font-size: 0.64rem;
+  font-size: 0.68rem;
 }
 
 .issue-card__explanation {
@@ -1396,7 +1396,7 @@ textarea {
 
 .issue-card__explanation strong {
   color: #3b5876;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   letter-spacing: 0.055em;
   text-transform: uppercase;
 }
@@ -1410,7 +1410,7 @@ textarea {
 .issue-technical-details {
   padding-top: 2px;
   color: #667990;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
 }
 
 .issue-technical-details > summary {
@@ -1588,7 +1588,7 @@ textarea {
 
 .unplanned-work-reviewed > summary > small {
   color: #718197;
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 650;
 }
 
@@ -1610,7 +1610,7 @@ textarea {
 .hours-completion__legend {
   gap: 8px 13px;
   padding: 10px 0 3px;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
 }
 
 .hours-completion__rows {
@@ -1637,7 +1637,7 @@ textarea {
 .hours-completion__stats,
 .hours-completion__note {
   color: #718197;
-  font-size: 0.56rem;
+  font-size: 0.68rem;
 }
 
 .hours-completion__track {
@@ -1730,7 +1730,7 @@ textarea {
   padding: 10px 12px;
   border-bottom: 1px solid #e3eaf2;
   color: #596b80;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
 }
 
 .hours-completion__project:last-child {
@@ -1797,7 +1797,7 @@ textarea {
   border-radius: 6px;
   color: #5b6c83;
   background: #fff;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 780;
 }
 
@@ -1814,7 +1814,7 @@ textarea {
 
 .historical-profit-chart__legend {
   gap: 16px;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
 }
 
 .historical-profit-chart__line--gross {
@@ -1849,7 +1849,7 @@ textarea {
 }
 .historical-profit-chart__axis-label {
   fill: #66778e;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 /* Decision support without nested card clutter */
@@ -1984,7 +1984,7 @@ textarea {
 .filter-panel__reset,
 .scope-panel__reset {
   color: var(--accent-strong);
-  font-size: 0.67rem;
+  font-size: 0.68rem;
   font-weight: 800;
   text-decoration: none;
 }
@@ -2008,7 +2008,7 @@ textarea {
 .scope-field > span,
 .scope-label {
   color: #5e6f86;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 830;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -2067,7 +2067,7 @@ textarea {
 .filter-advanced > summary small,
 .scope-panel__advanced > summary small {
   color: #738299;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 650;
 }
 
@@ -2087,7 +2087,7 @@ textarea {
 .filter-policy-note {
   margin: 12px 0 0;
   color: #76869b;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
 }
 
 .scope-panel__selects--primary {
@@ -2126,7 +2126,7 @@ textarea {
 .project-picker__heading small {
   max-width: 360px;
   color: #718197;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   text-align: right;
 }
 
@@ -2195,7 +2195,7 @@ textarea {
 
 .scope-panel__footer span {
   color: #718197;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
 }
 
 .button {
@@ -2250,7 +2250,7 @@ textarea {
 
 .selection-action-bar span {
   color: #6b7b91;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
 }
 
 .selection-action-bar__buttons .button {
@@ -2260,7 +2260,7 @@ textarea {
 .selection-action-bar__buttons small {
   display: block;
   margin-top: 1px;
-  font-size: 0.5rem;
+  font-size: 0.68rem;
   opacity: 0.74;
 }
 
@@ -2281,7 +2281,7 @@ textarea {
   border-radius: 0;
   color: #6d7d92;
   background: transparent;
-  font-size: 0.64rem;
+  font-size: 0.68rem;
 }
 
 /* Tables */
@@ -2308,7 +2308,7 @@ textarea {
   border-bottom: 1px solid var(--border-strong);
   color: #62738a;
   background: #f3f6f9;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -2381,7 +2381,7 @@ textarea {
 .project-link span,
 .table-subvalue {
   color: #728197;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
 }
 
 .tag,
@@ -2395,7 +2395,7 @@ textarea {
   border-color: #d5dee8;
   color: #53657d;
   background: #f6f8fa;
-  font-size: 0.55rem;
+  font-size: 0.68rem;
 }
 
 /* Compare report */
@@ -2437,7 +2437,7 @@ textarea {
   color: #65758b;
   background: transparent;
   cursor: pointer;
-  font-size: 0.67rem;
+  font-size: 0.68rem;
   font-weight: 800;
 }
 
@@ -2458,7 +2458,7 @@ textarea {
 
 .compare-profitability-rows__sort span {
   color: #68788e;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2472,14 +2472,14 @@ textarea {
 .compare-profitability-rows__description {
   margin: 10px 0 8px;
   color: var(--muted);
-  font-size: 0.67rem;
+  font-size: 0.68rem;
 }
 
 .compare-profitability-rows__legend {
   gap: 8px 18px;
   padding: 7px 0 12px;
   border-bottom: 1px solid var(--border);
-  font-size: 0.61rem;
+  font-size: 0.68rem;
 }
 
 .compare-profitability-rows__section {
@@ -2507,7 +2507,7 @@ textarea {
   padding: 9px 13px;
   border-bottom: 1px solid #e5ebf1;
   color: #6c7c91;
-  font-size: 0.56rem;
+  font-size: 0.68rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -2556,14 +2556,14 @@ textarea {
 
 .compare-profitability-rows__project small {
   color: #748399;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
 }
 
 .compare-profitability-rows__status {
   flex: 0 0 auto;
   padding: 3px 6px;
   border-radius: 4px;
-  font-size: 0.52rem;
+  font-size: 0.68rem;
   font-style: normal;
   font-weight: 800;
   white-space: nowrap;
@@ -2621,12 +2621,12 @@ textarea {
   gap: 4px;
   min-width: 0;
   color: #4b5f78;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
 }
 
 .compare-profitability-rows__bar-meta small {
   color: #7a899d;
-  font-size: 0.52rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2645,7 +2645,7 @@ textarea {
 .compare-profitability-rows__note {
   padding: 11px 2px 0;
   color: #718197;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
 }
 
 .compare-profitability-rows__tooltip {
@@ -2673,7 +2673,7 @@ textarea {
 
 .compare-register__header > span {
   color: #6d7d92;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
 }
 
 .compare-register__scroll {
@@ -2697,7 +2697,7 @@ textarea {
   border-bottom: 1px solid var(--border);
   color: #68788e;
   background: #f2f5f8;
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2742,7 +2742,7 @@ textarea {
 .compare-register__money small,
 .compare-register__margin small {
   color: #748399;
-  font-size: 0.57rem;
+  font-size: 0.68rem;
 }
 
 .compare-register__money,
@@ -2788,7 +2788,7 @@ textarea {
   gap: 7px;
   margin: 0 0 10px;
   color: #6d7d92;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
 }
 
 .breadcrumb a {
@@ -2824,7 +2824,7 @@ textarea {
   border-radius: 6px;
   color: #718197;
   background: #f7f9fb;
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2875,70 +2875,6 @@ textarea {
   grid-column: 1 / -1;
 }
 
-.project-financial-position {
-  gap: 14px;
-}
-
-.project-financial-position__summary {
-  overflow: hidden;
-  gap: 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fbfcfd;
-}
-
-.project-financial-position__summary > div {
-  padding: 12px 14px;
-  border-left: 0;
-  border-right: 1px solid var(--border);
-  background: transparent;
-}
-
-.project-financial-position__summary > div:last-child {
-  border-right: 0;
-}
-
-.project-financial-position__summary > div::before {
-  display: block;
-  width: 24px;
-  height: 3px;
-  margin-bottom: 6px;
-  border-radius: 99px;
-  background: #8d9bad;
-  content: "";
-}
-
-.project-financial-position__summary > div:nth-child(1)::before {
-  background: #e78a10;
-}
-.project-financial-position__summary > div:nth-child(2)::before {
-  background: #f2c766;
-}
-.project-financial-position__summary > div:nth-child(3)::before {
-  background: var(--green);
-}
-.project-financial-position__summary .project-financial-position__loss::before {
-  background: var(--red);
-}
-
-.project-financial-position__scale {
-  height: 40px;
-  border-radius: 4px;
-}
-
-.project-financial-position__actual {
-  background: #e78a10;
-}
-.project-financial-position__remaining {
-  background: #f2c766;
-}
-.project-financial-position__revenue {
-  background: #dfeaf8;
-}
-.project-financial-position__overrun {
-  background: var(--red);
-}
-
 .report-section {
   margin-top: var(--section-gap);
   padding: 19px 20px;
@@ -2953,7 +2889,7 @@ textarea {
 
 .section-meta {
   color: #6b7c91;
-  font-size: 0.64rem;
+  font-size: 0.68rem;
 }
 
 .coverage-grid {
@@ -3053,7 +2989,7 @@ textarea {
   padding: 12px 2px 0;
   border-top: 1px solid var(--border);
   color: #748399;
-  font-size: 0.6rem;
+  font-size: 0.68rem;
 }
 
 /* Login, help, and administrative surfaces share the same restrained system */
@@ -3506,20 +3442,17 @@ textarea {
   }
 
   .project-operational-kpis,
-  .project-financial-position__summary,
   .coverage-grid {
     grid-template-columns: 1fr;
   }
 
   .project-operational-kpis .metric-card,
-  .project-financial-position__summary > div,
   .coverage-grid > div {
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
 
   .project-operational-kpis .metric-card:last-child,
-  .project-financial-position__summary > div:last-child,
   .coverage-grid > div:last-child {
     border-bottom: 0;
   }
@@ -3642,7 +3575,7 @@ textarea {
   gap: 2px;
   padding: 0 7px 8px 23px;
   color: #718197;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   line-height: 1.35;
 }
 
@@ -3747,7 +3680,7 @@ textarea {
 .filter-field > small,
 .flexible-date__help {
   color: #7a899d;
-  font-size: 0.56rem;
+  font-size: 0.68rem;
   line-height: 1.35;
 }
 
@@ -3956,7 +3889,7 @@ textarea {
 
 .flexible-date__error {
   color: #b42318;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.35;
 }
@@ -4177,7 +4110,7 @@ textarea {
 /* Calendar popover refinements */
 .filter-field > label {
   color: #5e6f86;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 830;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -4247,7 +4180,7 @@ textarea {
 .flexible-date__weekdays {
   margin: 10px 0 5px;
   color: #7c8ba0;
-  font-size: 0.52rem;
+  font-size: 0.68rem;
   font-weight: 800;
   text-align: center;
   text-transform: uppercase;
@@ -4498,7 +4431,7 @@ textarea {
   background: #fff;
   box-shadow: 0 2px 7px rgb(16 33 61 / 8%);
   cursor: help;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 850;
   line-height: 1;
   outline: none;
@@ -4608,7 +4541,7 @@ textarea {
 .selection-action-bar__count {
   margin-top: 5px;
   color: #52657e !important;
-  font-size: 0.65rem !important;
+  font-size: 0.68rem !important;
   font-weight: 650;
 }
 
@@ -4632,7 +4565,7 @@ textarea {
 .selection-action-bar__note {
   max-width: 370px;
   color: #6b7b91 !important;
-  font-size: 0.61rem !important;
+  font-size: 0.68rem !important;
   line-height: 1.35;
   text-align: right;
 }
@@ -4725,7 +4658,7 @@ textarea {
 
 .historical-profit-chart__selection-label {
   fill: #0c4388;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 850;
   paint-order: stroke;
   stroke: #fff;
@@ -4820,7 +4753,7 @@ textarea {
   gap: 5px;
   min-width: 0;
   color: #6b7b91;
-  font-size: 0.64rem;
+  font-size: 0.68rem;
 }
 
 .project-list-pagination__summary strong {
@@ -4863,7 +4796,7 @@ textarea {
   color: #405570;
   background: #fff;
   cursor: pointer;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 820;
 }
 
@@ -4890,7 +4823,7 @@ textarea {
   gap: 8px;
   min-width: 0;
   color: #5e6f86;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 800;
 }
 
@@ -4906,7 +4839,7 @@ textarea {
   border-radius: 6px;
   color: var(--navy);
   background-color: #fff;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 800;
 }
 
@@ -4990,7 +4923,7 @@ textarea {
 
 .time-reporting-controls__label {
   color: #66778d;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -5012,7 +4945,7 @@ textarea {
   border-radius: 7px;
   color: #405570;
   background: #fff;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 820;
   text-decoration: none;
 }
@@ -5040,7 +4973,7 @@ textarea {
   display: grid;
   gap: 5px;
   color: #66778d;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   font-weight: 800;
 }
 
@@ -5052,7 +4985,7 @@ textarea {
   color: var(--navy);
   background: #fff;
   font: inherit;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-kpis {
@@ -5099,7 +5032,7 @@ textarea {
   justify-content: flex-end;
   gap: 7px 13px;
   color: #66778d;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 750;
 }
 
@@ -5212,7 +5145,7 @@ textarea {
   align-items: center;
   justify-content: center;
   color: #8592a5;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 750;
 }
 
@@ -5222,12 +5155,12 @@ textarea {
   align-items: center;
   gap: 6px 13px;
   color: #718096;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-row__detail strong {
   color: var(--navy);
-  font-size: 0.65rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-row__pto {
@@ -5250,7 +5183,7 @@ textarea {
 .time-reporting-pto-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.67rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-pto-table th,
@@ -5267,7 +5200,7 @@ textarea {
 
 .time-reporting-pto-table th {
   color: #66778d;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -5375,7 +5308,7 @@ textarea {
   color: #596b83;
   background: #fff;
   box-shadow: 0 10px 28px rgb(24 48 82 / 16%);
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   line-height: 1.35;
   opacity: 0;
   visibility: hidden;
@@ -5390,7 +5323,7 @@ textarea {
 .donut-chart__projects strong {
   margin-bottom: 2px;
   color: var(--navy);
-  font-size: 0.64rem;
+  font-size: 0.68rem;
 }
 
 .donut-chart__legend-link:hover + .donut-chart__projects,
@@ -5432,7 +5365,7 @@ textarea {
   min-width: 0;
   gap: 5px;
   color: #66778d;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   font-weight: 800;
 }
 
@@ -5470,7 +5403,7 @@ textarea {
   background: #fff;
   cursor: pointer;
   list-style: none;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-filter-menu summary::-webkit-details-marker {
@@ -5518,7 +5451,7 @@ textarea {
   border-radius: 5px;
   color: #465b75;
   cursor: pointer;
-  font-size: 0.64rem;
+  font-size: 0.68rem;
   line-height: 1.3;
 }
 
@@ -5576,7 +5509,7 @@ textarea {
 
 .time-reporting-warning-percent {
   color: #c9413b;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 900;
 }
 
@@ -5642,7 +5575,7 @@ textarea {
   display: grid;
   place-items: center;
   color: #8592a5;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 750;
 }
 
@@ -5691,7 +5624,7 @@ textarea {
 
 .time-reporting-hover-card__header span {
   color: #9eacc0;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-hover-card__summary {
@@ -5704,12 +5637,12 @@ textarea {
   display: grid;
   gap: 2px;
   color: #9eacc0;
-  font-size: 0.56rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-hover-card__summary strong {
   color: #fff;
-  font-size: 0.67rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-hover-card__rows {
@@ -5723,7 +5656,7 @@ textarea {
   align-items: center;
   gap: 7px;
   color: #d3ddea;
-  font-size: 0.6rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-hover-card__rows > span:last-child:not(:has(i)) {
@@ -5734,7 +5667,7 @@ textarea {
 
 .time-reporting-hover-card__rows strong {
   color: #fff;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-hover-card__warning,
@@ -5772,7 +5705,7 @@ textarea {
   color: #425873;
   background: #f8fafc;
   cursor: pointer;
-  font-size: 0.67rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-breakdown__project summary strong {
@@ -5786,7 +5719,7 @@ textarea {
 .time-reporting-breakdown__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.64rem;
+  font-size: 0.68rem;
 }
 
 .time-reporting-breakdown__table th,
@@ -5800,7 +5733,7 @@ textarea {
 .time-reporting-breakdown__table th {
   color: #718096;
   background: #fcfdfe;
-  font-size: 0.56rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -5815,7 +5748,7 @@ textarea {
   display: inline-flex;
   padding: 3px 6px;
   border-radius: 999px;
-  font-size: 0.54rem;
+  font-size: 0.68rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -5864,7 +5797,7 @@ textarea {
 
 .time-reporting-pto-editor__unit {
   color: #718096;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   font-weight: 750;
 }
 
@@ -5935,7 +5868,7 @@ textarea {
 
 .time-reporting-subnav__item span {
   color: #7a899c;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
@@ -6026,7 +5959,7 @@ textarea {
 .time-reporting-employee-breakdown__identity span,
 .time-reporting-employee-breakdown__projects {
   color: #718198;
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 /* Time Reporting PTO visual refinement v4 */
@@ -6082,7 +6015,7 @@ textarea {
 .pto-usage-ring__inner small {
   margin-top: 2px;
   color: #8391a3;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 750;
 }
 
@@ -6130,7 +6063,7 @@ textarea {
   gap: 20px;
   margin-top: 7px;
   color: #697b92;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
 }
 
 .pto-progress__labels strong {
@@ -6162,7 +6095,7 @@ textarea {
 
 .pto-stat-card > span {
   color: #687991;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -6251,7 +6184,7 @@ textarea {
 
 .pto-admin-card__header span {
   color: #78889c;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
@@ -6260,7 +6193,7 @@ textarea {
   border-radius: 999px;
   color: #356b45;
   background: #edf8f0;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -6307,7 +6240,7 @@ textarea {
 
 .pto-admin-card__metrics span {
   color: #77879b;
-  font-size: 0.56rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -6320,7 +6253,7 @@ textarea {
 
 .pto-admin-card__metrics small {
   color: #8593a4;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
 }
 
 .pto-admin-card__editor {
@@ -6335,7 +6268,7 @@ textarea {
   display: grid;
   gap: 5px;
   color: #66788f;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -6361,7 +6294,7 @@ textarea {
 
 .pto-admin-card__editor small {
   color: #7f8ea1;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   font-weight: 750;
   text-transform: none;
 }
@@ -6505,7 +6438,7 @@ textarea {
   border-radius: 5px;
   color: var(--navy);
   background: #fff;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
@@ -6529,14 +6462,14 @@ textarea {
   color: var(--navy);
   background: #f7fafe;
   cursor: pointer;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 850;
 }
 
 .time-reporting-project-filter__empty {
   padding: 16px 10px;
   color: #7b8a9d;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   text-align: center;
 }
 
@@ -6847,12 +6780,12 @@ textarea {
   border-radius: 999px;
   color: #fff;
   background: var(--accent);
-  font-size: 0.62rem;
+  font-size: 0.68rem;
 }
 
 .filter-popover__state {
   color: #71839a;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
@@ -6902,7 +6835,7 @@ textarea {
 
 .filter-popover__heading > span {
   color: #6d7f94;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
@@ -6976,7 +6909,7 @@ textarea {
 
 .company-pulse__summary a {
   color: var(--accent-strong);
-  font-size: 0.67rem;
+  font-size: 0.68rem;
   font-weight: 800;
 }
 
@@ -6989,7 +6922,7 @@ textarea {
 
 .company-pulse__stat > span {
   color: #64778e;
-  font-size: 0.57rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -7004,7 +6937,7 @@ textarea {
 
 .company-pulse__stat small {
   color: #667990;
-  font-size: 0.61rem;
+  font-size: 0.68rem;
   line-height: 1.35;
 }
 
@@ -7255,7 +7188,7 @@ textarea {
   display: grid;
   gap: 6px;
   color: #536780;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -7340,7 +7273,7 @@ textarea {
   color: #fff;
   background: #d92d20;
   box-shadow: 0 3px 8px rgb(123 24 18 / 28%);
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 900;
   line-height: 1;
 }
@@ -7396,7 +7329,7 @@ textarea {
 
 .company-highlights__intro p:last-child {
   margin: 0;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   line-height: 1.45;
 }
 
@@ -7425,7 +7358,7 @@ textarea {
 
 .company-highlight-card small {
   color: #60758e;
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.065em;
   text-transform: uppercase;
@@ -7445,7 +7378,7 @@ textarea {
   overflow: hidden;
   margin: 0;
   color: #687c93;
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -7649,7 +7582,7 @@ textarea {
     font-size: 0.75rem;
   }
   .app-nav a.app-nav__link small {
-    font-size: 0.5rem;
+    font-size: 0.68rem;
   }
   .app-frame__content {
     min-height: calc(100vh - 126px);
@@ -7732,7 +7665,7 @@ textarea {
 
 .company-pulse__stat > span {
   color: #526a83;
-  font-size: 0.63rem;
+  font-size: 0.68rem;
 }
 
 .executive-dashboard .executive-kpis {
@@ -7794,7 +7727,7 @@ textarea {
 
 .executive-dashboard .executive-kpis .metric-card__label {
   color: #49627a;
-  font-size: 0.67rem;
+  font-size: 0.68rem;
   letter-spacing: 0.1em;
 }
 
@@ -7964,7 +7897,7 @@ textarea {
 .executive-dashboard .company-forecast-strip__heading > span {
   padding-top: 5px;
   color: #718197;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
 }
 
 .executive-dashboard .company-highlights {
@@ -8125,7 +8058,7 @@ textarea {
 .hosting-metrics .metric-card__detail {
   max-width: 92%;
   color: #63758a;
-  font-size: 0.67rem;
+  font-size: 0.68rem;
   line-height: 1.4;
 }
 
@@ -8157,7 +8090,7 @@ textarea {
 .hosting-chart__legend {
   gap: 9px 20px;
   color: #52677c;
-  font-size: 0.67rem;
+  font-size: 0.68rem;
 }
 
 .hosting-chart-key {
@@ -8185,7 +8118,7 @@ textarea {
 .hosting-chart__axis-label,
 .hosting-chart__period-label {
   fill: #66778b;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 650;
 }
 
@@ -8234,7 +8167,7 @@ textarea {
 
 .hosting-chart__tooltip text {
   fill: #dfe8f0;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 620;
 }
 
@@ -8255,7 +8188,7 @@ textarea {
 }
 
 .hosting-chart__tooltip .hosting-chart__tooltip-trend {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -8273,7 +8206,7 @@ textarea {
 
 .hosting-chart__note {
   color: #718195;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
 }
 
 .hosting-methodology {
@@ -8417,7 +8350,7 @@ textarea {
 
 .focused-report--revenue-trends .historical-profit-chart__zoom-help {
   margin-block: 1px;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
 }
 
 .focused-report--revenue-trends .historical-profit-chart__legend {
@@ -8467,7 +8400,7 @@ textarea {
 
 .issue-card__explanation strong {
   color: #5a6f86;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   letter-spacing: 0.1em;
 }
 
@@ -8527,7 +8460,7 @@ textarea {
   border-radius: 6px;
   color: var(--hosting-net);
   background: color-mix(in srgb, var(--hosting-net) 7%, white);
-  font-size: 0.67rem;
+  font-size: 0.68rem;
   font-weight: 850;
 }
 
@@ -8562,7 +8495,7 @@ textarea {
 .hosting-contribution__split span,
 .hosting-scale__card > span {
   color: #60748a;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.085em;
   text-transform: uppercase;
@@ -8618,7 +8551,7 @@ textarea {
 
 .hosting-scale__card small {
   color: #6a7d91;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
 }
 
 .hosting-chart-section {
@@ -8648,7 +8581,7 @@ textarea {
 
 .hosting-period-summary span {
   color: #617086;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.065em;
   text-transform: uppercase;
@@ -8742,7 +8675,7 @@ textarea {
 .hosting-chart__legend span:nth-child(2)::before {
   color: #738397;
   content: "Direct costs";
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   font-weight: 800;
   left: 0;
   letter-spacing: 0.06em;
@@ -9029,7 +8962,7 @@ textarea {
 
 .portfolio-standout > span {
   color: var(--muted);
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -9056,7 +8989,7 @@ textarea {
 
 .portfolio-standout > em {
   color: var(--muted);
-  font-size: 0.67rem;
+  font-size: 0.68rem;
   font-style: normal;
 }
 
@@ -9140,4 +9073,46 @@ textarea {
 .project-report .company-pulse__stat:nth-child(2) strong,
 .mmm-report .company-pulse__stat:nth-child(2) strong {
   color: #0b2d4d;
+}
+
+/* Hosting: a positive result that rests on estimates or provisional bills is not confirmed. */
+.hosting-value--provisional {
+  color: #8a5a00;
+}
+
+/* Reporting charts: provisional profit is amber, missing values are grey, green only when confirmed. */
+.chart-tone--provisional {
+  color: #8a5a00;
+  background-color: #8a5a00;
+}
+.chart-stroke--provisional {
+  stroke: #8a5a00;
+}
+.diverging-profit__bar--provisional {
+  background: repeating-linear-gradient(-45deg, #e0b04a 0 6px, #f6e3b8 6px 12px);
+}
+.diverging-profit__value--provisional,
+.operational-breakdown__provisional,
+.operational-breakdown__total--provisional,
+.compare-profitability-rows__outcome--provisional strong {
+  color: #8a5a00;
+}
+.operational-breakdown__provisional {
+  font-weight: 800;
+}
+.diverging-profit__value--missing,
+.operational-breakdown__missing,
+.operational-breakdown__total--missing {
+  color: #5b6b80;
+}
+.operational-breakdown__total--profit {
+  color: #1b7a4b;
+}
+.operational-breakdown__total--loss {
+  color: #b42318;
+}
+.operational-breakdown__partial-note {
+  margin: -6px 0 12px;
+  color: #5b6b80;
+  font-size: 0.74rem;
 }

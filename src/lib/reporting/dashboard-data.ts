@@ -1,4 +1,5 @@
 import { getSqlClient } from "@/db/client";
+import { easternIsoDate } from "@/lib/reporting/format";
 import { normalizeTeamworkLabel } from "@/lib/teamwork/normalize";
 import type { HistoricalProfitSeries } from "@/components/historical-profit-chart-types";
 
@@ -207,6 +208,8 @@ export type TeamworkSyncDiagnostics = {
   status: "RUNNING" | "SUCCEEDED" | "SUCCEEDED_WITH_WARNINGS" | "FAILED";
   startedAt: Date;
   completedAt: Date | null;
+  /** Completion time of the latest successful Teamwork sync: what the reported data is as of. */
+  lastSuccessfulCompletedAt: Date | null;
   recordsRead: number;
   warnings: number;
   errors: number;
@@ -386,6 +389,29 @@ export function getProjectTypeFacets(
   return facets;
 }
 
+export type ProjectJobType =
+  "Ready Set" | "Data Hall" | "Scanning and Modeling" | "Scanning" | "Modeling" | "Other";
+
+/**
+ * One job type per project for compact labels (e.g. MMM). Ready Set and Data Hall are named
+ * first because they are also scanning jobs; anything without a recognised tag is "Other".
+ */
+export function projectJobType(row: {
+  projectType?: string | null;
+  tags?: readonly (string | null)[] | null;
+}): ProjectJobType {
+  const facets = getProjectTypeFacets({
+    projectType: row.projectType ?? null,
+    tags: (row.tags ?? []).filter((tag): tag is string => Boolean(tag)),
+  });
+  if (facets.includes("Ready Set")) return "Ready Set";
+  if (facets.includes("DataHall")) return "Data Hall";
+  if (facets.includes("Scanning & Modeling")) return "Scanning and Modeling";
+  if (facets.includes("Scanning")) return "Scanning";
+  if (facets.includes("Modeling")) return "Modeling";
+  return "Other";
+}
+
 export function getAvailableProjectTypes(rows: ProjectReportRow[]): string[] {
   const available = new Set(rows.flatMap((row) => getProjectTypeFacets(row)));
   const ordered = PROJECT_TYPE_ORDER.filter((type) => available.has(type));
@@ -427,12 +453,15 @@ type RawProjectReportRow = Omit<ProjectReportRow, "calculatedAt" | "archivedAt" 
 type RawProjectTaskRow = Omit<ProjectTaskRow, "completedAt"> & {
   completedAt: unknown;
 };
-type RawQualityIssueRow = Omit<QualityIssueRow, "lastDetectedAt" | "teamworkUrl" | "evidence"> & {
+export type RawQualityIssueRow = Omit<
+  QualityIssueRow,
+  "lastDetectedAt" | "teamworkUrl" | "evidence"
+> & {
   lastDetectedAt: unknown;
   taskTeamworkId: number | null;
 };
 
-type RawIssueTimeEntryRow = {
+export type RawIssueTimeEntryRow = {
   id: string;
   teamworkId: number;
   taskId: string | null;
@@ -709,9 +738,18 @@ type HistoricalProjectEvent = {
 
 const MIN_HISTORICAL_DATE = "2000-01-01";
 
-function isoDateFromDate(value: Date | null): string | null {
+/**
+ * The business (Eastern) calendar day of a timestamp. A value at exactly UTC
+ * midnight is treated as a plain date and keeps its calendar day, matching dateLabel().
+ */
+export function businessDateFromTimestamp(value: Date | null): string | null {
   if (!value || Number.isNaN(value.getTime())) return null;
-  return value.toISOString().slice(0, 10);
+  const isUtcMidnight =
+    value.getUTCHours() === 0 &&
+    value.getUTCMinutes() === 0 &&
+    value.getUTCSeconds() === 0 &&
+    value.getUTCMilliseconds() === 0;
+  return isUtcMidnight ? value.toISOString().slice(0, 10) : easternIsoDate(value);
 }
 
 function normalizeHistoricalDate(value: string | null | undefined): string | null {
@@ -809,7 +847,10 @@ function actualCompletionDateForHistory(
   project: Pick<ProjectReportRow, "completedAt" | "archivedAt">,
   currentDate: string,
 ): string | null {
-  const actualDates = [isoDateFromDate(project.completedAt), isoDateFromDate(project.archivedAt)]
+  const actualDates = [
+    businessDateFromTimestamp(project.completedAt),
+    businessDateFromTimestamp(project.archivedAt),
+  ]
     .filter((value): value is string => value !== null && value <= currentDate)
     .sort();
   return actualDates[0] ?? null;
@@ -826,7 +867,7 @@ function projectStartDateForHistory(
     .filter((value): value is string => value !== null)
     .sort()[0];
   const configuredEnd = normalizeHistoricalDate(project.endDate);
-  const calculatedDate = project.calculatedAt.toISOString().slice(0, 10);
+  const calculatedDate = easternIsoDate(project.calculatedAt);
   return (
     [earliestSourceDate, configuredEnd, calculatedDate]
       .filter((value): value is string => value !== null && value !== undefined)
@@ -1041,7 +1082,7 @@ export async function getPortfolioHistoricalProfitSeries(
   projects: ProjectReportRow[],
 ): Promise<HistoricalProfitSeries[]> {
   if (!projects.length) return [];
-  const currentDate = new Date().toISOString().slice(0, 10);
+  const currentDate = easternIsoDate();
   const sourceCosts = await getHistoricalCostRecords(projects.map((project) => project.id));
   return [
     buildHistoricalProfitSeriesFromSource("All project types", projects, sourceCosts, currentDate),
@@ -1106,7 +1147,10 @@ function portfolioGroupName(
 
   return "Unclassified";
 }
-async function getOperationalGroupMetricRows(): Promise<RawPortfolioGroupMetric[]> {
+async function getOperationalGroupMetricRows(
+  projectIds: string[],
+): Promise<RawPortfolioGroupMetric[]> {
+  if (!projectIds.length) return [];
   const sql = getSqlClient();
   return sql<RawPortfolioGroupMetric[]>`
     select
@@ -1119,6 +1163,7 @@ async function getOperationalGroupMetricRows(): Promise<RawPortfolioGroupMetric[
       actual_non_labor_cost as "actualNonLaborCost",
       forecast_cost as "forecastCost"
     from operational_group_metrics
+    where project_id = any(${projectIds}::uuid[])
   `;
 }
 
@@ -1127,7 +1172,8 @@ export async function getPortfolioOperationalGroups(
   sourceRows?: RawPortfolioGroupMetric[],
 ): Promise<PortfolioOperationalGroupRow[]> {
   if (!projects.length) return [];
-  const allRows = sourceRows ?? (await getOperationalGroupMetricRows());
+  const allRows =
+    sourceRows ?? (await getOperationalGroupMetricRows(projects.map((project) => project.id)));
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const rowsByProject = new Map<string, RawPortfolioGroupMetric[]>();
   for (const row of allRows) {
@@ -1382,7 +1428,7 @@ export async function getComparedProjectOperationalGroups(
   projects: ProjectReportRow[],
 ): Promise<Array<{ projectId: string; groups: PortfolioOperationalGroupRow[] }>> {
   if (!projects.length) return [];
-  const sourceRows = await getOperationalGroupMetricRows();
+  const sourceRows = await getOperationalGroupMetricRows(projects.map((project) => project.id));
   return Promise.all(
     projects.map(async (project) => ({
       projectId: project.id,
@@ -1570,14 +1616,41 @@ export async function getProjectQualityIssues(projectId: string): Promise<Qualit
     order by tl.name
   `;
 
-  const base =
-    context?.apiEndpoint?.replace(/\/+$/, "") ??
-    process.env.TEAMWORK_SITE_URL?.replace(/\/+$/, "") ??
-    null;
+  return buildQualityIssueRows({
+    rows,
+    timeEntries,
+    missingTaskLists,
+    teamworkBase: teamworkSiteBase(context?.apiEndpoint),
+    projectTeamworkId: context ? context.projectTeamworkId : null,
+  });
+}
+
+function teamworkSiteBase(apiEndpoint: string | null | undefined): string | null {
+  return (
+    apiEndpoint?.replace(/\/+$/, "") ?? process.env.TEAMWORK_SITE_URL?.replace(/\/+$/, "") ?? null
+  );
+}
+
+export type IssueMissingTaskListRow = { id: string; teamworkId: number; name: string };
+
+/**
+ * Attaches source evidence and Teamwork links to one project's open quality issues.
+ * `timeEntries` and `missingTaskLists` must belong to the same project as `rows`.
+ */
+export function buildQualityIssueRows(input: {
+  rows: RawQualityIssueRow[];
+  timeEntries: RawIssueTimeEntryRow[];
+  missingTaskLists: IssueMissingTaskListRow[];
+  teamworkBase: string | null;
+  projectTeamworkId: number | null;
+}): QualityIssueRow[] {
+  const { rows, timeEntries, missingTaskLists, projectTeamworkId } = input;
+  const base = input.teamworkBase;
+  const hasProject = projectTeamworkId !== null;
   const projectTimeUrl =
-    base && context ? `${base}/app/projects/${context.projectTeamworkId}/time` : null;
+    base && hasProject ? `${base}/app/projects/${projectTeamworkId}/time` : null;
   const projectFinanceUrl =
-    base && context ? `${base}/app/projects/${context.projectTeamworkId}/finance/budgets` : null;
+    base && hasProject ? `${base}/app/projects/${projectTeamworkId}/finance/budgets` : null;
   const taskUrl = (teamworkTaskId: number | null): string | null =>
     base && teamworkTaskId ? `${base}/app/tasks/${teamworkTaskId}` : projectTimeUrl;
   const timeEvidence = (entry: RawIssueTimeEntryRow): QualityIssueEvidenceRow => ({
@@ -1701,96 +1774,106 @@ export async function getProjectUnplannedWork(projectId: string): Promise<Unplan
   }));
 }
 
-export async function getTeamworkIssueCenterRows(): Promise<TeamworkIssueCenterRow[]> {
-  const sql = getSqlClient();
-  const [connection] = await sql<Array<{ apiEndpoint: string | null }>>`
-    select tc.api_endpoint as "apiEndpoint"
-    from teamwork_connections tc
-    where tc.is_active = true
-    order by tc.connected_at desc
-    limit 1
-  `;
-  const teamworkBase =
-    connection?.apiEndpoint?.replace(/\/+$/, "") ??
-    process.env.TEAMWORK_SITE_URL?.replace(/\/+$/, "") ??
-    null;
-  const projects = await getProjectRows();
-  const grouped = await Promise.all(
-    projects.map(async (project) => {
-      const [qualityIssues, unplannedWork] = await Promise.all([
-        getProjectQualityIssues(project.id),
-        getProjectUnplannedWork(project.id),
-      ]);
+export type IssueCenterProject = Pick<
+  ProjectReportRow,
+  "id" | "teamworkId" | "name" | "projectNumber" | "companyName" | "status"
+>;
 
-      const qualityRows: TeamworkIssueCenterRow[] = qualityIssues.map((issue) => {
-        const guidance = teamworkIssueGuidance(issue.code);
-        return {
-          id: issue.id,
-          projectId: project.id,
-          projectName: project.name,
-          projectNumber: project.projectNumber,
-          companyName: project.companyName,
-          projectStatus: project.status,
-          taskId: issue.taskId,
-          taskListName: issue.taskListName,
-          taskName: issue.taskName,
-          severity: issue.severity,
-          code: issue.code,
-          message: issue.message,
-          lastDetectedAt: issue.lastDetectedAt,
-          recommendedAction: guidance.recommendedAction,
-          status: "OPEN",
-          resolutionPath: guidance.resolutionPath,
-          teamworkUrl: issue.teamworkUrl,
-          details: issue.details,
-          evidence: issue.evidence,
-          reviewedAt: null,
-          reviewedByName: null,
-        };
-      });
+function groupRowsByProject<T>(rows: T[], projectIdOf: (row: T) => string): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+  for (const row of rows) {
+    const projectId = projectIdOf(row);
+    const current = grouped.get(projectId);
+    if (current) current.push(row);
+    else grouped.set(projectId, [row]);
+  }
+  return grouped;
+}
 
-      const unplannedRows: TeamworkIssueCenterRow[] = unplannedWork.map((issue) => {
-        const guidance = teamworkIssueGuidance("UNPLANNED_ACTUAL_WORK");
-        return {
-          id: issue.issueId,
-          projectId: project.id,
-          projectName: project.name,
-          projectNumber: project.projectNumber,
-          companyName: project.companyName,
-          projectStatus: project.status,
-          taskId: issue.taskId,
-          taskListName: issue.taskListName,
-          taskName: issue.taskName,
-          severity: "INFO",
-          code: "UNPLANNED_ACTUAL_WORK",
-          message:
-            "Time was logged to a top-level task without an estimate. Actual hours and historical labor cost remain included.",
-          lastDetectedAt: issue.lastDetectedAt,
-          recommendedAction: guidance.recommendedAction,
-          status: issue.isDismissed ? "REVIEWED" : "OPEN",
-          resolutionPath: guidance.resolutionPath,
-          teamworkUrl:
-            teamworkBase && issue.teamworkTaskId
-              ? `${teamworkBase}/app/tasks/${issue.teamworkTaskId}`
-              : teamworkBase
-                ? `${teamworkBase}/app/projects/${project.teamworkId}/time`
-                : null,
-          details: {
-            loggedMinutes: issue.loggedMinutes,
-            laborCost: issue.laborCost,
-            firstLoggedDate: issue.firstLoggedDate,
-            lastLoggedDate: issue.lastLoggedDate,
-            teamworkTaskId: issue.teamworkTaskId,
-          },
-          evidence: [],
-          reviewedAt: issue.dismissedAt,
-          reviewedByName: issue.dismissedByName,
-        };
-      });
+/**
+ * Combines each project's quality issues and unplanned-work items into issue-center rows.
+ * Project order, then quality-before-unplanned order, breaks ties in the final sort.
+ */
+export function assembleTeamworkIssueCenterRows(input: {
+  projects: IssueCenterProject[];
+  qualityIssuesByProject: Map<string, QualityIssueRow[]>;
+  unplannedWorkByProject: Map<string, UnplannedWorkRow[]>;
+  teamworkBase: string | null;
+}): TeamworkIssueCenterRow[] {
+  const { projects, qualityIssuesByProject, unplannedWorkByProject, teamworkBase } = input;
+  const grouped = projects.map((project) => {
+    const qualityRows: TeamworkIssueCenterRow[] = (
+      qualityIssuesByProject.get(project.id) ?? []
+    ).map((issue) => {
+      const guidance = teamworkIssueGuidance(issue.code);
+      return {
+        id: issue.id,
+        projectId: project.id,
+        projectName: project.name,
+        projectNumber: project.projectNumber,
+        companyName: project.companyName,
+        projectStatus: project.status,
+        taskId: issue.taskId,
+        taskListName: issue.taskListName,
+        taskName: issue.taskName,
+        severity: issue.severity,
+        code: issue.code,
+        message: issue.message,
+        lastDetectedAt: issue.lastDetectedAt,
+        recommendedAction: guidance.recommendedAction,
+        status: "OPEN",
+        resolutionPath: guidance.resolutionPath,
+        teamworkUrl: issue.teamworkUrl,
+        details: issue.details,
+        evidence: issue.evidence,
+        reviewedAt: null,
+        reviewedByName: null,
+      };
+    });
 
-      return [...qualityRows, ...unplannedRows];
-    }),
-  );
+    const unplannedRows: TeamworkIssueCenterRow[] = (
+      unplannedWorkByProject.get(project.id) ?? []
+    ).map((issue) => {
+      const guidance = teamworkIssueGuidance("UNPLANNED_ACTUAL_WORK");
+      return {
+        id: issue.issueId,
+        projectId: project.id,
+        projectName: project.name,
+        projectNumber: project.projectNumber,
+        companyName: project.companyName,
+        projectStatus: project.status,
+        taskId: issue.taskId,
+        taskListName: issue.taskListName,
+        taskName: issue.taskName,
+        severity: "INFO",
+        code: "UNPLANNED_ACTUAL_WORK",
+        message:
+          "Time was logged to a top-level task without an estimate. Actual hours and historical labor cost remain included.",
+        lastDetectedAt: issue.lastDetectedAt,
+        recommendedAction: guidance.recommendedAction,
+        status: issue.isDismissed ? "REVIEWED" : "OPEN",
+        resolutionPath: guidance.resolutionPath,
+        teamworkUrl:
+          teamworkBase && issue.teamworkTaskId
+            ? `${teamworkBase}/app/tasks/${issue.teamworkTaskId}`
+            : teamworkBase
+              ? `${teamworkBase}/app/projects/${project.teamworkId}/time`
+              : null,
+        details: {
+          loggedMinutes: issue.loggedMinutes,
+          laborCost: issue.laborCost,
+          firstLoggedDate: issue.firstLoggedDate,
+          lastLoggedDate: issue.lastLoggedDate,
+          teamworkTaskId: issue.teamworkTaskId,
+        },
+        evidence: [],
+        reviewedAt: issue.dismissedAt,
+        reviewedByName: issue.dismissedByName,
+      };
+    });
+
+    return [...qualityRows, ...unplannedRows];
+  });
 
   const severityRank = { ERROR: 0, WARNING: 1, INFO: 2 } as const;
   return grouped
@@ -1802,6 +1885,213 @@ export async function getTeamworkIssueCenterRows(): Promise<TeamworkIssueCenterR
         a.projectName.localeCompare(b.projectName) ||
         b.lastDetectedAt.getTime() - a.lastDetectedAt.getTime(),
     );
+}
+
+function needsTimeEntryEvidence(row: RawQualityIssueRow): boolean {
+  return (
+    row.code === "UNALLOCATED_PROJECT_TIME" ||
+    row.code === "ACTUAL_LABOR_COST_INCOMPLETE" ||
+    row.taskId !== null
+  );
+}
+
+/**
+ * Loads every reporting project's issues with a fixed number of set-based queries
+ * (instead of four queries per project), then shapes them exactly as
+ * getProjectQualityIssues and getProjectUnplannedWork do for a single project.
+ */
+export async function getTeamworkIssueCenterRows(): Promise<TeamworkIssueCenterRow[]> {
+  const sql = getSqlClient();
+  const [connection] = await sql<Array<{ apiEndpoint: string | null }>>`
+    select tc.api_endpoint as "apiEndpoint"
+    from teamwork_connections tc
+    where tc.is_active = true
+    order by tc.connected_at desc
+    limit 1
+  `;
+  const teamworkBase = teamworkSiteBase(connection?.apiEndpoint);
+  const projects = await getProjectRows();
+  if (!projects.length) return [];
+  const projectIds = projects.map((project) => project.id);
+
+  const [qualityRows, unplannedRows] = await Promise.all([
+    sql<Array<RawQualityIssueRow & { projectId: string }>>`
+      select
+        dqi.id,
+        dqi.project_id as "projectId",
+        dqi.task_id as "taskId",
+        dqi.severity,
+        dqi.code,
+        dqi.message,
+        dqi.details,
+        tl.name as "taskListName",
+        t.name as "taskName",
+        t.teamwork_id as "taskTeamworkId",
+        dqi.last_detected_at as "lastDetectedAt"
+      from data_quality_issues dqi
+      left join task_lists tl on tl.id = dqi.task_list_id
+      left join tasks t on t.id = dqi.task_id
+      where dqi.project_id = any(${projectIds}::uuid[])
+        and dqi.resolved_at is null
+        and dqi.code <> 'UNPLANNED_ACTUAL_WORK'
+      order by
+        case dqi.severity when 'ERROR' then 0 when 'WARNING' then 1 else 2 end,
+        dqi.code,
+        dqi.last_detected_at desc
+    `,
+    sql<
+      (Omit<UnplannedWorkRow, "dismissedAt" | "lastDetectedAt"> & {
+        dismissedAt: unknown;
+        lastDetectedAt: unknown;
+      })[]
+    >`
+      select
+        dqi.id as "issueId",
+        dqi.project_id as "projectId",
+        dqi.task_id as "taskId",
+        nullif(dqi.details ->> 'teamworkTaskId', '')::bigint as "teamworkTaskId",
+        t.name as "taskName",
+        tl.name as "taskListName",
+        dqi.last_detected_at as "lastDetectedAt",
+        coalesce((dqi.details ->> 'minutes')::int, 0) as "loggedMinutes",
+        nullif(dqi.details ->> 'laborCost', '') as "laborCost",
+        nullif(dqi.details ->> 'firstLoggedDate', '') as "firstLoggedDate",
+        nullif(dqi.details ->> 'lastLoggedDate', '') as "lastLoggedDate",
+        (
+          uwr.task_id is not null
+          and coalesce((dqi.details ->> 'minutes')::int, 0) <= uwr.dismissed_logged_minutes
+        ) as "isDismissed",
+        uwr.dismissed_at as "dismissedAt",
+        au.display_name as "dismissedByName"
+      from data_quality_issues dqi
+      inner join tasks t on t.id = dqi.task_id
+      inner join task_lists tl on tl.id = t.task_list_id
+      left join unplanned_work_reviews uwr on uwr.task_id = dqi.task_id
+      left join app_users au on au.id = uwr.dismissed_by_user_id
+      where dqi.project_id = any(${projectIds}::uuid[])
+        and dqi.resolved_at is null
+        and dqi.code = 'UNPLANNED_ACTUAL_WORK'
+      order by "isDismissed" asc, tl.name asc, t.name asc
+    `,
+  ]);
+
+  // Evidence is only loaded for projects whose issues will use it.
+  const timeEvidenceProjectIds = [
+    ...new Set(qualityRows.filter(needsTimeEntryEvidence).map((row) => row.projectId)),
+  ];
+  const taskListEvidenceProjectIds = [
+    ...new Set(
+      qualityRows
+        .filter((row) => row.code === "TASK_LIST_BUDGET_COVERAGE_INCOMPLETE")
+        .map((row) => row.projectId),
+    ),
+  ];
+  const [timeEntries, missingTaskLists] = await Promise.all([
+    timeEvidenceProjectIds.length
+      ? sql<Array<RawIssueTimeEntryRow & { projectId: string }>>`
+          select
+            te.id,
+            te.project_id as "projectId",
+            te.teamwork_id as "teamworkId",
+            te.task_id as "taskId",
+            t.name as "taskName",
+            tl.name as "taskListName",
+            te.logged_date as "loggedDate",
+            te.minutes,
+            te.description,
+            case
+              when te.historical_cost_total is not null then te.historical_cost_total
+              when te.historical_cost_rate is not null then round((te.minutes / 60.0) * te.historical_cost_rate, 4)
+              else null
+            end as "historicalCostTotal",
+            te.historical_cost_rate as "historicalCostRate",
+            te.cost_info_returned as "costInfoReturned",
+            nullif(trim(concat_ws(' ', person.first_name, person.last_name)), '') as "personName"
+          from time_entries te
+          left join tasks t on t.id = te.task_id
+          left join task_lists tl on tl.id = t.task_list_id
+          left join people person on person.id = te.person_id
+          where te.project_id = any(${timeEvidenceProjectIds}::uuid[])
+            and te.is_deleted = false
+            and (
+              te.task_id is null
+              or te.cost_info_returned = false
+              or (te.historical_cost_total is null and te.historical_cost_rate is null)
+              or te.task_id in (
+                select dqi.task_id
+                from data_quality_issues dqi
+                where dqi.project_id = te.project_id
+                  and dqi.resolved_at is null
+                  and dqi.task_id is not null
+                  and dqi.code <> 'UNPLANNED_ACTUAL_WORK'
+              )
+            )
+          order by te.logged_date desc, te.teamwork_id desc
+        `
+      : Promise.resolve([] as Array<RawIssueTimeEntryRow & { projectId: string }>),
+    taskListEvidenceProjectIds.length
+      ? sql<Array<IssueMissingTaskListRow & { projectId: string }>>`
+          select tl.id, tl.project_id as "projectId", tl.teamwork_id as "teamworkId", tl.name
+          from task_lists tl
+          where tl.project_id = any(${taskListEvidenceProjectIds}::uuid[])
+            and tl.is_deleted = false
+            and lower(coalesce(tl.operational_group, '')) <> 'admin'
+            and lower(coalesce(tl.status, '')) not in ('complete', 'completed')
+            and lower(trim(tl.name)) not like 'modeling request%'
+            and not exists (
+              select 1
+              from task_list_budgets tlb
+              inner join project_budgets pb on pb.id = tlb.project_budget_id
+              where pb.project_id = tl.project_id
+                and tlb.task_list_id = tl.id
+                and tlb.target_cost is not null
+            )
+          order by tl.name
+        `
+      : Promise.resolve([] as Array<IssueMissingTaskListRow & { projectId: string }>),
+  ]);
+
+  const qualityRowsByProject = groupRowsByProject([...qualityRows], (row) => row.projectId);
+  const timeEntriesByProject = groupRowsByProject([...timeEntries], (row) => row.projectId);
+  const taskListsByProject = groupRowsByProject([...missingTaskLists], (row) => row.projectId);
+  const qualityIssuesByProject = new Map<string, QualityIssueRow[]>();
+  for (const project of projects) {
+    const rows = qualityRowsByProject.get(project.id);
+    if (!rows) continue;
+    qualityIssuesByProject.set(
+      project.id,
+      buildQualityIssueRows({
+        rows,
+        timeEntries: timeEntriesByProject.get(project.id) ?? [],
+        missingTaskLists: taskListsByProject.get(project.id) ?? [],
+        teamworkBase,
+        projectTeamworkId: project.teamworkId,
+      }),
+    );
+  }
+
+  const unplannedWorkByProject = groupRowsByProject(
+    unplannedRows.map((row): UnplannedWorkRow => ({
+      ...row,
+      teamworkTaskId: row.teamworkTaskId === null ? null : Number(row.teamworkTaskId),
+      lastDetectedAt: normalizeDatabaseDate(
+        row.lastDetectedAt,
+        `unplanned-work issue ${row.issueId} lastDetectedAt`,
+      ),
+      dismissedAt: normalizeOptionalDatabaseDate(
+        row.dismissedAt,
+        `unplanned-work issue ${row.issueId} dismissedAt`,
+      ),
+    })),
+    (row) => row.projectId,
+  );
+
+  return assembleTeamworkIssueCenterRows({
+    projects,
+    qualityIssuesByProject,
+    unplannedWorkByProject,
+    teamworkBase,
+  });
 }
 
 export type TeamworkIssueCenterCounts = {
@@ -1974,6 +2264,7 @@ export async function getLatestTeamworkSyncDiagnostics(): Promise<TeamworkSyncDi
       status: TeamworkSyncDiagnostics["status"];
       startedAt: unknown;
       completedAt: unknown;
+      lastSuccessfulCompletedAt: unknown;
       recordsRead: number;
       warnings: number;
       errors: number;
@@ -1985,6 +2276,11 @@ export async function getLatestTeamworkSyncDiagnostics(): Promise<TeamworkSyncDi
       sr.status,
       sr.started_at as "startedAt",
       sr.completed_at as "completedAt",
+      (
+        select max(ok.completed_at)
+        from sync_runs ok
+        where ok.status in ('SUCCEEDED', 'SUCCEEDED_WITH_WARNINGS')
+      ) as "lastSuccessfulCompletedAt",
       sr.records_read as "recordsRead",
       sr.warnings,
       sr.errors
@@ -2034,6 +2330,10 @@ export async function getLatestTeamworkSyncDiagnostics(): Promise<TeamworkSyncDi
     completedAt: normalizeOptionalDatabaseDate(
       run.completedAt,
       `sync run ${run.runId} completedAt`,
+    ),
+    lastSuccessfulCompletedAt: normalizeOptionalDatabaseDate(
+      run.lastSuccessfulCompletedAt,
+      "latest successful sync run completedAt",
     ),
     recordsRead: run.recordsRead,
     warnings: run.warnings,

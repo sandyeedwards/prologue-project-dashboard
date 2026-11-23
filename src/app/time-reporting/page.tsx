@@ -245,6 +245,7 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
           <Link
             href="/time-reporting"
             className="time-reporting-subnav__item time-reporting-subnav__item--active"
+            aria-current="page"
           >
             <strong>Overview</strong>
             <span>Utilization &amp; employee time</span>
@@ -708,9 +709,14 @@ export default async function TimeReportingPage({ searchParams }: { searchParams
                         PTO YTD <strong>{ptoHoursLabel(employee.ptoUsedMinutes)}</strong> (
                         {ptoDaysLabel(employee.ptoUsedMinutes)}) of{" "}
                         {ptoHoursLabel(employee.ptoAllowanceMinutes)}
-                        {employee.ptoRemainingMinutes < 0
-                          ? ` · ${ptoHoursLabel(Math.abs(employee.ptoRemainingMinutes))} over`
-                          : ""}
+                        {employee.ptoRemainingMinutes < 0 ? (
+                          <>
+                            {" · "}
+                            <strong>{ptoHoursLabel(employee.ptoRemainingMinutes)} remaining</strong>
+                          </>
+                        ) : (
+                          ""
+                        )}
                       </span>
                     </div>
                   </div>

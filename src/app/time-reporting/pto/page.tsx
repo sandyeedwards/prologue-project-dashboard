@@ -51,6 +51,7 @@ export default async function MyPtoPage() {
           <Link
             href="/time-reporting/pto"
             className="time-reporting-subnav__item time-reporting-subnav__item--active"
+            aria-current="page"
           >
             <strong>My PTO</strong>
             <span>My annual PTO balance</span>
@@ -87,9 +88,7 @@ export default async function MyPtoPage() {
                 <p className="eyebrow">{employee.name}</p>
 
                 <h2 className={overAllowance ? "pto-value--warning" : undefined}>
-                  {overAllowance
-                    ? `${ptoDaysLongLabel(Math.abs(employee.ptoRemainingMinutes))} over allowance`
-                    : `${ptoDaysLongLabel(employee.ptoRemainingMinutes)} remaining`}
+                  {`${ptoDaysLongLabel(employee.ptoRemainingMinutes)} remaining`}
                 </h2>
 
                 <p>
@@ -148,9 +147,11 @@ export default async function MyPtoPage() {
               <article
                 className={overAllowance ? "pto-stat-card pto-stat-card--warning" : "pto-stat-card"}
               >
-                <span>{overAllowance ? "PTO Over Allowance" : "PTO Remaining"}</span>
-                <strong>{ptoDaysLabel(Math.abs(employee.ptoRemainingMinutes))}</strong>
-                <small>{ptoHoursLabel(Math.abs(employee.ptoRemainingMinutes))}</small>
+                <span>PTO Remaining</span>
+                <strong className={overAllowance ? "pto-value--warning" : undefined}>
+                  {ptoDaysLabel(employee.ptoRemainingMinutes)}
+                </strong>
+                <small>{ptoHoursLabel(employee.ptoRemainingMinutes)}</small>
               </article>
             </section>
 
