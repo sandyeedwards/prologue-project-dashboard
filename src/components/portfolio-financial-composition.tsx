@@ -16,13 +16,14 @@ import {
   resolveProfitabilityRow,
   type ResolvedProfitabilityRow,
 } from "@/lib/reporting/forecast-position";
+import { MISSING, REPORT_LABELS as L } from "@/lib/reporting/labels";
 
 function finite(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
 function fullCurrency(value: number | null | undefined): string {
-  if (!finite(value)) return "Missing";
+  if (!finite(value)) return MISSING;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -31,7 +32,7 @@ function fullCurrency(value: number | null | undefined): string {
 }
 
 function compactCurrency(value: number | null | undefined): string {
-  if (!finite(value)) return "Missing";
+  if (!finite(value)) return MISSING;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -41,7 +42,7 @@ function compactCurrency(value: number | null | undefined): string {
 }
 
 function formatMargin(value: number | null | undefined): string {
-  if (!finite(value)) return "Missing";
+  if (!finite(value)) return MISSING;
   return `${new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 1,
   }).format(value)}%`;
@@ -52,18 +53,18 @@ const resolveRow = resolveProfitabilityRow;
 
 // A missing value is shown as "Missing", never as $0.
 function shown(value: number, known: boolean): string {
-  return known ? fullCurrency(value) : "Missing";
+  return known ? fullCurrency(value) : MISSING;
 }
 
 function ariaLabel(row: ProfitabilityRow, values: ResolvedRow): string {
   return [
     row.label,
     row.detail,
-    `Allocated revenue ${shown(values.revenue, values.known.revenue)}.`,
-    `Current Costs ${shown(values.actual, values.known.actual)}.`,
-    `Estimated remaining costs ${shown(values.remaining, values.known.remaining)}.`,
+    `${L.fee} ${shown(values.revenue, values.known.revenue)}.`,
+    `${L.currentCosts} ${shown(values.actual, values.known.actual)}.`,
+    `${L.estimatedRemainingCosts} ${shown(values.remaining, values.known.remaining)}.`,
     `${profitLabel(row, values)} ${shown(values.profit, values.known.profit)}.`,
-    `Forecast margin ${formatMargin(values.margin)}.`,
+    `${L.forecastMargin} ${formatMargin(values.margin)}.`,
     row.provisional ? "Provisional: missing inputs may increase costs." : null,
   ]
     .filter(Boolean)
@@ -156,11 +157,11 @@ function CompositionRow({
       {hero && showHeroMetrics ? (
         <div className="portfolio-composition__hero-metrics" aria-hidden="true">
           <span>
-            <small>Current Costs</small>
+            <small>{L.currentCosts}</small>
             <strong>{shown(values.actual, values.known.actual)}</strong>
           </span>
           <span>
-            <small>Estimated Remaining Costs</small>
+            <small>{L.estimatedRemainingCosts}</small>
             <strong>{shown(values.remaining, values.known.remaining)}</strong>
           </span>
           <span className={profitTone(row, values)}>
@@ -168,7 +169,7 @@ function CompositionRow({
             <strong>{shown(values.profit, values.known.profit)}</strong>
           </span>
           <span>
-            <small>Forecast Margin</small>
+            <small>{L.forecastMargin}</small>
             <strong>{formatMargin(values.margin)}</strong>
           </span>
         </div>
@@ -198,10 +199,11 @@ function CompositionRow({
         </div>
         <div className="portfolio-composition__meta">
           <span>
-            Revenue <strong>{shown(values.revenue, values.known.revenue)}</strong>
+            {L.fee} <strong>{shown(values.revenue, values.known.revenue)}</strong>
           </span>
           <span>
-            Forecast cost <strong>{shown(values.forecastCost, values.known.forecastCost)}</strong>
+            {L.forecastCost}{" "}
+            <strong>{shown(values.forecastCost, values.known.forecastCost)}</strong>
           </span>
           {row.provisional ? (
             <span className="portfolio-composition__flag">
@@ -225,21 +227,21 @@ function CompositionRow({
               <div>
                 <dt>
                   <i className="is-revenue" />
-                  Allocated revenue
+                  {L.fee}
                 </dt>
                 <dd>{shown(values.revenue, values.known.revenue)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="is-actual" />
-                  Current Costs
+                  {L.currentCosts}
                 </dt>
                 <dd>{shown(values.actual, values.known.actual)}</dd>
               </div>
               <div>
                 <dt>
                   <i className="is-remaining" />
-                  Estimated remaining costs
+                  {L.estimatedRemainingCosts}
                 </dt>
                 <dd>{shown(values.remaining, values.known.remaining)}</dd>
               </div>
@@ -252,7 +254,7 @@ function CompositionRow({
               </div>
             </dl>
             <footer>
-              <span>Forecast margin</span>
+              <span>{L.forecastMargin}</span>
               <strong>{formatMargin(values.margin)}</strong>
             </footer>
           </div>
@@ -261,7 +263,7 @@ function CompositionRow({
 
       {!hero ? (
         <div className={`portfolio-composition__outcome ${profitTone(row, values)}`}>
-          <strong>{values.known.profit ? compactCurrency(values.profit) : "Missing"}</strong>
+          <strong>{values.known.profit ? compactCurrency(values.profit) : MISSING}</strong>
           <small>{profitLabel(row, values)}</small>
           <span>{formatMargin(values.margin)} margin</span>
         </div>
@@ -301,19 +303,19 @@ export function PortfolioFinancialComposition({
       <div className="portfolio-composition__legend" aria-hidden="true">
         <span>
           <i className="is-actual" />
-          Current Costs
+          {L.currentCosts}
         </span>
         <span>
           <i className="is-remaining" />
-          Estimated Remaining Costs
+          {L.estimatedRemainingCosts}
         </span>
         <span>
           <i className="is-profit" />
-          Projected Profit
+          {L.projectedProfit}
         </span>
         <span>
           <i className="is-loss" />
-          Projected Loss
+          {L.projectedLoss}
         </span>
       </div>
       <div className="portfolio-composition__rows">

@@ -16,9 +16,11 @@ import {
   getPortfolioHistoricalProfitSeries,
   getPortfolioOperationalGroups,
   getProjectRows,
+  summarizeProjects,
   type ProjectFilter,
   type ProjectReportRow,
 } from "@/lib/reporting/dashboard-data";
+import { dateLabel } from "@/lib/reporting/format";
 import {
   COMBINE_PROJECT_LIMIT,
   COMPARE_PROJECT_LIMIT,
@@ -174,10 +176,16 @@ export async function ProjectsWorkspace({
   return (
     <AppShell user={session.user} contentTone={mode === "combine" ? "portfolio" : "default"}>
       <main className="shell shell--wide projects-workspace executive-dashboard">
-        <section className="report-titlebar">
-          <div>
+        <section className="report-titlebar report-titlebar--executive">
+          <div className="report-titlebar__copy">
+            <p className="eyebrow">Project reporting</p>
             <h1>{pageTitle}</h1>
             <p>{pageDescription}</p>
+          </div>
+          <div className="report-titlebar__actions">
+            <span className="report-date-chip">
+              Data as of {dateLabel(summarizeProjects(allProjects).latestCalculatedAt)}
+            </span>
           </div>
         </section>
 

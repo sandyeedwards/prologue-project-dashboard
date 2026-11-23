@@ -18,13 +18,15 @@ export default async function ManagerPage() {
   return (
     <AppShell user={session.user}>
       <main className="shell shell--wide">
-        <section className="page-heading">
-          <p className="eyebrow">Manager reporting</p>
-          <h1>Employee labor analysis</h1>
-          <p className="lede">
-            Hours and total historical labor cost by employee. Hourly cost rates are never displayed
-            or sent to the browser.
-          </p>
+        <section className="report-titlebar report-titlebar--executive">
+          <div className="report-titlebar__copy">
+            <p className="eyebrow">Manager reporting</p>
+            <h1>Employee labor analysis</h1>
+            <p>
+              Hours and total historical labor cost by employee. Hourly cost rates are never
+              displayed or sent to the browser.
+            </p>
+          </div>
         </section>
         <section className="metric-grid metric-grid--four">
           <MetricCard

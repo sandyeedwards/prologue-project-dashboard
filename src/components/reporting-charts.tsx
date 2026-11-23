@@ -4,8 +4,23 @@ import type { ProfitabilityRow } from "@/components/profitability-chart-types";
 import { MarginBadge } from "@/components/reporting-ui";
 import { PrologueMark } from "@/components/prologue-brand";
 import type { ProjectReportRow } from "@/lib/reporting/dashboard-data";
+import {
+  profitLabel,
+  profitTone,
+  resolveProfitabilityRow,
+} from "@/lib/reporting/forecast-position";
 import { hours, money, percent } from "@/lib/reporting/format";
-import { marginTone } from "@/lib/reporting/margin-status";
+import {
+  compareNullableDescending,
+  compareProjectIdentity,
+  formatHoursUsed,
+  hoursUsedPercent,
+  marginBand,
+  MISSING,
+  REPORT_LABELS,
+  totalProfitabilityRows,
+  type MarginBand,
+} from "@/lib/reporting/labels";
 import { COMBINE_PROJECT_LIMIT, combinedProjectsHref } from "@/lib/reporting/project-selection";
 
 export type ChartSeries = {
@@ -142,7 +157,7 @@ export function GroupedBarChart({
                       <span className={`bar-chart__fill chart-tone--${tone}`} style={style} />
                     </div>
                     <span className="bar-chart__value">
-                      {finite(value) ? formatter(value) : "Missing"}
+                      {finite(value) ? formatter(value) : MISSING}
                     </span>
                   </div>
                 );
@@ -156,23 +171,32 @@ export function GroupedBarChart({
 }
 
 export function MarginSummaryDonut({ projects }: { projects: ProjectReportRow[] }) {
-  const groupedProjects: Record<"green" | "yellow" | "red" | "neutral", ProjectReportRow[]> = {
+  const groupedProjects: Record<MarginBand, ProjectReportRow[]> = {
     green: [],
+    provisional: [],
     yellow: [],
     red: [],
     neutral: [],
   };
 
+  // A provisional margin is only a ceiling, so a "strong" provisional margin is never counted
+  // as a confirmed strong (green) margin.
   for (const project of projects) {
-    groupedProjects[marginTone(project.forecastMarginPercent)].push(project);
+    groupedProjects[marginBand(project.forecastMarginPercent, project.isProvisional)].push(project);
   }
 
   const segments = [
     {
       label: "Strong margin",
-      detail: "50% or higher",
+      detail: "50% or higher, confirmed",
       projects: groupedProjects.green,
       tone: "green",
+    },
+    {
+      label: "Provisional",
+      detail: "50% or higher ceiling, not yet confirmed",
+      projects: groupedProjects.provisional,
+      tone: "provisional",
     },
     {
       label: "Watch margin",
@@ -187,8 +211,8 @@ export function MarginSummaryDonut({ projects }: { projects: ProjectReportRow[] 
       tone: "red",
     },
     {
-      label: "N/A",
-      detail: "No margin",
+      label: MISSING,
+      detail: "No usable forecast margin",
       projects: groupedProjects.neutral,
       tone: "gray",
     },
@@ -297,12 +321,16 @@ export function MarginSummaryDonut({ projects }: { projects: ProjectReportRow[] 
 export type { ProfitabilityRow } from "@/components/profitability-chart-types";
 
 export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
-  const availableRows = rows.filter((row) => finite(row.profit));
-  if (!availableRows.length)
+  const resolvedRows = rows.map((row) => {
+    const values = resolveProfitabilityRow(row);
+    return { row, values, tone: profitTone(row, values) };
+  });
+  const knownRows = resolvedRows.filter((entry) => entry.values.known.profit);
+  if (!knownRows.length)
     return <div className="chart-empty">No profit or loss positions are available.</div>;
 
-  const maximumProfit = Math.max(...availableRows.map((row) => Math.max(row.profit ?? 0, 0)), 0);
-  const maximumLoss = Math.max(...availableRows.map((row) => Math.max(-(row.profit ?? 0), 0)), 0);
+  const maximumProfit = Math.max(...knownRows.map((entry) => Math.max(entry.values.profit, 0)), 0);
+  const maximumLoss = Math.max(...knownRows.map((entry) => Math.max(-entry.values.profit, 0)), 0);
 
   const lossLanePercent =
     maximumLoss > 0
@@ -328,16 +356,23 @@ export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
         <span>Profit</span>
       </div>
       <div className="diverging-profit__rows">
-        {availableRows.map((row) => {
-          const profit = row.profit ?? 0;
-          const width =
-            profit < 0
+        {resolvedRows.map(({ row, values, tone }) => {
+          const known = values.known.profit;
+          const profit = known ? values.profit : 0;
+          const width = !known
+            ? 0
+            : profit < 0
               ? maximumLoss > 0
                 ? Math.max((Math.abs(profit) / maximumLoss) * lossLanePercent, 2)
                 : 0
               : maximumProfit > 0
                 ? Math.max((profit / maximumProfit) * profitLanePercent, profit === 0 ? 0 : 2)
                 : 0;
+          // Bars keep their side (profit/loss) and add an amber hatch when provisional.
+          const barClass =
+            profit < 0
+              ? "diverging-profit__bar--loss"
+              : `diverging-profit__bar--profit${tone === "is-provisional" ? " diverging-profit__bar--provisional" : ""}`;
           return (
             <div className="diverging-profit__row" key={row.label}>
               <div className="diverging-profit__label">
@@ -346,16 +381,23 @@ export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
               </div>
               <div className="diverging-profit__plot">
                 <span className="diverging-profit__zero" aria-hidden="true" />
-                <span
-                  className={`diverging-profit__bar ${profit < 0 ? "diverging-profit__bar--loss" : "diverging-profit__bar--profit"}`}
-                  style={{ "--diverging-width": `${width}%` } as CSSProperties}
-                />
+                {known ? (
+                  <span
+                    className={`diverging-profit__bar ${barClass}`}
+                    style={{ "--diverging-width": `${width}%` } as CSSProperties}
+                  />
+                ) : null}
               </div>
-              <div
-                className={`diverging-profit__value ${profit < 0 ? "diverging-profit__value--loss" : ""}`}
-              >
-                <strong>{compactCurrency(profit)}</strong>
-                {finite(row.margin) ? <small>{row.margin.toFixed(1)}% margin</small> : null}
+              <div className={`diverging-profit__value diverging-profit__value--${tone.slice(3)}`}>
+                <strong>{known ? compactCurrency(profit) : MISSING}</strong>
+                <small>
+                  {known && values.margin !== null
+                    ? `${values.margin.toFixed(1)}% margin`
+                    : known
+                      ? profitLabel(row, values)
+                      : `${REPORT_LABELS.projectedProfit} missing`}
+                  {tone === "is-provisional" ? ` \u00b7 ${REPORT_LABELS.provisional}` : ""}
+                </small>
               </div>
             </div>
           );
@@ -366,70 +408,75 @@ export function DivergingProfitChart({ rows }: { rows: ProfitabilityRow[] }) {
 }
 
 export function OperationalBreakdown({ rows }: { rows: ProfitabilityRow[] }) {
-  const totals = rows.reduce(
-    (result, row) => ({
-      revenue: result.revenue + (finite(row.revenue) ? row.revenue : 0),
-      cost: result.cost + (finite(row.cost) ? row.cost : 0),
-      profit: result.profit + (finite(row.profit) ? row.profit : 0),
-      projects: result.projects + (row.projectCount ?? 0),
-    }),
-    { revenue: 0, cost: 0, profit: 0, projects: 0 },
-  );
-  const margin = totals.revenue ? (totals.profit / totals.revenue) * 100 : null;
+  // Totals cover only rows with a known fee, forecast cost and profit, so every total describes
+  // the same groups; incomplete rows are counted and noted rather than added as zero.
+  const totals = totalProfitabilityRows(rows);
+  const totalValue = (value: number | null) => (value === null ? MISSING : compactCurrency(value));
 
   return (
     <div className="operational-breakdown">
       <div className="operational-breakdown__metrics">
         <div>
-          <span>Allocated revenue</span>
-          <strong>{compactCurrency(totals.revenue)}</strong>
+          <span>{REPORT_LABELS.fee}</span>
+          <strong>{totalValue(totals.revenue)}</strong>
         </div>
         <div>
-          <span>Forecast cost</span>
-          <strong>{compactCurrency(totals.cost)}</strong>
+          <span>{REPORT_LABELS.forecastCost}</span>
+          <strong>{totalValue(totals.cost)}</strong>
         </div>
         <div>
-          <span>Projected Profit</span>
-          <strong>{compactCurrency(totals.profit)}</strong>
+          <span>
+            {totals.profit !== null && totals.profit < 0
+              ? REPORT_LABELS.projectedLoss
+              : REPORT_LABELS.projectedProfit}
+          </span>
+          <strong className={`operational-breakdown__total--${totals.tone.slice(3)}`}>
+            {totalValue(totals.profit)}
+          </strong>
         </div>
         <div>
-          <span>Combined margin</span>
-          <strong>{margin === null ? "Missing" : `${margin.toFixed(1)}%`}</strong>
+          <span>{REPORT_LABELS.forecastMargin}</span>
+          <strong>{totals.margin === null ? MISSING : `${totals.margin.toFixed(1)}%`}</strong>
         </div>
       </div>
+      {totals.excludedCount ? (
+        <p className="operational-breakdown__partial-note">
+          {totals.includedCount
+            ? `Totals cover ${totals.includedCount} of ${rows.length} groups; ${totals.excludedCount} with a missing fee, cost or profit ${totals.excludedCount === 1 ? "is" : "are"} excluded, not counted as $0.`
+            : "No group has a known fee, forecast cost and profit, so totals are missing."}
+        </p>
+      ) : null}
       <div className="table-wrap operational-breakdown__table-wrap">
         <table className="data-table operational-breakdown__table">
           <thead>
             <tr>
               <th>Group</th>
               <th>Projects</th>
-              <th>Revenue</th>
-              <th>Cost</th>
-              <th>Profit</th>
-              <th>Margin</th>
+              <th>{REPORT_LABELS.fee}</th>
+              <th>{REPORT_LABELS.forecastCost}</th>
+              <th>{REPORT_LABELS.projectedProfit}</th>
+              <th>{REPORT_LABELS.forecastMargin}</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.label}>
-                <td>
-                  <strong>{row.label}</strong>
-                </td>
-                <td>{row.projectCount ?? "\u2014"}</td>
-                <td>{finite(row.revenue) ? compactCurrency(row.revenue) : "Missing"}</td>
-                <td>{finite(row.cost) ? compactCurrency(row.cost) : "Missing"}</td>
-                <td
-                  className={
-                    (row.profit ?? 0) < 0
-                      ? "operational-breakdown__loss"
-                      : "operational-breakdown__profit"
-                  }
-                >
-                  {finite(row.profit) ? compactCurrency(row.profit) : "Missing"}
-                </td>
-                <td>{finite(row.margin) ? `${row.margin.toFixed(1)}%` : "Missing"}</td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const values = resolveProfitabilityRow(row);
+              const tone = profitTone(row, values);
+              return (
+                <tr key={row.label}>
+                  <td>
+                    <strong>{row.label}</strong>
+                  </td>
+                  <td>{row.projectCount ?? "\u2014"}</td>
+                  <td>{finite(row.revenue) ? compactCurrency(row.revenue) : MISSING}</td>
+                  <td>{finite(row.cost) ? compactCurrency(row.cost) : MISSING}</td>
+                  <td className={`operational-breakdown__${tone.slice(3)}`}>
+                    {values.known.profit ? compactCurrency(values.profit) : MISSING}
+                  </td>
+                  <td>{values.margin !== null ? `${values.margin.toFixed(1)}%` : MISSING}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -481,10 +528,13 @@ function AnalysisTakeaway({ rows }: { rows: ProfitabilityRow[] }) {
 }
 
 function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] }) {
+  // Highest profit first; missing profit last; ties broken by project number for a stable order.
   const sorted = [...projects].sort(
     (a, b) =>
-      (numericProjectValue(b.forecastProfit) ?? -Infinity) -
-      (numericProjectValue(a.forecastProfit) ?? -Infinity),
+      compareNullableDescending(
+        numericProjectValue(a.forecastProfit),
+        numericProjectValue(b.forecastProfit),
+      ) || compareProjectIdentity(a, b),
   );
 
   return (
@@ -494,19 +544,29 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
           <tr>
             <th>Project</th>
             <th>Client</th>
-            <th>Margin</th>
-            <th>Projected Profit</th>
+            <th>{REPORT_LABELS.forecastMargin}</th>
+            <th>{REPORT_LABELS.projectedProfit}</th>
             <th>Logged hours</th>
-            <th>vs. estimate</th>
+            <th>{REPORT_LABELS.hoursUsed}</th>
             <th>Task completion</th>
             <th>Data Issues</th>
           </tr>
         </thead>
         <tbody>
           {sorted.map((project) => {
-            const estimateHours = project.canonicalEstimatedMinutes / 60;
-            const loggedHours = project.loggedMinutes / 60;
-            const effortPercent = estimateHours > 0 ? (loggedHours / estimateHours) * 100 : null;
+            const effortPercent = hoursUsedPercent(
+              project.loggedMinutes,
+              project.canonicalEstimatedMinutes,
+            );
+            const profitValue = numericProjectValue(project.forecastProfit);
+            const tone =
+              profitValue === null
+                ? "missing"
+                : profitValue < 0
+                  ? "loss"
+                  : project.isProvisional
+                    ? "provisional"
+                    : "profit";
             return (
               <tr key={project.id}>
                 <td>
@@ -529,18 +589,12 @@ function ProjectPerformanceDetails({ projects }: { projects: ProjectReportRow[] 
                     <small className="table-subvalue">Forecast</small>
                   )}
                 </td>
-                <td
-                  className={
-                    (numericProjectValue(project.forecastProfit) ?? 0) < 0
-                      ? "operational-breakdown__loss"
-                      : "operational-breakdown__profit"
-                  }
-                >
+                <td className={`operational-breakdown__${tone}`}>
                   {money(project.forecastProfit)}
                 </td>
 
                 <td>{hours(project.loggedMinutes)}</td>
-                <td>{effortPercent === null ? "N/A" : `${effortPercent.toFixed(0)}%`}</td>
+                <td>{formatHoursUsed(effortPercent)}</td>
                 <td>{percent(project.progressPercent)}</td>
                 <td>
                   {project.dataQualityIssueCount ? (
@@ -614,7 +668,9 @@ export function PortfolioAnalysisDisclosure({
         <summary>
           <span>
             <strong>Operational Group Summary</strong>
-            <small>Review revenue, cost, remaining work, profit, margin, and project count.</small>
+            <small>
+              Review fee, forecast cost, projected profit, forecast margin, and project count.
+            </small>
           </span>
           <i aria-hidden="true" />
         </summary>
@@ -671,16 +727,16 @@ export function CostPerformanceChart({
     <div
       className="cost-performance-chart"
       role="group"
-      aria-label="Operational group actual cost, remaining work, forecast cost, and planned cost target"
+      aria-label="Operational group current costs, estimated remaining costs, forecast cost, and planned cost target"
     >
       <div className="chart-legend" aria-hidden="true">
         <span>
           <i className="chart-swatch chart-tone--navy" />
-          Actual cost
+          {REPORT_LABELS.currentCosts}
         </span>
         <span>
           <i className="chart-swatch chart-tone--amber" />
-          Estimated remaining costs
+          {REPORT_LABELS.estimatedRemainingCosts}
         </span>
         {hasCompleteTarget ? (
           <>
@@ -854,95 +910,31 @@ export function CostPerformanceChart({
 
               <div className="cost-performance__values">
                 <span>
-                  Actual
-                  <strong>{actualKnown ? compactCurrency(actual) : "Missing"}</strong>
+                  {REPORT_LABELS.currentCosts}
+                  <strong>{actualKnown ? compactCurrency(actual) : MISSING}</strong>
                 </span>
 
                 <span>
-                  Remaining
-                  <strong>{remainingKnown ? compactCurrency(remaining) : "Missing"}</strong>
+                  {REPORT_LABELS.estimatedRemainingCosts}
+                  <strong>{remainingKnown ? compactCurrency(remaining) : MISSING}</strong>
                 </span>
 
                 <span>
-                  Forecast
-                  <strong>{forecastKnown ? compactCurrency(forecast) : "Missing"}</strong>
+                  {REPORT_LABELS.forecastCost}
+                  <strong>{forecastKnown ? compactCurrency(forecast) : MISSING}</strong>
                 </span>
 
                 <span>
                   {partialTarget ? "Known target" : "Target"}
                   <strong>
-                    {displayedTarget !== null ? compactCurrency(displayedTarget) : "N/A"}
+                    {displayedTarget !== null
+                      ? compactCurrency(displayedTarget)
+                      : row.targetCoverage === "NOT_EXPECTED"
+                        ? "None"
+                        : MISSING}
                   </strong>
                 </span>
               </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-export function SingleValueBars({
-  rows,
-  valueKind = "currency",
-}: {
-  rows: Array<{ label: string; value: number | null; tone?: ChartSeries["tone"] }>;
-  valueKind?: "currency" | "number" | "percent";
-}) {
-  const available = rows.map((row) => row.value).filter(finite);
-  const max = Math.max(...available.map((value) => Math.abs(value)), 0);
-  const formatter = (value: number) => {
-    if (valueKind === "currency") return compactCurrency(value);
-    if (valueKind === "percent") return `${value.toFixed(1)}%`;
-    return compactNumber(value);
-  };
-
-  if (!rows.length || max === 0)
-    return <div className="chart-empty">No chart data is available.</div>;
-
-  return (
-    <div className="single-value-chart" role="img" aria-label="Financial position bar chart">
-      <div className="chart-legend chart-legend--financial" aria-hidden="true">
-        {rows.map((row, index) => {
-          const tone =
-            row.tone ??
-            (["navy", "gray", "blue", "amber", "green"][index % 5] as ChartSeries["tone"]);
-          return (
-            <span key={row.label}>
-              <i className={`chart-swatch chart-swatch--outlined chart-tone--${tone}`} />
-              {row.label}
-            </span>
-          );
-        })}
-      </div>
-      <div className="single-value-chart__rows">
-        {rows.map((row, index) => {
-          const tone =
-            row.tone ??
-            (["navy", "gray", "blue", "amber", "green"][index % 5] as ChartSeries["tone"]);
-          const width =
-            finite(row.value) && max > 0
-              ? Math.max((Math.abs(row.value) / max) * 100, row.value === 0 ? 0 : 1.5)
-              : 0;
-          return (
-            <div className="single-value-chart__row" key={row.label}>
-              <div className="single-value-chart__label">
-                <i
-                  className={`chart-swatch chart-swatch--outlined chart-tone--${tone}`}
-                  aria-hidden="true"
-                />
-                <strong>{row.label}</strong>
-              </div>
-              <div className="single-value-chart__track">
-                <span
-                  className={`single-value-chart__fill chart-tone--${tone}`}
-                  style={{ "--chart-width": `${width}%` } as CSSProperties}
-                />
-              </div>
-              <span className="single-value-chart__value">
-                {finite(row.value) ? formatter(row.value) : "Missing"}
-              </span>
             </div>
           );
         })}
