@@ -56,6 +56,15 @@ function workGroupStatus(stage: MeetingStage): {
   tone: "red" | "amber" | "blue" | "green";
 } {
   const allDone = stage.tasks.length > 0 && stage.completed === stage.tasks.length;
+  // Unbudgeted Admin is tracked as its share of the project, not against an estimate.
+  if (stage.unbudgeted)
+    return {
+      text:
+        stage.sharePercent === null
+          ? "No budget · tracked as a share of hours"
+          : `No budget · ${Math.round(stage.sharePercent)}% of project hours`,
+      tone: "blue",
+    };
   if (stage.estimatedMinutes === null || stage.estimatedMinutes === 0)
     return { text: `No estimate · ${hours(stage.loggedMinutes)} logged`, tone: "amber" };
   const over = stage.loggedMinutes - stage.estimatedMinutes;
@@ -105,7 +114,7 @@ function WorkGroupChart({ stages }: { stages: MeetingStage[] }) {
         return (
           <div className={styles.groupRow} key={stage.name}>
             <div className={styles.groupName}>
-              <strong>{stage.name}</strong>
+              <strong>{stage.label}</strong>
               <small>
                 {stage.tasks.length
                   ? `${stage.completed} of ${stage.tasks.length} task${stage.tasks.length === 1 ? "" : "s"} done`
@@ -118,7 +127,11 @@ function WorkGroupChart({ stages }: { stages: MeetingStage[] }) {
             <div
               className={styles.groupTrack}
               role="img"
-              aria-label={`${stage.name}: ${hours(stage.loggedMinutes)} logged of ${hours(estimate)} estimated, ${hours(stage.remainingMinutes)} remaining. ${status.text}.`}
+              aria-label={
+                stage.unbudgeted
+                  ? `${stage.label}: ${hours(stage.loggedMinutes)} logged. ${status.text}.`
+                  : `${stage.label}: ${hours(stage.loggedMinutes)} logged of ${hours(estimate)} estimated, ${hours(stage.remainingMinutes)} remaining. ${status.text}.`
+              }
             >
               <span className={styles.groupLogged} style={{ width: pct(withinEstimate) }} />
               {over > 0 ? (
@@ -139,7 +152,8 @@ function WorkGroupChart({ stages }: { stages: MeetingStage[] }) {
             </div>
             <div className={styles.groupStatus} data-status={status.tone}>
               <strong>
-                {hours(stage.loggedMinutes)} <small>of {hours(estimate)}</small>
+                {hours(stage.loggedMinutes)}{" "}
+                <small>{stage.unbudgeted ? "logged" : <>of {hours(estimate)}</>}</small>
               </strong>
               <span>{status.text}</span>
             </div>
@@ -808,6 +822,9 @@ export function MeetingWorkspace({
         <div className="report-titlebar__actions">
           <Link className="button button--secondary" href="/dashboard">
             Company Overview
+          </Link>
+          <Link className="button button--secondary" href="/all-hands">
+            All-Hands agenda
           </Link>
           <button
             className="button button--secondary"

@@ -177,3 +177,49 @@ export async function batchReadDeals(ids: string[], properties: string[]): Promi
 
   return deals;
 }
+
+export type HubSpotDealPipeline = {
+  id: string;
+  label: string;
+  stages: Array<{
+    id: string;
+    label: string;
+    displayOrder: number;
+    metadata?: Record<string, unknown>;
+  }>;
+};
+
+/** Deal pipelines and their stages (read-only). */
+export async function getDealPipelines(): Promise<HubSpotDealPipeline[]> {
+  const data = await hubspotFetch<{ results?: HubSpotDealPipeline[] }>("/crm/v3/pipelines/deals");
+  return data.results || [];
+}
+
+/** Every open (not closed won/lost) deal, read-only via the search endpoint. */
+export async function searchOpenDeals(
+  properties: string[],
+  maxDeals = 1000,
+): Promise<HubSpotDeal[]> {
+  const deals: HubSpotDeal[] = [];
+  let after: string | undefined;
+  do {
+    const data = await hubspotFetch<{
+      results?: HubSpotDeal[];
+      paging?: { next?: { after?: string } };
+    }>("/crm/v3/objects/deals/search", {
+      method: "POST",
+      body: JSON.stringify({
+        filterGroups: [
+          { filters: [{ propertyName: "hs_is_closed", operator: "EQ", value: "false" }] },
+        ],
+        properties,
+        sorts: [{ propertyName: "closedate", direction: "ASCENDING" }],
+        limit: 200,
+        ...(after ? { after } : {}),
+      }),
+    });
+    deals.push(...(data.results || []));
+    after = data.paging?.next?.after;
+  } while (after && deals.length < maxDeals);
+  return deals;
+}

@@ -1054,3 +1054,25 @@ export const oauthStates = pgTable(
   },
   (table) => [uniqueIndex("oauth_states_hash_unique").on(table.stateHash)],
 );
+
+/**
+ * Typed notes for the Monday all-hands agenda, one row per meeting week (the Monday). Everyone
+ * signed in can edit; `version` stops two people silently overwriting each other.
+ */
+export const allHandsNotes = pgTable(
+  "all_hands_notes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    weekStart: date("week_start", { mode: "string" }).notNull(),
+    notes: jsonb("notes").default({}).notNull(),
+    version: integer("version").default(1).notNull(),
+    updatedByUserId: uuid("updated_by_user_id").references(() => appUsers.id, {
+      onDelete: "set null",
+    }),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex("all_hands_notes_week_unique").on(table.weekStart),
+    check("all_hands_notes_week_monday_check", sql`extract(isodow from ${table.weekStart}) = 1`),
+  ],
+);
