@@ -5,6 +5,8 @@ import {
   batchReadDeals,
   findDealListIdByName,
   getDealListMembershipIds,
+  readDealCompanies,
+  type DealCompany,
   type HubSpotDeal,
 } from "./hubspot";
 import { buildHostingPropertyMap, hostingPropertiesToFetch } from "./property-map";
@@ -184,7 +186,11 @@ async function upsertHostingDeal(
   siteLookup: Map<string, string>,
   propertyMap: Awaited<ReturnType<typeof buildHostingPropertyMap>>,
   sql: Sql = getSqlClient(),
+  // null when the company lookup failed: the stored company is kept rather than cleared.
+  companies: Map<string, DealCompany> | null = null,
 ): Promise<void> {
+  const company = companies?.get(String(deal.id)) ?? null;
+  const companiesLoaded = companies !== null;
   const properties = deal.properties || {};
   const hubspotDealId = String(deal.id);
 
@@ -242,6 +248,9 @@ async function upsertHostingDeal(
       hosting_notes,
       hosting_communications_contact,
 
+      hubspot_company_id,
+      company_name,
+
       raw
     ) values (
       ${hubspotDealId},
@@ -285,6 +294,9 @@ async function upsertHostingDeal(
       ${textValue(propertyValue(properties, propertyMap.hostingNotes))},
       ${textValue(propertyValue(properties, propertyMap.hostingCommunicationsContact))},
 
+      ${company?.companyId ?? null},
+      ${company?.companyName ?? null},
+
       ${JSON.stringify(deal)}::jsonb
     )
     on conflict (hubspot_deal_id) do update set
@@ -327,6 +339,11 @@ async function upsertHostingDeal(
 
       hosting_notes = excluded.hosting_notes,
       hosting_communications_contact = excluded.hosting_communications_contact,
+
+      hubspot_company_id = case when ${companiesLoaded} then excluded.hubspot_company_id
+        else hosting_deals.hubspot_company_id end,
+      company_name = case when ${companiesLoaded} then excluded.company_name
+        else hosting_deals.company_name end,
 
       raw = excluded.raw,
       updated_at = now()
@@ -379,6 +396,19 @@ export async function runHostingSync(
 
     const deals = await batchReadDeals(membershipIds, properties);
 
+    // Each deal's client company. A failed lookup (for example a token without company read
+    // access) must not stop the sync or clear stored names: it is reported as a warning.
+    let companies: Map<string, DealCompany> | null = null;
+    let ambiguousCompanies = 0;
+    let companyLookupError: string | null = null;
+    try {
+      const result = await readDealCompanies(deals.map((deal) => String(deal.id)));
+      companies = result.companies;
+      ambiguousCompanies = result.ambiguous;
+    } catch (error) {
+      companyLookupError = error instanceof Error ? error.message : String(error);
+    }
+
     const siteLookup = await ivionSiteLookup();
 
     const membershipSet = new Set(membershipIds);
@@ -387,7 +417,7 @@ export async function runHostingSync(
       // its call signature. At runtime the transaction supplies the same SQL tag.
       const transactionQuery = transaction as unknown as Sql;
       for (const deal of deals) {
-        await upsertHostingDeal(deal, siteLookup, propertyMap, transactionQuery);
+        await upsertHostingDeal(deal, siteLookup, propertyMap, transactionQuery, companies);
       }
       return await removeDealsNoLongerInSegment(membershipSet, transactionQuery);
     });
@@ -396,7 +426,7 @@ export async function runHostingSync(
 
     const missingDealIds = membershipIds.filter((id) => !returnedDealIds.has(id));
 
-    const warningCount = missingDealIds.length;
+    const warningCount = missingDealIds.length + (companyLookupError ? 1 : 0);
     const status = warningCount > 0 ? "SUCCEEDED_WITH_WARNINGS" : "SUCCEEDED";
 
     const summary = {
@@ -406,6 +436,9 @@ export async function runHostingSync(
       dealsReturned: deals.length,
       removedDealIds: removedIds,
       missingDealIds,
+      dealsWithCompany: companies?.size ?? null,
+      dealsWithAmbiguousCompany: ambiguousCompanies,
+      companyLookupError,
     };
 
     await sql`
@@ -419,9 +452,11 @@ export async function runHostingSync(
         warnings = ${warningCount},
         errors = 0,
         message = ${
-          warningCount > 0
-            ? `Hosting synchronization completed with ${warningCount} warning(s).`
-            : "Hosting synchronization completed."
+          companyLookupError
+            ? `Hosting synchronization completed, but client companies could not be read from HubSpot (stored names kept): ${companyLookupError.slice(0, 300)}`
+            : warningCount > 0
+              ? `Hosting synchronization completed with ${warningCount} warning(s).`
+              : "Hosting synchronization completed."
         },
         property_map = ${JSON.stringify(propertyMap)}::jsonb,
         summary = ${JSON.stringify(summary)}::jsonb

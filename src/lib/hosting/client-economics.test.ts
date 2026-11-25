@@ -32,6 +32,17 @@ describe("hostingClientName", () => {
     ).toBe("ojaivalleyinn");
     expect(hostingClientName(deal({ deal_name: "Four Seasons Resort Maui" }))).toBe(UNNAMED_CLIENT);
   });
+
+  it("prefers the deal's HubSpot company over the deal name", () => {
+    expect(
+      hostingClientName(
+        deal({ deal_name: "26-140 - 1001 West Avenue - 3N", company_name: "3North Architects" }),
+      ),
+    ).toBe("3North Architects");
+    expect(
+      hostingClientName(deal({ deal_name: "Four Seasons Resort Maui", company_name: "  " })),
+    ).toBe(UNNAMED_CLIENT);
+  });
 });
 
 describe("hostingClientEconomics", () => {
