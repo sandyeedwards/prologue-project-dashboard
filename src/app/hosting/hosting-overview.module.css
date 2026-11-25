@@ -1,0 +1,324 @@
+/* Simplified hosting page: one row of totals, data notes, fitted charts, folded details. */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.kpi {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid #d9e0e9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.kpiLabel {
+  color: #607089;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.kpiValue {
+  color: #10213d;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiValueLoss {
+  color: #b42318;
+}
+
+.kpiSub {
+  color: #607089;
+  font-size: 0.78rem;
+}
+
+.tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #fff4dd;
+  color: #8a5300;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.notes {
+  margin-top: 14px;
+  border: 1px solid #f1d39a;
+  border-radius: 12px;
+  background: #fffaf0;
+}
+
+.notes > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  color: #7a4a00;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.notes > summary::-webkit-details-marker {
+  display: none;
+}
+
+.notes > summary::after {
+  content: "Show";
+  margin-left: auto;
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.notes[open] > summary::after {
+  content: "Hide";
+}
+
+.notesList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0 16px 14px 34px;
+  color: #3d4a5c;
+  font-size: 0.86rem;
+}
+
+.notesList strong {
+  color: #10213d;
+}
+
+.card {
+  margin-top: 16px;
+  padding: 18px 20px;
+  border: 1px solid #d9e0e9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+  margin-bottom: 12px;
+}
+
+/* The shared legend adds a floating "Direct costs" caption that overlaps this simpler legend. */
+.card :global(.hosting-chart__legend) span:nth-child(2)::before {
+  content: none;
+}
+
+.cardHeader h2 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.cardHeader p {
+  margin: 0;
+  color: #607089;
+  font-size: 0.82rem;
+}
+
+.twoUp {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.twoUp > .card {
+  margin-top: 16px;
+}
+
+.costBars {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.costRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  font-size: 0.86rem;
+}
+
+.costTrack {
+  grid-column: 1 / -1;
+  height: 10px;
+  border-radius: 5px;
+  background: #eef2f7;
+  overflow: hidden;
+}
+
+.costFill {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+}
+
+/* Same colours the chart bars render with (prologue-refinement.css), so a cost source reads
+   the same in the bars and the chart. */
+.toneNavvis {
+  background: #284d7b;
+}
+
+.toneIvionEstimate {
+  background: #7f98ba;
+}
+
+.toneBenacoRecorded {
+  background: #c16e3b;
+}
+
+.toneBenacoEstimate {
+  background: #e0a77f;
+}
+
+.toneSubscription {
+  background: #b8bfca;
+}
+
+.costAmount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.costTotal {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #e3e8ef;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.renewals {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.renewals th {
+  padding: 0 10px 8px 0;
+  color: #607089;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.renewals td {
+  padding: 9px 10px 9px 0;
+  border-top: 1px solid #eef2f7;
+}
+
+.renewals td:last-child,
+.renewals th:last-child {
+  text-align: right;
+}
+
+.soon {
+  color: #b42318;
+  font-weight: 600;
+}
+
+.empty {
+  margin: 0;
+  color: #607089;
+  font-size: 0.86rem;
+}
+
+.fold {
+  margin-top: 16px;
+  border: 1px solid #d9e0e9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold > summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-right: 2px solid #607089;
+  border-bottom: 2px solid #607089;
+  transform: rotate(45deg);
+  transition: transform 120ms ease;
+}
+
+.fold[open] > summary::after {
+  transform: rotate(-135deg);
+}
+
+.fold > summary strong {
+  font-size: 0.95rem;
+}
+
+.fold > summary small {
+  color: #607089;
+  font-size: 0.8rem;
+}
+
+.foldBody {
+  display: grid;
+  gap: 18px;
+  padding: 0 20px 20px;
+}
+
+.foldBody h3 {
+  margin: 6px 0 0;
+  font-size: 0.95rem;
+}
+
+.foldBody > section > p,
+.foldBody > p {
+  color: #3d4a5c;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 900px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .twoUp {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .kpis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kpiValue {
+    font-size: 1.4rem;
+  }
+}

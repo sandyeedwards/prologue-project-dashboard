@@ -12,6 +12,63 @@ function money(value: number): string {
   }).format(value);
 }
 
+export type HostingCostComponent = {
+  key: "navvis" | "ivion-estimate" | "benaco-recorded" | "benaco-estimate" | "benaco-subscription";
+  label: string;
+  amount: number;
+  basis: string;
+};
+
+/** The direct-cost total for the rows, split by source. The amounts add up to the rows' costs. */
+export function hostingCostComponents(
+  rows: HostingReportRow[],
+  view: HostingView,
+): HostingCostComponent[] {
+  const sum = (field: keyof HostingReportRow) =>
+    rows.reduce((total, row) => total + Number(row[field] ?? 0), 0);
+  const components: HostingCostComponent[] = [];
+  if (view !== "benaco") {
+    components.push({
+      key: "navvis",
+      label: "NavVis bills included in hosting",
+      amount: sum("ivionCost") - sum("ivionEstimatedCost"),
+      basis:
+        "Vendor bills after excluding the identified Processing allocations. Remaining ambiguous bills are included provisionally. Current instance rates are not added again.",
+    });
+    if (sum("ivionEstimatedCost"))
+      components.push({
+        key: "ivion-estimate",
+        label: "IVION future estimate",
+        amount: sum("ivionEstimatedCost"),
+        basis: "Configured instance rates for future forecast months only.",
+      });
+  }
+  if (view !== "ivion")
+    components.push(
+      {
+        key: "benaco-recorded",
+        label: "Benaco recorded tour charges",
+        amount: sum("benacoBilledCost") + sum("benacoHistoricalCost"),
+        basis:
+          "Matched billing detail counted once per tour at its start. The prior payment and catch-up payment are not separate extra costs.",
+      },
+      {
+        key: "benaco-estimate",
+        label: "Benaco estimated remaining term",
+        amount: sum("benacoEstimatedPanoCosts"),
+        basis:
+          "Actual grid count × $0.38/year for hosting days after billed coverage; each term's days are assigned at that term's start.",
+      },
+      {
+        key: "benaco-subscription",
+        label: "Benaco company subscription",
+        amount: sum("benacoOverhead"),
+        basis: "$100 per month, once for the company.",
+      },
+    );
+  return components;
+}
+
 export function HostingCostAudit({
   rows,
   view,
@@ -23,42 +80,7 @@ export function HostingCostAudit({
   from: string;
   to: string;
 }) {
-  const sum = (field: keyof HostingReportRow) =>
-    rows.reduce((total, row) => total + Number(row[field] ?? 0), 0);
-  const components: Array<{ label: string; amount: number; basis: string }> = [];
-  if (view !== "benaco") {
-    components.push({
-      label: "NavVis bills included in hosting",
-      amount: sum("ivionCost") - sum("ivionEstimatedCost"),
-      basis:
-        "Vendor bills after excluding the identified Processing allocations. Remaining ambiguous bills are included provisionally. Current instance rates are not added again.",
-    });
-    if (sum("ivionEstimatedCost"))
-      components.push({
-        label: "IVION future estimate",
-        amount: sum("ivionEstimatedCost"),
-        basis: "Configured instance rates for future forecast months only.",
-      });
-  }
-  if (view !== "ivion")
-    components.push(
-      {
-        label: "Benaco recorded tour charges",
-        amount: sum("benacoBilledCost") + sum("benacoHistoricalCost"),
-        basis:
-          "Matched billing detail counted once per tour at its start. The prior payment and catch-up payment are not separate extra costs.",
-      },
-      {
-        label: "Benaco estimated remaining term",
-        amount: sum("benacoEstimatedPanoCosts"),
-        basis: "Actual grid count × $0.38/year for uncovered hosting days; assigned at tour start.",
-      },
-      {
-        label: "Benaco company subscription",
-        amount: sum("benacoOverhead"),
-        basis: "$100 per month, once for the company.",
-      },
-    );
+  const components = hostingCostComponents(rows, view);
   const endExclusive = new Date(`${to}T00:00:00Z`);
   endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
   const invoices = ivionInvoiceEntriesBetween(new Date(`${from}T00:00:00Z`), endExclusive);
@@ -67,16 +89,8 @@ export function HostingCostAudit({
   const processingTotal = invoices.reduce((total, invoice) => total + invoice.processingAmount, 0);
   const hostingTotal = invoices.reduce((total, invoice) => total + invoice.hostingAmount, 0);
   return (
-    <details className="report-section hosting-report-section hosting-table-disclosure">
-      <summary>
-        <span>
-          <strong>Where the direct costs come from</strong>
-          <small>
-            Trace the selected total to IVION invoices, Benaco charges, estimates, and subscription
-          </small>
-        </span>
-        <i aria-hidden="true" />
-      </summary>
+    <section className="hosting-cost-audit">
+      <h3>Where the direct costs come from</h3>
       <p>
         {dateLabel(from)} through {dateLabel(to)}. The amounts below add up to the direct costs
         shown above.
@@ -204,6 +218,6 @@ export function HostingCostAudit({
         fees that were overwritten are not recreated. This report is a contribution estimate from
         the available records, not an independently reconciled bank balance.
       </p>
-    </details>
+    </section>
   );
 }

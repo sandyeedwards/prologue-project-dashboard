@@ -4,6 +4,7 @@ import { useId, useState, type MouseEvent } from "react";
 
 import type { HostingReportRow, HostingView } from "@/lib/hosting/reporting";
 import { hostingPeriodStatus } from "@/lib/hosting/period-status";
+import { HOSTING_REPORT_START_YEAR } from "@/lib/hosting/report-start";
 
 const HEIGHT = 360;
 const MARGIN = { top: 34, right: 30, bottom: 58, left: 76 };
@@ -70,7 +71,8 @@ export function HostingFinancialChart({
     displayedNet:
       view === "ivion" ? row.ivionNet : view === "benaco" ? row.benacoNet : row.netProfit,
   }));
-  const width = Math.max(940, points.length * 66 + MARGIN.left + MARGIN.right);
+  // A fixed drawing width that scales to the page: every period fits without side-scrolling.
+  const width = 1000;
   const plotWidth = width - MARGIN.left - MARGIN.right;
   const plotHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
   const values = points.flatMap((point) => [
@@ -87,7 +89,7 @@ export function HostingFinancialChart({
     MARGIN.top + ((maximum - value) / Math.max(maximum - minimum, 1)) * plotHeight;
   const zeroY = y(0);
   const slot = plotWidth / points.length;
-  const barWidth = Math.min(17, Math.max(7, slot * 0.28));
+  const barWidth = Math.min(28, Math.max(5, slot * 0.32));
   const x = (index: number) => MARGIN.left + slot * (index + 0.5);
   const yTicks = Array.from(
     { length: Math.round((maximum - minimum) / step) + 1 },
@@ -168,23 +170,23 @@ export function HostingFinancialChart({
       <div className="hosting-chart__legend" aria-hidden="true">
         <span>
           <i className="hosting-chart-key hosting-chart-key--revenue" />
-          Contracted Revenue
+          Revenue
         </span>
         {view !== "benaco" ? (
           <span>
             <i className="hosting-chart-key hosting-chart-key--ivion" />
-            IVION / NavVis Vendor Costs
+            IVION costs
           </span>
         ) : null}
         {view !== "ivion" ? (
           <span>
             <i className="hosting-chart-key hosting-chart-key--pano" />
-            Direct Cost – Benaco + Subscription
+            Benaco costs
           </span>
         ) : null}
         <span>
           <i className="hosting-chart-key hosting-chart-key--net" />
-          Hosting Contribution
+          Contribution
         </span>
         {firstForecastIndex >= 0 ? (
           <span>
@@ -199,7 +201,6 @@ export function HostingFinancialChart({
           viewBox={`0 0 ${width} ${HEIGHT}`}
           role="img"
           aria-labelledby="hosting-chart-title hosting-chart-description"
-          style={{ minWidth: `${width}px` }}
           onMouseLeave={() => setHovered(null)}
         >
           <title id="hosting-chart-title">
@@ -425,8 +426,7 @@ export function HostingFinancialChart({
         </svg>
       </div>
       <p className="hosting-chart__note">
-        Bars and the line show contracted revenue, hosting costs, and contribution in each selected
-        period. Hover or focus a period for exact values.
+        Hover or focus a period for exact values. Fees count once, when paid hosting starts.
       </p>
     </div>
   );
@@ -444,9 +444,12 @@ type CumulativeHostingPoint = HostingReportRow & {
 export function HostingCumulativeChart({
   rows,
   view,
+  compact = false,
 }: {
   rows: HostingReportRow[];
   view: HostingView;
+  /** Contribution line only, sized for a half-width card. */
+  compact?: boolean;
 }) {
   const fillId = useId();
   const [hovered, setHovered] = useState<{ index: number; x: number; y: number } | null>(null);
@@ -476,14 +479,14 @@ export function HostingCumulativeChart({
     ];
   }, []);
 
-  const width = Math.max(940, points.length * 50 + MARGIN.left + MARGIN.right);
+  const width = compact ? 640 : 1000;
   const plotWidth = width - MARGIN.left - MARGIN.right;
   const plotHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
-  const values = points.flatMap((point) => [
-    point.cumulativeRevenue,
-    point.cumulativeCost,
-    point.cumulativeNet,
-  ]);
+  const values = points.flatMap((point) =>
+    compact
+      ? [point.cumulativeNet]
+      : [point.cumulativeRevenue, point.cumulativeCost, point.cumulativeNet],
+  );
   const rawMinimum = Math.min(0, ...values);
   const rawMaximum = Math.max(1, ...values);
   const step = niceStep(Math.max((rawMaximum - rawMinimum) / 5, 1));
@@ -497,7 +500,7 @@ export function HostingCumulativeChart({
     { length: Math.round((maximum - minimum) / step) + 1 },
     (_, index) => minimum + index * step,
   );
-  const labelEvery = Math.max(1, Math.ceil(points.length / 10));
+  const labelEvery = Math.max(1, Math.ceil(points.length / (compact ? 6 : 10)));
   const path = (value: (point: CumulativeHostingPoint) => number) =>
     points
       .map(
@@ -558,27 +561,28 @@ export function HostingCumulativeChart({
 
   return (
     <div className="hosting-chart" role="region" aria-label="All-history hosting totals chart">
-      <div className="hosting-chart__legend" aria-hidden="true">
-        <span>
-          <i className="hosting-chart-key hosting-chart-key--revenue" />
-          Total Contracted Revenue
-        </span>
-        <span>
-          <i className="hosting-chart-key hosting-chart-key--pano" />
-          Total Direct Costs
-        </span>
-        <span>
-          <i className="hosting-chart-key hosting-chart-key--net" />
-          Hosting Contribution
-        </span>
-      </div>
+      {compact ? null : (
+        <div className="hosting-chart__legend" aria-hidden="true">
+          <span>
+            <i className="hosting-chart-key hosting-chart-key--revenue" />
+            Revenue to date
+          </span>
+          <span>
+            <i className="hosting-chart-key hosting-chart-key--pano" />
+            Costs to date
+          </span>
+          <span>
+            <i className="hosting-chart-key hosting-chart-key--net" />
+            Contribution to date
+          </span>
+        </div>
+      )}
       <div className="hosting-chart__scroller">
         <svg
           className="hosting-chart__svg"
           viewBox={`0 0 ${width} ${HEIGHT}`}
           role="img"
           aria-labelledby="hosting-cumulative-chart-title hosting-cumulative-chart-description"
-          style={{ minWidth: `${width}px` }}
           onMouseLeave={() => setHovered(null)}
         >
           <title id="hosting-cumulative-chart-title">Cumulative hosting financial totals</title>
@@ -598,8 +602,8 @@ export function HostingCumulativeChart({
             </linearGradient>
           </defs>
           <desc id="hosting-cumulative-chart-description">
-            Running contracted revenue, hosting costs, and contribution from January 2024 through
-            the current period.
+            Running contracted revenue, hosting costs, and contribution from January{" "}
+            {HOSTING_REPORT_START_YEAR} through the current period.
           </desc>
           {yTicks.map((tick) => (
             <g key={tick}>
@@ -621,14 +625,18 @@ export function HostingCumulativeChart({
             </g>
           ))}
           <path d={netArea} fill={`url(#${fillId})`} pointerEvents="none" />
-          <path
-            d={path((point) => point.cumulativeRevenue)}
-            className="hosting-chart__cumulative-line hosting-chart__cumulative-line--revenue"
-          />
-          <path
-            d={path((point) => point.cumulativeCost)}
-            className="hosting-chart__cumulative-line hosting-chart__cumulative-line--cost"
-          />
+          {compact ? null : (
+            <>
+              <path
+                d={path((point) => point.cumulativeRevenue)}
+                className="hosting-chart__cumulative-line hosting-chart__cumulative-line--revenue"
+              />
+              <path
+                d={path((point) => point.cumulativeCost)}
+                className="hosting-chart__cumulative-line hosting-chart__cumulative-line--cost"
+              />
+            </>
+          )}
           <path
             d={path((point) => point.cumulativeNet)}
             className="hosting-chart__cumulative-line hosting-chart__cumulative-line--net"
@@ -718,11 +726,12 @@ export function HostingCumulativeChart({
           ) : null}
         </svg>
       </div>
-      <p className="hosting-chart__note">
-        This chart uses contracted fees, recorded vendor charges, and estimated remaining costs
-        assigned to hosting starts from January 1, 2024 through today. Contribution equals
-        contracted revenue minus hosting costs.
-      </p>
+      {compact ? null : (
+        <p className="hosting-chart__note">
+          Running totals from January 1, {HOSTING_REPORT_START_YEAR} through today. Contribution
+          equals revenue minus hosting costs.
+        </p>
+      )}
     </div>
   );
 }
