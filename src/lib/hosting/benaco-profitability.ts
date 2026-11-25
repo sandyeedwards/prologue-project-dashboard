@@ -39,11 +39,37 @@ export type BenacoCostCommitment = {
   // Per-term pieces of estimatedPanoCost. A renewal's cost belongs to its own term start, like
   // its fee, not to the tour's first start (which may fall before the report start).
   estimatePieces: BenacoEstimatePiece[];
+  // The days Benaco's recorded charges cover: from the billing record's creation date, for its
+  // billed days. Recorded charges are spread evenly over these days (owner decision 2026-11-25).
+  recordedCoverage: { start: string; days: number } | null;
   totalPanoCost: number;
   missingInputs: boolean;
 };
 
 const isoDay = (value: number) => new Date(value).toISOString().slice(0, 10);
+
+/**
+ * The part of a tour's recorded Benaco charges that covers days in [from, toExclusive).
+ * Charges are spread evenly over the billed days; a record with no billed days is counted in
+ * full on its billing date (or the tour start when there is no billing record).
+ */
+export function recordedCostBetween(
+  tour: Pick<BenacoCostCommitment, "recordedPanoCost" | "recordedCoverage" | "start">,
+  from: number,
+  toExclusive: number,
+): number {
+  if (!tour.recordedPanoCost) return 0;
+  const coverage = tour.recordedCoverage;
+  const coverageStart = time(coverage?.start ?? tour.start);
+  if (coverageStart === null) return 0;
+  if (!coverage || coverage.days <= 0) {
+    return coverageStart >= from && coverageStart < toExclusive ? tour.recordedPanoCost : 0;
+  }
+  const coverageEnd = coverageStart + coverage.days * DAY;
+  const overlapDays =
+    Math.max(0, Math.min(coverageEnd, toExclusive) - Math.max(coverageStart, from)) / DAY;
+  return (tour.recordedPanoCost * overlapDays) / coverage.days;
+}
 
 function number(value: unknown): number | null {
   if (value === null || value === undefined || String(value).trim() === "") return null;
@@ -164,6 +190,7 @@ export function buildBenacoCostCommitments(
       recordedPanoCost,
       estimatedPanoCost,
       estimatePieces,
+      recordedCoverage: record ? { start: record.created, days: record.billedDays } : null,
       totalPanoCost: recordedPanoCost + estimatedPanoCost,
       missingInputs:
         !lossOnly &&

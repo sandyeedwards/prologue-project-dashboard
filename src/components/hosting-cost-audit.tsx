@@ -50,7 +50,7 @@ export function hostingCostComponents(
         label: "Benaco recorded tour charges",
         amount: sum("benacoBilledCost") + sum("benacoHistoricalCost"),
         basis:
-          "Matched billing detail counted once per tour at its start. The prior payment and catch-up payment are not separate extra costs.",
+          "Matched billing detail, spread evenly over the days each charge covers. The prior payment and catch-up payment are not separate extra costs.",
       },
       {
         key: "benaco-estimate",

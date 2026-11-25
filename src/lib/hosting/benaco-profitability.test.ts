@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HostingDealRow } from "./reporting";
-import { buildBenacoCostCommitments } from "./benaco-profitability";
+import { buildBenacoCostCommitments, recordedCostBetween } from "./benaco-profitability";
 import { BENACO_BILLING_HISTORY, benacoTourId } from "./benaco-billing-history";
 
 // Only the Benaco input fields are read by this calculation.
@@ -202,6 +202,23 @@ describe("reconciled full-term Benaco costs", () => {
       ["2024-03-01", 365],
       ["2025-03-01", 365],
     ]);
+  });
+
+  it("spreads recorded charges evenly over the billed days", () => {
+    const at = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+    const tour = {
+      start: "2024-11-01",
+      recordedPanoCost: 1000,
+      recordedCoverage: { start: "2024-12-01", days: 100 },
+    };
+    // 31 of the 100 billed days fall in December 2024, the other 69 in 2025.
+    expect(recordedCostBetween(tour, at("2024-12-01"), at("2025-01-01"))).toBeCloseTo(310, 8);
+    expect(recordedCostBetween(tour, at("2025-01-01"), Infinity)).toBeCloseTo(690, 8);
+    expect(recordedCostBetween(tour, -Infinity, Infinity)).toBeCloseTo(1000, 8);
+    // No billed days: the whole charge on the billing date.
+    const flat = { ...tour, recordedCoverage: { start: "2025-03-05", days: 0 } };
+    expect(recordedCostBetween(flat, at("2025-03-01"), at("2025-04-01"))).toBe(1000);
+    expect(recordedCostBetween(flat, at("2025-04-01"), Infinity)).toBe(0);
   });
 
   it("estimates no cost after the Benaco site removal date", () => {
