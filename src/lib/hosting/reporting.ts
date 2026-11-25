@@ -4,7 +4,11 @@ import {
   benacoTourId,
   BENACO_VERIFIED_ANNUAL_GRID_RATE,
 } from "./benaco-billing-history";
-import { buildBenacoCostCommitments, isConfirmedBenacoLossOnly } from "./benaco-profitability";
+import {
+  buildBenacoCostCommitments,
+  isConfirmedBenacoLossOnly,
+  recordedCostBetween,
+} from "./benaco-profitability";
 import {
   ivionInvoiceEntriesBetween,
   IVION_INVOICE_COVERAGE_START,
@@ -667,9 +671,13 @@ export function buildHostingReport(
     }
 
     for (const tour of tourCosts) {
-      // Recorded billing detail stays at the tour start; each term's estimated uncovered days
-      // are booked at that term's start, so a 2025 renewal of a 2024 tour is not lost.
-      if (dateInPeriod(dateValue(tour.start), period)) benacoBilledCost += tour.recordedPanoCost;
+      // Recorded billing detail is spread over the days it covers; each term's estimated
+      // uncovered days are booked at that term's start, so a 2025 renewal of a 2024 tour is kept.
+      benacoBilledCost += recordedCostBetween(
+        tour,
+        period.start.getTime(),
+        period.endExclusive.getTime(),
+      );
       for (const piece of tour.estimatePieces) {
         if (!dateInPeriod(dateValue(piece.start), period)) continue;
         benacoPanoCosts += piece.cost;

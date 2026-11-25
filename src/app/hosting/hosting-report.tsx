@@ -46,6 +46,7 @@ import {
   BENACO_VERIFIED_PANO_TOTAL,
   benacoTourId,
 } from "@/lib/hosting/benaco-billing-history";
+import { recordedCostBetween } from "@/lib/hosting/benaco-profitability";
 
 export type HostingSearchParams = Record<string, string | string[] | undefined>;
 export type HostingDashboardData = Awaited<ReturnType<typeof getHostingDashboardData>>;
@@ -407,9 +408,13 @@ export function HostingReport({
     view === "ivion"
       ? []
       : data.benacoTourCosts.filter((cost) => cost.missingInputs).map((cost) => cost.name);
-  const earlierBenacoPanoCharges = data.benacoTourCosts
-    .filter((cost) => cost.start && cost.start < HOSTING_REPORT_START)
-    .reduce((sum, cost) => sum + cost.recordedPanoCost, 0);
+  // Recorded Benaco charges are spread over the days they cover; this is the part covering days
+  // before the report start, which is the only part left out of the report.
+  const reportStartTime = Date.parse(`${HOSTING_REPORT_START}T00:00:00Z`);
+  const earlierBenacoPanoCharges = data.benacoTourCosts.reduce(
+    (sum, cost) => sum + recordedCostBetween(cost, -Infinity, reportStartTime),
+    0,
+  );
   const ivionEstimatedCost = displayedRows.reduce(
     (sum, row) => sum + (row.ivionEstimatedCost ?? 0),
     0,
@@ -496,8 +501,8 @@ export function HostingReport({
   }
   if (view !== "ivion" && earlierBenacoPanoCharges > 0) {
     dataNotes.push({
-      title: `${currency(earlierBenacoPanoCharges)} of Benaco charges for tours started before ${HOSTING_REPORT_START_YEAR} are not in this report.`,
-      detail: `Recorded charges stay with the tour's start date. Some of that billing covers days in ${HOSTING_REPORT_START_YEAR} or later; renewal terms from ${HOSTING_REPORT_START_YEAR} onward are included.`,
+      title: `${currency(earlierBenacoPanoCharges)} of recorded Benaco charges cover days before ${HOSTING_REPORT_START_YEAR}.`,
+      detail: `Recorded charges are spread over the days each one covers, so only the part for days before ${HOSTING_REPORT_START_YEAR} is left out of this report.`,
     });
   }
   if (revenueGaps.length || incompleteTourNames.length) {
@@ -1011,9 +1016,9 @@ export function HostingReport({
               <h3>Benaco billing basis</h3>
               <dl className="hosting-cost-model">
                 <DetailItem label="Tour allocation">
-                  Recorded tour pano charges, plus grid panos ×{" "}
-                  {currency(BENACO_ANNUAL_PANO_COST, 2)} × uncovered hosting days ÷ 365 for each
-                  term, booked at that term&apos;s start.
+                  Recorded tour pano charges, spread evenly over the days each charge covers, plus
+                  grid panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} × uncovered hosting days ÷ 365
+                  for each term, booked at that term&apos;s start.
                 </DetailItem>
                 <DetailItem label="Subscription">
                   {currency(BENACO_ANNUAL_OVERHEAD)} per year (
@@ -1026,7 +1031,7 @@ export function HostingReport({
                   {currency(BENACO_PREVIOUSLY_PAID, 2)} previously paid +{" "}
                   {currency(BENACO_CATCH_UP_PAYMENT, 2)} catch-up ={" "}
                   {currency(BENACO_VERIFIED_PANO_TOTAL, 2)}, counted once.{" "}
-                  {currency(earlierBenacoPanoCharges, 2)} belongs to tours started before{" "}
+                  {currency(earlierBenacoPanoCharges, 2)} covers days before{" "}
                   {HOSTING_REPORT_START_YEAR}.
                 </DetailItem>
               </dl>

@@ -22,11 +22,23 @@ import {
 } from "./benaco-billing-history";
 import { HOSTING_REPORT_START } from "./report-start";
 
-// Recorded Benaco tour charges whose tour was created within [from, to] (inclusive ISO dates).
-function recordedTourChargesCreated(from: string, to: string): number {
-  return BENACO_BILLING_HISTORY.filter(
-    (record) => record.created >= from && record.created <= to,
-  ).reduce((sum, record) => sum + record.panoCost, 0);
+// The part of the recorded Benaco charges covering days in [from, to] (inclusive ISO dates).
+// Each charge covers `billedDays` days from its billing date and is spread evenly over them;
+// a charge with no billed days counts in full on its billing date. Written independently of
+// recordedCostBetween so the tests check it rather than repeat it.
+function recordedChargesCovering(from: string, to: string): number {
+  const day = 86_400_000;
+  const rangeStart = Date.parse(`${from}T00:00:00Z`);
+  const rangeEnd = Date.parse(`${to}T00:00:00Z`) + day;
+  return BENACO_BILLING_HISTORY.reduce((sum, record) => {
+    const created = Date.parse(`${record.created}T00:00:00Z`);
+    if (record.billedDays <= 0) {
+      return created >= rangeStart && created < rangeEnd ? sum + record.panoCost : sum;
+    }
+    const coveredEnd = created + record.billedDays * day;
+    const overlap = Math.max(0, Math.min(coveredEnd, rangeEnd) - Math.max(created, rangeStart));
+    return sum + (record.panoCost * overlap) / (record.billedDays * day);
+  }, 0);
 }
 
 describe("hosting report start", () => {
@@ -209,7 +221,11 @@ describe("buildHostingReport", () => {
       );
     });
     expect(totals[0].revenue).toBe(1200);
-    for (const total of totals) expect(total).toEqual(totals[0]);
+    // Recorded Benaco charges are spread by day, so sums can differ in the last float digit.
+    for (const total of totals) {
+      expect(total.revenue).toBe(totals[0].revenue);
+      expect(total.costs).toBeCloseTo(totals[0].costs, 6);
+    }
   });
 
   it("counts only 2025-onward invoices in historical IVION costs and keeps rates in the forecast", () => {
@@ -271,8 +287,11 @@ describe("buildHostingReport", () => {
       ),
     );
     expect(totals[0].revenue).toBe(1200);
-    expect(totals[1]).toEqual(totals[0]);
-    expect(totals[2]).toEqual(totals[0]);
+    // Recorded Benaco charges are spread by day, so sums can differ in the last float digit.
+    for (const total of totals.slice(1)) {
+      expect(total.revenue).toBe(totals[0].revenue);
+      expect(total.cost).toBeCloseTo(totals[0].cost, 6);
+    }
     for (const rows of reports) {
       expect(rows.at(-1)?.periodEnd).toBe("2026-11-02");
       expect(rows.every((row) => !row.forecast)).toBe(true);
@@ -362,7 +381,12 @@ describe("buildHostingReport", () => {
       ],
     );
     expect(report.reduce((sum, row) => sum + row.benacoHistoricalCost, 0)).toBe(0);
-    expect(report.find((row) => row.period === "2026-08")?.benacoCost).toBeCloseTo(100, 2);
+    // The entered August bill is evidence only: August costs are the subscription plus the
+    // recorded charges covering August days, never the bill total again.
+    expect(report.find((row) => row.period === "2026-08")?.benacoCost).toBeCloseTo(
+      100 + recordedChargesCovering("2026-08-01", "2026-08-31"),
+      2,
+    );
     expect(report.find((row) => row.period === "2025-01")?.benacoPanoCosts).toBe(1140);
     expect(report.find((row) => row.period === "2026-06")?.benacoPanoCosts).toBeCloseTo(
       (2000 * 0.38 * 731) / 365,
@@ -570,13 +594,41 @@ describe("buildHostingReport", () => {
     expect(year2025?.benacoOverhead).toBe(BENACO_MONTHLY_OVERHEAD * 12);
     const year2026 = report.find((row) => row.period === "2026");
     expect(year2026?.benacoHistoricalCost).toBe(0);
-    // Each recorded tour charge counts once, in its tour-start year; tours created before 2025 are out.
-    const fromReportStart = recordedTourChargesCreated("2025-01-01", "2026-12-31");
+    // Recorded charges are spread over the days they cover: the report holds exactly the part
+    // covering days from 2025 on, and with the pre-2025 part they add up to the full record.
+    const fromReportStart = recordedChargesCovering("2025-01-01", "2026-12-31");
+    const beforeReportStart = recordedChargesCovering("2000-01-01", "2024-12-31");
     expect(report.reduce((sum, row) => sum + row.benacoBilledCost, 0)).toBeCloseTo(
       fromReportStart,
       2,
     );
-    expect(fromReportStart).toBeLessThan(9961.59);
+    expect(fromReportStart + beforeReportStart).toBeCloseTo(10859.75, 2);
+  });
+
+  it("spreads a recorded Benaco charge over the days it covers", () => {
+    // Four Seasons Maui (0e57eeb5): billed $2,907.34 from 2025-02-14.
+    const maui = BENACO_BILLING_HISTORY.find((record) => record.shortId === "0e57eeb5")!;
+    const report = buildHostingReport(
+      [],
+      "month",
+      [],
+      new Date("2026-11-15T12:00:00.000Z"),
+      "all",
+      {},
+      [],
+      false,
+    );
+    const february = report.find((row) => row.period === "2025-02")!;
+    // Feb 14-28 is 15 of Maui's billed days, so February holds at least that share of Maui's
+    // charge (other tours billed that month add to it) but not the whole charge.
+    expect(february.benacoBilledCost).toBeCloseTo(
+      recordedChargesCovering("2025-02-01", "2025-02-28"),
+      6,
+    );
+    expect(february.benacoBilledCost).toBeLessThan(maui.panoCost);
+    expect(february.benacoBilledCost).toBeGreaterThanOrEqual(
+      (maui.panoCost * 15) / maui.billedDays,
+    );
   });
 
   it("requires a billing match instead of waiving all tours that started in the first report year", () => {
@@ -635,14 +687,16 @@ describe("buildHostingReport", () => {
       ],
     );
 
-    const june = report.find((row) => row.period === "2026-06");
+    const june = report.find((row) => row.period === "2026-06")!;
+    const coveringJune = recordedChargesCovering("2026-06-01", "2026-06-30");
     expect(june).toMatchObject({
-      benacoBilledCost: 19.89,
       benacoEstimatedCost: 100,
       benacoBilledMonths: 1,
       benacoEstimatedMonths: 0,
-      benacoCost: 119.89,
     });
+    // Recorded charges covering June days, not the $875.50 bill total again.
+    expect(june.benacoBilledCost).toBeCloseTo(coveringJune, 6);
+    expect(june.benacoCost).toBeCloseTo(coveringJune + 100, 6);
   });
 
   it("retains three subscription months when a monthly bill is entered", () => {
@@ -730,10 +784,10 @@ describe("buildHostingReport", () => {
     expect(report.some((row) => row.period.startsWith("2024-"))).toBe(false);
     expect(report.reduce((sum, row) => sum + row.revenue, 0)).toBe(500);
     // "All available history" runs from the 2025 report start through the end of the reference
-    // year, so it holds every recorded tour charge created in 2025 and none from 2024.
+    // year, so it holds the recorded charges covering 2025 days and none covering 2024 days.
     expect(report.at(-1)?.period).toBe("2025-12");
     expect(report.reduce((sum, row) => sum + row.benacoBilledCost, 0)).toBeCloseTo(
-      recordedTourChargesCreated("2025-01-01", "2025-12-31"),
+      recordedChargesCovering("2025-01-01", "2025-12-31"),
       2,
     );
   });
