@@ -47,6 +47,10 @@ import {
   benacoTourId,
 } from "@/lib/hosting/benaco-billing-history";
 import { recordedCostBetween } from "@/lib/hosting/benaco-profitability";
+import {
+  hostingClientEconomics,
+  type HostingClientEconomics,
+} from "@/lib/hosting/client-economics";
 
 export type HostingSearchParams = Record<string, string | string[] | undefined>;
 export type HostingDashboardData = Awaited<ReturnType<typeof getHostingDashboardData>>;
@@ -429,6 +433,43 @@ export function HostingReport({
     ? selectedPeriodTotals.netProfit / selectedPeriodTotals.revenue
     : null;
   const renewalsDue = upcomingHostingRenewals(data.deals, view, activeOn, 90);
+  const clientEconomics = hostingClientEconomics(data.deals, view, activeOn);
+  const clientTotals = clientEconomics.totals;
+  const complimentaryHostingCost =
+    clientTotals.complimentaryPanos * clientEconomics.ivionCostPerPanoMonth * 12;
+  const ivionSiteCount = clientTotals.paidSites + clientTotals.complimentarySites;
+  const CLIENT_ROWS_SHOWN = 12;
+  const clientRow = (row: HostingClientEconomics) => (
+    <tr key={row.client}>
+      <td>
+        <strong>{row.client}</strong>
+      </td>
+      <td>
+        {[
+          row.paidSites ? `${row.paidSites} paid` : null,
+          row.complimentarySites ? `${row.complimentarySites} complimentary` : null,
+          row.benacoTours ? `${row.benacoTours} Benaco` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </td>
+      <td>{currency(row.annualRevenue)}</td>
+      <td>{currency(row.annualCost)}</td>
+      {row.includedInScanning ? (
+        // Complimentary hosting is paid for by the scanning fees, not a loss on a hosting sale.
+        <td
+          className={styles.included}
+          title={`Complimentary hosting, included in scanning fees: about ${currency(row.annualCost)} a year to host`}
+        >
+          Included in scanning
+        </td>
+      ) : (
+        <td className={row.annualMargin < 0 ? styles.loss : undefined}>
+          {currency(row.annualMargin)}
+        </td>
+      )}
+    </tr>
+  );
   const costComponents = hostingCostComponents(displayedRows, view).filter(
     (component) => component.amount > 0,
   );
@@ -848,6 +889,73 @@ export function HostingReport({
           ) : (
             <p className={styles.empty}>No IVION or Benaco terms end in the next 90 days.</p>
           )}
+        </section>
+
+        <section className={styles.card} aria-label="Clients at today's rates">
+          <div className={styles.cardHeader}>
+            <h2>Clients at today&apos;s rates</h2>
+            <p>
+              {currency(clientTotals.annualRevenue)} a year from clients ·{" "}
+              {currency(clientTotals.annualCost)} to host ·{" "}
+              <span className={clientTotals.annualMargin < 0 ? styles.loss : undefined}>
+                {currency(clientTotals.annualMargin)} margin
+              </span>
+            </p>
+          </div>
+          {view !== "benaco" && clientTotals.complimentarySites > 0 ? (
+            <p className={styles.callout}>
+              <strong>
+                {clientTotals.complimentarySites} of {ivionSiteCount} active IVION sites have
+                complimentary hosting
+              </strong>
+              {", included in their scanning fees. They hold "}
+              {wholePercent(
+                clientTotals.ivionPanos
+                  ? clientTotals.complimentaryPanos / clientTotals.ivionPanos
+                  : 0,
+              )}
+              {" of active panos, and their hosting costs about "}
+              {currency(complimentaryHostingCost)}
+              {" a year, covered by the scanning work rather than a hosting fee."}
+            </p>
+          ) : null}
+          {clientEconomics.clients.length ? (
+            <div className="table-wrap">
+              <table className={`${styles.renewals} ${styles.clientTable}`}>
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Active hosting</th>
+                    <th>Revenue / year</th>
+                    <th>Cost / year</th>
+                    <th>Margin / year</th>
+                  </tr>
+                </thead>
+                <tbody>{clientEconomics.clients.slice(0, CLIENT_ROWS_SHOWN).map(clientRow)}</tbody>
+              </table>
+              {clientEconomics.clients.length > CLIENT_ROWS_SHOWN ? (
+                <details className={styles.moreRows}>
+                  <summary>
+                    Show {clientEconomics.clients.length - CLIENT_ROWS_SHOWN} more clients
+                  </summary>
+                  <table className={`${styles.renewals} ${styles.clientTable}`}>
+                    <tbody>{clientEconomics.clients.slice(CLIENT_ROWS_SHOWN).map(clientRow)}</tbody>
+                  </table>
+                </details>
+              ) : null}
+            </div>
+          ) : (
+            <p className={styles.empty}>No active hosting today.</p>
+          )}
+          <p className={styles.footnote}>
+            Revenue is each active paid term&apos;s fee as a yearly rate. IVION cost shares the
+            average monthly NavVis hosting bill ({clientEconomics.ivionBilledMonths} months since{" "}
+            {dateLabel(HOSTING_REPORT_START)}) across today&apos;s active panos, about{" "}
+            {currency(clientEconomics.ivionCostPerPanoMonth, 3)}
+            {" per pano per month; NavVis bills per instance, so this is an allocation."} Benaco
+            cost is each tour&apos;s grid panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} a year plus
+            a share of the subscription. Clients come from the end of the HubSpot deal name.
+          </p>
         </section>
 
         <details className={styles.fold}>

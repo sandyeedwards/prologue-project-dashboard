@@ -236,6 +236,65 @@
   font-weight: 600;
 }
 
+.loss {
+  color: #b42318;
+  font-weight: 600;
+}
+
+.included {
+  color: #607089;
+  font-style: italic;
+}
+
+.callout {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fff4dd;
+  color: #5c3d00;
+  font-size: 0.86rem;
+}
+
+.footnote {
+  margin: 12px 0 0;
+  color: #607089;
+  font-size: 0.78rem;
+}
+
+.moreRows > summary {
+  padding: 10px 0 4px;
+  color: #1f5fbf;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.moreRows table {
+  margin-top: 4px;
+}
+
+/* Client table: fixed columns so the folded extra rows line up with the main table. */
+.clientTable {
+  table-layout: fixed;
+}
+
+.clientTable td:nth-child(1),
+.clientTable th:nth-child(1) {
+  width: 30%;
+}
+
+.clientTable td:nth-child(2),
+.clientTable th:nth-child(2) {
+  width: 25%;
+}
+
+.clientTable td:nth-child(n + 3),
+.clientTable th:nth-child(n + 3) {
+  width: 15%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .empty {
   margin: 0;
   color: #607089;
