@@ -38,9 +38,10 @@ describe("reconciled full-term Benaco costs", () => {
     const maui = rows.find((row) => row.tourId === "0e57eeb5")!;
     expect(maui.start).toBe("2024-01-01");
     expect(maui.recordedPanoCost).toBe(2907.34);
-    // 124 days after the worksheet's billed coverage ends on August 30.
-    expect(maui.estimatedPanoCost).toBeCloseTo(641.4774794520548, 8);
-    expect(maui.totalPanoCost).toBeCloseTo(3548.8174794520547, 8);
+    // 125 days after the worksheet's billed coverage ends on August 30, through the
+    // 2027-01-01 end date, which is the last covered day.
+    expect(maui.estimatedPanoCost).toBeCloseTo((4969 * 0.38 * 125) / 365, 8);
+    expect(maui.totalPanoCost).toBeCloseTo(2907.34 + (4969 * 0.38 * 125) / 365, 8);
     expect(maui.missingInputs).toBe(false);
   });
 
@@ -54,7 +55,9 @@ describe("reconciled full-term Benaco costs", () => {
     const rows = buildBenacoCostCommitments([input, { ...input, hubspot_deal_id: "2" }]);
     const boca = rows.filter((row) => row.tourId === "872ac132");
     expect(boca).toHaveLength(1);
-    expect(boca[0].totalPanoCost).toBeCloseTo(2071.701917808219, 8);
+    // Same single tour cost as before the inclusive end-date fix, plus the end date itself
+    // (one day at 3,425 grid panos).
+    expect(boca[0].totalPanoCost).toBeCloseTo(2071.701917808219 + (3425 * 0.38) / 365, 8);
   });
 
   it("retains all three user-confirmed losses without making up a paid term", () => {
@@ -80,7 +83,8 @@ describe("reconciled full-term Benaco costs", () => {
       [],
     )[0];
     expect(row.recordedPanoCost).toBe(0);
-    expect(row.estimatedPanoCost).toBeCloseTo(12.524383561643834, 8);
+    // Oct 29 through Nov 13 inclusive is 16 days.
+    expect(row.estimatedPanoCost).toBeCloseTo((802 * 0.38 * 16) / 365, 8);
     expect(row.start).toBe("2026-10-29");
   });
 
@@ -89,7 +93,7 @@ describe("reconciled full-term Benaco costs", () => {
       [
         deal({
           benaco_hosting_start: "2026-01-01",
-          benaco_hosting_end: "2027-01-01",
+          benaco_hosting_end: "2026-12-31",
           benaco_comp_start: "2025-12-01",
           benaco_comp_end: "2026-02-01",
           benaco_counted_grid_panos: 1000,
@@ -97,6 +101,7 @@ describe("reconciled full-term Benaco costs", () => {
       ],
       [],
     )[0];
+    // Dec 1, 2025 through Dec 31, 2026 inclusive, overlapping days counted once.
     expect(row.estimatedPanoCost).toBeCloseTo((1000 * 0.38 * 396) / 365, 8);
     expect(row.start).toBe("2025-12-01");
   });
@@ -126,7 +131,7 @@ describe("reconciled full-term Benaco costs", () => {
       [
         deal({
           benaco_hosting_start: "2026-01-01",
-          benaco_hosting_end: "2027-01-01",
+          benaco_hosting_end: "2026-12-31",
           benaco_counted_grid_panos: 1000,
           benaco_comp_start: "2026-01-28",
           benaco_comp_end: "2026-01-28",
@@ -149,11 +154,67 @@ describe("reconciled full-term Benaco costs", () => {
       deal({
         benaco_url: url("ef392542"),
         benaco_comp_start: "2027-01-01",
-        benaco_comp_end: "2028-01-01",
+        benaco_comp_end: "2027-12-31",
         benaco_counted_grid_panos: 403,
       }),
     ]).find((cost) => cost.tourId === "ef392542")!;
     expect(row.recordedPanoCost).toBe(87.27);
     expect(row.estimatedPanoCost).toBeCloseTo(153.14, 2);
+  });
+
+  it("counts a full year when the end date is the last covered day", () => {
+    const row = buildBenacoCostCommitments(
+      [
+        deal({
+          benaco_hosting_start: "2026-01-01",
+          benaco_hosting_end: "2026-12-31",
+          benaco_counted_grid_panos: 4969,
+        }),
+      ],
+      [],
+    )[0];
+    expect(row.estimatePieces.map((piece) => piece.days)).toEqual([365]);
+    expect(row.estimatedPanoCost).toBeCloseTo(4969 * 0.38, 8);
+  });
+
+  it("books a renewal term's estimate at that term's start, not the tour's first start", () => {
+    const rows = buildBenacoCostCommitments(
+      [
+        deal({
+          benaco_url: url("feedcafe"),
+          benaco_hosting_start: "2024-03-01",
+          benaco_hosting_end: "2025-02-28",
+          benaco_counted_grid_panos: 1000,
+        }),
+        deal({
+          benaco_url: url("feedcafe"),
+          hubspot_deal_id: "2",
+          benaco_hosting_start: "2025-03-01",
+          benaco_hosting_end: "2026-02-28",
+          benaco_counted_grid_panos: 1000,
+        }),
+      ],
+      [],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].start).toBe("2024-03-01");
+    expect(rows[0].estimatePieces.map((piece) => [piece.start, piece.days])).toEqual([
+      ["2024-03-01", 365],
+      ["2025-03-01", 365],
+    ]);
+  });
+
+  it("estimates no cost after the Benaco site removal date", () => {
+    // Fairmont Olympic (6598d381) was removed on 2026-07-27.
+    const row = buildBenacoCostCommitments([
+      deal({
+        benaco_url: url("6598d381"),
+        benaco_hosting_start: "2026-08-01",
+        benaco_hosting_end: "2027-07-31",
+        benaco_counted_grid_panos: 3348,
+      }),
+    ]).find((cost) => cost.tourId === "6598d381")!;
+    expect(row.estimatedPanoCost).toBe(0);
+    expect(row.estimatePieces).toEqual([]);
   });
 });

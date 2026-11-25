@@ -27,15 +27,23 @@ export function isConfirmedBenacoLossOnly(
   );
 }
 
+// The estimated cost of the uncovered days in one HubSpot term, booked at that term's start.
+export type BenacoEstimatePiece = { start: string; days: number; cost: number };
+
 export type BenacoCostCommitment = {
   tourId: string;
   name: string;
   start: string | null;
   recordedPanoCost: number;
   estimatedPanoCost: number;
+  // Per-term pieces of estimatedPanoCost. A renewal's cost belongs to its own term start, like
+  // its fee, not to the tour's first start (which may fall before the report start).
+  estimatePieces: BenacoEstimatePiece[];
   totalPanoCost: number;
   missingInputs: boolean;
 };
+
+const isoDay = (value: number) => new Date(value).toISOString().slice(0, 10);
 
 function number(value: unknown): number | null {
   if (value === null || value === undefined || String(value).trim() === "") return null;
@@ -62,8 +70,11 @@ function incompleteInterval(start: string | Date | null, end: string | Date | nu
   return from === null || to === null || to < from;
 }
 
+// Each paid or complimentary term as [first day, day after the last covered day]. HubSpot end
+// dates are the last covered day (inclusive), so a 2026-01-01 to 2026-12-31 term is 365 days.
+// A same-day complimentary placeholder (end = start) still contributes zero days.
 function termIntervals(deals: readonly HostingDealRow[]): Array<[number, number]> {
-  const intervals = deals
+  return deals
     .flatMap((deal) => [
       [time(deal.benaco_hosting_start), time(deal.benaco_hosting_end)],
       [time(deal.benaco_comp_start), time(deal.benaco_comp_end)],
@@ -71,14 +82,8 @@ function termIntervals(deals: readonly HostingDealRow[]): Array<[number, number]
     .filter(
       (pair): pair is [number, number] => pair[0] !== null && pair[1] !== null && pair[1] > pair[0],
     )
-    .sort((a, b) => a[0] - b[0]);
-  const merged: Array<[number, number]> = [];
-  for (const interval of intervals) {
-    const previous = merged.at(-1);
-    if (previous && interval[0] <= previous[1]) previous[1] = Math.max(previous[1], interval[1]);
-    else merged.push([...interval]);
-  }
-  return merged;
+    .map(([from, last]): [number, number] => [from, last + DAY])
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
 }
 
 export function buildBenacoCostCommitments(
@@ -103,7 +108,7 @@ export function buildBenacoCostCommitments(
     const lossOnly =
       LOSS_ONLY_TOURS.has(id) &&
       !paidTerm &&
-      intervals.every(([, to]) => to <= LOSS_CONFIRMATION_DATE);
+      intervals.every(([, after]) => after - DAY <= LOSS_CONFIRMATION_DATE);
     const knownCounts = related
       .map((deal) => number(deal.benaco_counted_grid_panos))
       .filter((count): count is number => count !== null);
@@ -120,15 +125,27 @@ export function buildBenacoCostCommitments(
     const billedThrough = record ? time(record.created)! + record.billedDays * DAY : null;
     // Historical charges are already captured once by the workbook. Only model
     // uncovered days after their coverage ends, not a second full-term charge.
+    // Walk the terms in order so overlapping terms never count a day twice, and book each term's
+    // uncovered days at that term's own start. The removal date is the last hosted day: no cost
+    // is estimated after it, even for a term that HubSpot still shows later.
     const removed = time(record?.removedOn);
-    const remainingDays = lossOnly
-      ? 0
-      : intervals.reduce((sum, [from, to]) => {
-          const end = removed !== null && from <= removed ? Math.min(to, removed) : to;
-          return sum + Math.max(0, end - Math.max(from, billedThrough ?? from)) / DAY;
-        }, 0);
-    const estimatedPanoCost =
-      grid === null ? 0 : (grid * BENACO_VERIFIED_ANNUAL_GRID_RATE * remainingDays) / 365;
+    const hostedUntil = removed === null ? Infinity : removed + DAY;
+    let covered = billedThrough ?? -Infinity;
+    const estimatePieces: BenacoEstimatePiece[] = [];
+    if (!lossOnly) {
+      for (const [from, after] of intervals) {
+        const end = Math.min(after, hostedUntil);
+        const begin = Math.max(from, covered);
+        const days = Math.max(0, end - begin) / DAY;
+        if (days > 0) {
+          const cost = grid === null ? 0 : (grid * BENACO_VERIFIED_ANNUAL_GRID_RATE * days) / 365;
+          estimatePieces.push({ start: isoDay(from), days, cost });
+        }
+        covered = Math.max(covered, end);
+      }
+    }
+    const remainingDays = estimatePieces.reduce((sum, piece) => sum + piece.days, 0);
+    const estimatedPanoCost = estimatePieces.reduce((sum, piece) => sum + piece.cost, 0);
     const recordedPanoCost = record?.panoCost ?? 0;
     const incompleteTerm = related.some(
       (deal) =>
@@ -146,6 +163,7 @@ export function buildBenacoCostCommitments(
       start: start === null ? null : new Date(start).toISOString().slice(0, 10),
       recordedPanoCost,
       estimatedPanoCost,
+      estimatePieces,
       totalPanoCost: recordedPanoCost + estimatedPanoCost,
       missingInputs:
         !lossOnly &&

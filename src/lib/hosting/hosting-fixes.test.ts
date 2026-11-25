@@ -5,8 +5,10 @@ import { hostingPeriodIsConfirmed, hostingPeriodStatus } from "./period-status";
 import {
   buildHostingReport,
   hostingRevenueGaps,
+  isHostingDealActiveOn,
   isHostingTermExpired,
   normalizeHostingDealDates,
+  upcomingHostingRenewals,
   type HostingDealRow,
   type HostingGrouping,
   type HostingIvionSite,
@@ -43,20 +45,77 @@ describe("hosting dates", () => {
     const text = deal({
       benaco_url: url("feedface"),
       benaco_hosting_start: "2025-03-01",
-      benaco_hosting_end: "2026-03-01",
+      benaco_hosting_end: "2026-02-28", // last covered day: 365 days
       benaco_contracted_fee: 900,
       benaco_counted_grid_panos: 1000,
     });
     const asDates = {
       ...text,
       benaco_hosting_start: new Date("2025-03-01T00:00:00Z"),
-      benaco_hosting_end: new Date("2026-03-01T00:00:00Z"),
+      benaco_hosting_end: new Date("2026-02-28T00:00:00Z"),
     } as unknown as HostingDealRow;
     const [fromText] = buildBenacoCostCommitments([text], []);
     const [fromDates] = buildBenacoCostCommitments([asDates], []);
     expect(fromText.estimatedPanoCost).toBeCloseTo(380, 2);
     expect(fromDates).toEqual(fromText);
     expect(normalizeHostingDealDates(asDates).benaco_hosting_start).toBe("2025-03-01");
+  });
+});
+
+describe("hosting audit fixes", () => {
+  it("reports a 2025 renewal's cost even when the tour started before the report start", () => {
+    const first = deal({
+      benaco_url: url("feedcafe"),
+      benaco_hosting_start: "2024-03-01",
+      benaco_hosting_end: "2025-02-28",
+      benaco_contracted_fee: 400,
+      benaco_counted_grid_panos: 1000,
+    });
+    const renewal = deal({
+      ...first,
+      id: "d2",
+      hubspot_deal_id: "2",
+      benaco_hosting_start: "2025-03-01",
+      benaco_hosting_end: "2026-02-28",
+    });
+    const rows = buildHostingReport([first, renewal], "month", [], today, "all", {}, [], false);
+    const march = rows.find((row) => row.period === "2025-03")!;
+    expect(march.benacoRevenue).toBe(400); // the renewal fee
+    expect(march.benacoPanoCosts).toBeCloseTo(1000 * 0.38, 8); // and its own 365 days of cost
+    expect(rows.some((row) => row.period.startsWith("2024-"))).toBe(false);
+  });
+
+  it("lists terms ending in the next 90 days by their latest-ending term", () => {
+    const due = upcomingHostingRenewals(
+      [
+        deal({ id: "a", ivion_hosting_end: "2026-12-01", ivion_contracted_fee: 900 }),
+        // Complimentary ends soon, but the paid term that follows ends later: not due.
+        deal({ id: "b", benaco_comp_end: "2026-11-20", benaco_hosting_end: "2027-11-30" }),
+        deal({ id: "c", benaco_comp_end: "2026-11-16" }), // ends today: still due
+        deal({ id: "d", ivion_hosting_end: "2026-11-15" }), // already ended
+        deal({ id: "e", ivion_hosting_end: "2027-03-01" }), // beyond 90 days
+      ],
+      "combined",
+      today,
+    );
+    expect(
+      due.map((item) => [item.deal.id, item.platform, item.kind, item.daysLeft, item.fee]),
+    ).toEqual([
+      ["c", "Benaco", "complimentary", 0, null],
+      ["a", "IVION", "paid", 15, 900],
+    ]);
+    expect(
+      upcomingHostingRenewals([deal({ ivion_hosting_end: "2026-12-01" })], "benaco", today),
+    ).toEqual([]);
+  });
+
+  it("uses the same dates at every grouping when a custom range is blank", () => {
+    const deals = [deal({ ivion_hosting_start: "2025-06-01", ivion_contracted_fee: 1000 })];
+    const spans = (["month", "quarter", "half", "year"] as HostingGrouping[]).map((grouping) => {
+      const rows = buildHostingReport(deals, grouping, [site], today, "custom", {}, [], false);
+      return [rows[0]?.periodStart, rows.at(-1)?.periodEnd, total(rows).revenue];
+    });
+    for (const span of spans) expect(span).toEqual(spans[0]);
   });
 });
 
@@ -167,7 +226,15 @@ describe("hosting business dates", () => {
     // 9:30pm Eastern on Nov 16 is already Nov 17 in UTC.
     const evening = new Date("2026-11-17T02:30:00Z");
     expect(isHostingTermExpired("2026-11-17", evening)).toBe(false);
-    expect(isHostingTermExpired("2026-11-16", evening)).toBe(true);
+    // The end date is the last covered day: still current on Nov 16, expired after it.
+    expect(isHostingTermExpired("2026-11-16", evening)).toBe(false);
+    expect(isHostingTermExpired("2026-11-15", evening)).toBe(true);
+  });
+
+  it("treats a deal as active through its end date", () => {
+    const term = deal({ ivion_hosting_start: "2026-01-01", ivion_hosting_end: "2026-11-16" });
+    expect(isHostingDealActiveOn(term, new Date("2026-11-16T17:00:00Z"), "ivion")).toBe(true);
+    expect(isHostingDealActiveOn(term, new Date("2026-11-17T17:00:00Z"), "ivion")).toBe(false);
   });
 });
 

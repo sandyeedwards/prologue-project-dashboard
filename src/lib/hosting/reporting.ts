@@ -11,6 +11,7 @@ import {
   IVION_INVOICE_COVERAGE_END,
 } from "./ivion-invoice-history";
 import { easternIsoDate } from "@/lib/reporting/format";
+import { HOSTING_REPORT_START, HOSTING_REPORT_START_YEAR } from "./report-start";
 
 export type HostingGrouping = "month" | "quarter" | "half" | "year";
 export type HostingView = "combined" | "ivion" | "benaco";
@@ -23,7 +24,7 @@ export const BENACO_MONTHLY_OVERHEAD = 100;
 export const BENACO_ANNUAL_OVERHEAD = BENACO_MONTHLY_OVERHEAD * 12;
 export const BENACO_ANNUAL_PANO_COST = BENACO_VERIFIED_ANNUAL_GRID_RATE;
 export const BENACO_SUBSCRIPTION_START = "2023-09-01";
-export const HOSTING_REPORT_START = "2024-01-01";
+export { HOSTING_REPORT_START, HOSTING_REPORT_START_YEAR };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -300,7 +301,8 @@ function reportBounds(
 
   if (range === "custom") {
     return fromHistoryStart(
-      parsedCustomBounds(custom.from, custom.to) ?? defaultReportBounds(grouping, referenceDate),
+      // A blank or invalid custom range falls back to the same months at every grouping.
+      parsedCustomBounds(custom.from, custom.to) ?? defaultReportBounds("month", referenceDate),
     );
   }
   // One forecast horizon for every grouping, so switching month/quarter/half/year never changes
@@ -487,7 +489,8 @@ export function isHostingTermExpired(end: string | null, target = new Date()): b
   const parsedEnd = dateValue(end);
   if (!parsedEnd) return false;
   const targetDay = businessDay(target).getTime();
-  return parsedEnd.getTime() <= targetDay;
+  // HubSpot end dates are the last covered day, so a term is still current on its end date.
+  return parsedEnd.getTime() < targetDay;
 }
 
 export function hostingDealTermSummary(
@@ -518,7 +521,7 @@ export function hostingDealTermSummary(
     value ? (dateValue(value)?.getTime() ?? fallback) : fallback;
   const isActive = (candidate: (typeof available)[number]) =>
     timestamp(candidate.start, Number.NEGATIVE_INFINITY) <= targetDay &&
-    timestamp(candidate.end, Number.POSITIVE_INFINITY) > targetDay;
+    timestamp(candidate.end, Number.POSITIVE_INFINITY) >= targetDay; // end date is inclusive
 
   const selected =
     available.find(isActive) ??
@@ -664,10 +667,14 @@ export function buildHostingReport(
     }
 
     for (const tour of tourCosts) {
-      if (!dateInPeriod(dateValue(tour.start), period)) continue;
-      benacoBilledCost += tour.recordedPanoCost;
-      benacoPanoCosts += tour.estimatedPanoCost;
-      benacoEstimatedPanoCosts += tour.estimatedPanoCost;
+      // Recorded billing detail stays at the tour start; each term's estimated uncovered days
+      // are booked at that term's start, so a 2025 renewal of a 2024 tour is not lost.
+      if (dateInPeriod(dateValue(tour.start), period)) benacoBilledCost += tour.recordedPanoCost;
+      for (const piece of tour.estimatePieces) {
+        if (!dateInPeriod(dateValue(piece.start), period)) continue;
+        benacoPanoCosts += piece.cost;
+        benacoEstimatedPanoCosts += piece.cost;
+      }
     }
 
     let monthStart = startOfPeriod(period.start, "month");
@@ -677,7 +684,9 @@ export function buildHostingReport(
         key: periodLabel(monthStart, "month"),
         start: new Date(Math.max(monthStart.getTime(), period.start.getTime())),
         endExclusive: new Date(Math.min(monthEnd.getTime(), period.endExclusive.getTime())),
-        forecast: monthStart.getTime() > referenceDate.getTime(),
+        // Same Eastern business-day cutoff as the period split above, so a month is not
+        // treated as future (or as missing invoices) differently after 7–8pm ET.
+        forecast: monthStart.getTime() >= cutoff.getTime(),
       };
       const bill = benacoBillsByMonth.get(monthPeriod.key);
       if (
@@ -693,7 +702,7 @@ export function buildHostingReport(
         }
       } else if (
         monthPeriod.key > IVION_INVOICE_COVERAGE_END &&
-        monthPeriod.start.getTime() <= referenceDate.getTime() &&
+        monthPeriod.start.getTime() < cutoff.getTime() &&
         dateInPeriod(monthStart, period)
       ) {
         // A month that has started but has no loaded invoices: unknown cost, not a recorded $0.
@@ -769,7 +778,7 @@ function includesDate(start: string | null, end: string | null, target: Date): b
   const targetDay = businessDay(target);
   return (
     targetDay.getTime() >= parsedStart.getTime() &&
-    (!parsedEnd || targetDay.getTime() < parsedEnd.getTime())
+    (!parsedEnd || targetDay.getTime() <= parsedEnd.getTime()) // end date is the last covered day
   );
 }
 
@@ -788,6 +797,68 @@ export function isHostingDealActiveOn(
   if (view === "ivion") return ivionActive;
   if (view === "benaco") return benacoActive;
   return ivionActive || benacoActive;
+}
+
+export type HostingRenewalDue = {
+  deal: HostingDealRow;
+  platform: "IVION" | "Benaco";
+  kind: "paid" | "complimentary";
+  end: string;
+  daysLeft: number;
+  fee: number | null;
+};
+
+/**
+ * Hosting terms whose current coverage ends within the next `days` days (end date inclusive,
+ * Eastern business day). Each platform on a deal is listed once, by its latest-ending term, so a
+ * complimentary period followed by a paid term is not shown as ending early.
+ */
+export function upcomingHostingRenewals(
+  deals: HostingDealRow[],
+  view: HostingView = "combined",
+  target = new Date(),
+  days = 90,
+): HostingRenewalDue[] {
+  const today = businessDay(target).getTime();
+  const horizon = today + days * DAY_MS;
+  const due: HostingRenewalDue[] = [];
+  for (const deal of deals) {
+    const platforms = [
+      {
+        platform: "IVION" as const,
+        include: view !== "benaco",
+        terms: [
+          { kind: "paid" as const, end: deal.ivion_hosting_end, fee: deal.ivion_contracted_fee },
+          { kind: "complimentary" as const, end: deal.ivion_comp_end, fee: null },
+        ],
+      },
+      {
+        platform: "Benaco" as const,
+        include: view !== "ivion",
+        terms: [
+          { kind: "paid" as const, end: deal.benaco_hosting_end, fee: deal.benaco_contracted_fee },
+          { kind: "complimentary" as const, end: deal.benaco_comp_end, fee: null },
+        ],
+      },
+    ];
+    for (const { platform, include, terms } of platforms) {
+      if (!include) continue;
+      const latest = terms
+        .map((term) => ({ ...term, endTime: dateValue(term.end)?.getTime() ?? null }))
+        .filter((term): term is typeof term & { endTime: number } => term.endTime !== null)
+        .sort((left, right) => right.endTime - left.endTime)[0];
+      if (!latest || latest.endTime < today || latest.endTime > horizon) continue;
+      due.push({
+        deal,
+        platform,
+        kind: latest.kind,
+        end: isoDate(new Date(latest.endTime)),
+        daysLeft: Math.round((latest.endTime - today) / DAY_MS),
+        fee: latest.kind === "paid" ? numeric(latest.fee) || null : null,
+      });
+    }
+  }
+  return due.sort((left, right) => left.end.localeCompare(right.end));
 }
 
 export function hostingRowForView(
