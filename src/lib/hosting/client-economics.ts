@@ -19,8 +19,8 @@ import { easternIsoDate } from "@/lib/reporting/format";
 const DAY = 86_400_000;
 const BENACO_ANNUAL_SUBSCRIPTION = 1200;
 
-// HubSpot deal names end with an inconsistent client abbreviation ("3N", "3north", "3North").
-// Until clients come from one register, these known spellings are merged for reporting.
+// Fallback only, for deals with no associated HubSpot company: deal names end with an
+// inconsistent client abbreviation ("3N", "3north", "3North"), so known spellings are merged.
 const CLIENT_ALIASES: Record<string, string> = {
   "3n": "3North",
   "3north": "3North",
@@ -41,14 +41,19 @@ const CLIENT_ALIASES: Record<string, string> = {
   bdtmsd: "BDT",
 };
 
-export const UNNAMED_CLIENT = "No client in deal name";
+export const UNNAMED_CLIENT = "No company in HubSpot";
 
 const aliasKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-/** The client for a deal: the last " - " part of the deal name, or the contact's email domain. */
+/**
+ * The client for a deal: its associated HubSpot company. Without one, the last " - " part of
+ * the deal name, then the contact's email domain.
+ */
 export function hostingClientName(
-  deal: Pick<HostingDealRow, "deal_name" | "hosting_communications_contact">,
+  deal: Pick<HostingDealRow, "deal_name" | "hosting_communications_contact" | "company_name">,
 ): string {
+  const company = deal.company_name?.trim();
+  if (company) return company;
   const parts = (deal.deal_name ?? "").split(" - ").map((part) => part.trim());
   const domain = deal.hosting_communications_contact?.match(/@([\w.-]+)/)?.[1];
   const raw =

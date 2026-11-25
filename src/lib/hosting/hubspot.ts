@@ -178,6 +178,89 @@ export async function batchReadDeals(ids: string[], properties: string[]): Promi
   return deals;
 }
 
+export type HubSpotAssociationTarget = {
+  toObjectId?: string | number;
+  associationTypes?: Array<{ typeId?: number; label?: string | null; category?: string }>;
+};
+
+/**
+ * The company to report for a deal: its only associated company, or the one labelled Primary
+ * when there are several. Returns null when there is none or the choice is ambiguous. Same rule
+ * as the Hosting Manager (hubspot_client.company_names_for_deals).
+ */
+export function pickDealCompanyId(targets: HubSpotAssociationTarget[]): {
+  companyId: string | null;
+  ambiguous: boolean;
+} {
+  const ids = (target: HubSpotAssociationTarget) => String(target.toObjectId ?? "");
+  const companies = new Set(targets.map(ids).filter((id) => /^\d+$/.test(id)));
+  const primary = new Set(
+    targets
+      .filter((target) =>
+        (target.associationTypes ?? []).some(
+          (type) => String(type.label ?? "").toLowerCase() === "primary" || type.typeId === 5,
+        ),
+      )
+      .map(ids)
+      .filter((id) => /^\d+$/.test(id)),
+  );
+  if (companies.size === 1) return { companyId: [...companies][0], ambiguous: false };
+  if (primary.size === 1) return { companyId: [...primary][0], ambiguous: false };
+  return { companyId: null, ambiguous: companies.size > 1 };
+}
+
+export type DealCompany = { companyId: string; companyName: string | null };
+
+/**
+ * Each deal's associated company and its name (read-only batch reads). Deals whose company is
+ * ambiguous are counted, not guessed.
+ */
+export async function readDealCompanies(
+  dealIds: string[],
+): Promise<{ companies: Map<string, DealCompany>; ambiguous: number }> {
+  const links = new Map<string, string>();
+  let ambiguous = 0;
+  const ids = dealIds.filter((id) => /^\d+$/.test(id));
+  for (let index = 0; index < ids.length; index += 100) {
+    const data = await hubspotFetch<{
+      results?: Array<{ from?: { id?: string | number }; to?: HubSpotAssociationTarget[] }>;
+    }>("/crm/v4/associations/deals/companies/batch/read", {
+      method: "POST",
+      body: JSON.stringify({ inputs: ids.slice(index, index + 100).map((id) => ({ id })) }),
+    });
+    for (const item of data.results ?? []) {
+      const dealId = String(item.from?.id ?? "");
+      const choice = pickDealCompanyId(item.to ?? []);
+      if (choice.companyId) links.set(dealId, choice.companyId);
+      else if (choice.ambiguous) ambiguous += 1;
+    }
+  }
+
+  const names = new Map<string, string>();
+  const companyIds = [...new Set(links.values())];
+  for (let index = 0; index < companyIds.length; index += 100) {
+    const data = await hubspotFetch<{
+      results?: Array<{ id?: string | number; properties?: Record<string, unknown> }>;
+    }>("/crm/v3/objects/companies/batch/read", {
+      method: "POST",
+      body: JSON.stringify({
+        properties: ["name"],
+        inputs: companyIds.slice(index, index + 100).map((id) => ({ id })),
+      }),
+    });
+    for (const company of data.results ?? []) {
+      const name = String(company.properties?.name ?? "").trim();
+      if (name) names.set(String(company.id), name);
+    }
+  }
+
+  const companies = new Map<string, DealCompany>();
+  for (const [dealId, companyId] of links) {
+    companies.set(dealId, { companyId, companyName: names.get(companyId) ?? null });
+  }
+  return { companies, ambiguous };
+}
+
 export type HubSpotDealPipeline = {
   id: string;
   label: string;

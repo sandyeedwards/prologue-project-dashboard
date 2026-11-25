@@ -63,6 +63,9 @@ export type HostingDealRow = {
   benaco_annual_fee: string | number | null;
   hosting_notes: string | null;
   hosting_communications_contact: string | null;
+  // The deal's HubSpot client company (optional: older rows and tests may not have it).
+  hubspot_company_id?: string | null;
+  company_name?: string | null;
 };
 
 export type HostingIvionSite = {
@@ -928,7 +931,9 @@ export async function getHostingDashboardData({
         benaco_calculated_cost,
         benaco_annual_fee,
         hosting_notes,
-        hosting_communications_contact
+        hosting_communications_contact,
+        hubspot_company_id,
+        company_name
       from hosting_deals
       -- Keep deals that have since left HubSpot's current "All Hosting Records"
       -- list in historical reporting. The hosting sync intentionally retains those

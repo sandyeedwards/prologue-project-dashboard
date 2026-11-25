@@ -947,14 +947,14 @@ export function HostingReport({
           ) : (
             <p className={styles.empty}>No active hosting today.</p>
           )}
+          {/* One string, so JSX line joining can never drop a space between sentences. */}
           <p className={styles.footnote}>
-            Revenue is each active paid term&apos;s fee as a yearly rate. IVION cost shares the
-            average monthly NavVis hosting bill ({clientEconomics.ivionBilledMonths} months since{" "}
-            {dateLabel(HOSTING_REPORT_START)}) across today&apos;s active panos, about{" "}
-            {currency(clientEconomics.ivionCostPerPanoMonth, 3)}
-            {" per pano per month; NavVis bills per instance, so this is an allocation."} Benaco
-            cost is each tour&apos;s grid panos × {currency(BENACO_ANNUAL_PANO_COST, 2)} a year plus
-            a share of the subscription. Clients come from the end of the HubSpot deal name.
+            {[
+              "Revenue is each active paid term's fee as a yearly rate.",
+              `IVION cost shares the average monthly NavVis hosting bill (${clientEconomics.ivionBilledMonths} months since ${dateLabel(HOSTING_REPORT_START)}) across today's active panos, about ${currency(clientEconomics.ivionCostPerPanoMonth, 3)} per pano per month; NavVis bills per instance, so this is an allocation.`,
+              `Benaco cost is each tour's grid panos × ${currency(BENACO_ANNUAL_PANO_COST, 2)} a year plus a share of the subscription.`,
+              "Clients are the deal's company in HubSpot; deals without one use the end of the deal name.",
+            ].join(" ")}
           </p>
         </section>
 

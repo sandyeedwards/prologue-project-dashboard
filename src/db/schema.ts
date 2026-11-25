@@ -932,6 +932,10 @@ export const hostingDeals = pgTable(
     hostingNotes: text("hosting_notes"),
     hostingCommunicationsContact: text("hosting_communications_contact"),
 
+    // The deal's associated HubSpot company (the client): its only company, or the Primary one.
+    hubspotCompanyId: text("hubspot_company_id"),
+    companyName: text("company_name"),
+
     raw: jsonb("raw").notNull(),
     ...auditColumns,
   },
